@@ -1,0 +1,166 @@
+"Games"
+{
+	"#default"
+	{
+		"Offsets"
+		{
+			"Blocked"
+			{
+				"windows"	"108"
+				"linux"		"109"
+				"mac"		"109"
+			}
+			"EndTouch"
+			{
+				"windows"	"106"
+				"linux"		"107"
+				"mac"		"107"
+			}
+			"FireBullets"
+			{
+				"windows"	"119"
+				"linux"		"120"
+				"mac"		"120"
+			}
+			"GetMaxHealth"
+			{
+				"windows"	"123"
+				"linux"		"124"
+				"mac"		"124"				
+			}
+			"GroundEntChanged"
+			{
+				"windows"	"177"
+				"linux"		"179"
+				"mac"		"179"
+			}
+			"OnTakeDamage"
+			{
+				"windows"	"67"
+				"linux"		"68"
+				"mac"		"68"
+			}
+			"OnTakeDamage_Alive"
+			{
+				"windows"	"291"
+				"linux"		"292"
+				"mac"		"292"
+			}
+			"PreThink"
+			{
+				"windows"	"360"
+				"linux"		"361"
+				"mac"		"361"
+			}
+			"PostThink"
+			{
+				"windows"	"361"
+				"linux"		"362"
+				"mac"		"362"
+			}
+			"Reload"
+			{
+				"windows"	"284"
+				"linux"		"285"
+				"mac"		"285"
+			}
+			"SetTransmit"
+			{
+				"windows"	"22"
+				"linux"		"23"
+				"mac"		"23"
+			}
+			"ShouldCollide"
+			{
+				"windows"	"17"
+				"linux"		"18"
+				"mac"		"18"
+			}
+			"Spawn"
+			{
+				"windows"	"24"
+				"linux"		"25"
+				"mac"		"25"
+			}
+			"StartTouch"
+			{
+				"windows"	"104"
+				"linux"		"105"
+				"mac"		"105"
+			}
+			"Think"
+			{
+				"windows"	"51"
+				"linux"		"52"
+				"mac"		"52"
+			}
+			"Touch"
+			{
+				"windows"	"105"
+				"linux"		"106"
+				"mac"		"106"
+			}
+			"TraceAttack"
+			{
+				"windows"	"65"
+				"linux"		"66"
+				"mac"		"66"
+			}
+			"Use"
+			{
+				"windows"	"103"
+				"linux"		"104"
+				"mac"		"104"
+			}
+			"VPhysicsUpdate"
+			{
+				"windows"	"156"
+				"linux"		"157"
+				"mac"		"157"
+			}
+			"Weapon_CanSwitchTo"
+			{
+				"windows"	"285"
+				"linux"		"286"
+				"mac"		"286"
+			}
+			"Weapon_CanUse"
+			{
+				"windows"	"279"
+				"linux"		"280"
+				"mac"		"280"
+			}
+			"Weapon_Drop"
+			{
+				"windows"	"282"
+				"linux"		"283"
+				"mac"		"283"
+			}
+			"Weapon_Equip"
+			{
+				"windows"	"280"
+				"linux"		"281"
+				"mac"		"281"
+			}
+			"Weapon_Switch"
+			{
+				"windows"	"283"
+				"linux"		"284"
+				"mac"		"284"
+			}
+		}
+	}
+	
+	"#default"
+	{
+		"Offsets"
+		{
+			"EntityListeners"
+			{
+				"windows"	"196644"
+				"linux"		"196644"
+				"mac"		"196644"
+			}
+		}
+	}
+}

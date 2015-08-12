@@ -1,0 +1,179 @@
+"Phrases"
+{
+	//Chat Messages
+	//Color list: http://forums.alliedmods.net/showthread.php?t=96831
+	"WelcomeMsg1"
+	{
+		"#format"	"{1:N}"
+		"en"		"{green}Hello {olive}{1}! {lightgreen}Welcome to Sernix 24/7 Coop! {green}"
+	}
+	
+	"WelcomeMsg2"
+	{
+		"en"		"{green}######=- To revive players, choose medic class and hold knife out while standing over body -=######{lightgreen}"
+	}
+	
+	"WelcomeMsg3"
+	{
+		"en"		"{green}Check steamcommunity.com/groups/SernixINS for more details!{lightgreen}"
+	}
+	
+	"WelcomeMsg4"
+	{
+		"en"		"{green}Example Line {lightgreen}4"
+	}
+	
+	"WelcomeMsg5"
+	{
+		"en"		"{green}Example Line {lightgreen}5"
+	}
+	
+	"WelcomeMsg6"
+	{
+		"en"		"{green}Example Line {lightgreen}6"
+	}
+	
+	"WelcomeMsg7"
+	{
+		"en"		"{green}Example Line {lightgreen}7"
+	}
+	
+	"WelcomeMsg8"
+	{
+		"en"		"{green}Example Line {lightgreen}8"
+	}
+	
+	//Panel Messages
+	"PanelTitle"
+	{
+		"en"		"Welcome!"
+		"pl"		"Witaj!"
+	}
+	
+	"PanelClose"
+	{
+		"en"		"0. Close"
+		"pl"		"0. Zamknij"
+	}
+	
+	"PanelLine1"
+	{
+		"en"		"Welcome on our server! GL&HF!"
+		"pl"		"Witaj na naszym serwerze! GL&HF!"
+	}
+	
+	"PanelLine2"
+	{
+		"en"		"Example Line 2"
+		"pl"		"Przykładowa Linia 2"
+	}
+	
+	"PanelLine3"
+	{
+		"en"		"Example Line 3"
+		"pl"		"Przykładowa Linia 3"
+	}
+	
+	"PanelLine4"
+	{
+		"en"		"Example Line 4"
+		"pl"		"Przykładowa Linia 4"
+	}
+	
+	"PanelLine5"
+	{
+		"en"		"Example Line 5"
+		"pl"		"Przykładowa Linia 5"
+	}
+	
+	"PanelLine6"
+	{
+		"en"		"Example Line 6"
+		"pl"		"Przykładowa Linia 6"
+	}
+	
+	"PanelLine7"
+	{
+		"en"		"Example Line 7"
+		"pl"		"Przykładowa Linia 7"
+	}
+	
+	"PanelLine8"
+	{
+		"en"		"Example Line 8"
+		"pl"		"Przykładowa Linia 8"
+	}
+	
+	"PanelLine9"
+	{
+		"en"		"Example Line 9"
+		"pl"		"Przykładowa Linia 9"
+	}
+	
+	"PanelLine10"
+	{
+		"en"		"Example Line 10"
+		"pl"		"Przykładowa Linia 10"
+	}
+	
+	"PanelLine11"
+	{
+		"en"		"Example Line 11"
+		"pl"		"Przykładowa Linia 11"
+	}
+	
+	"PanelLine12"
+	{
+		"en"		"Example Line 12"
+		"pl"		"Przykładowa Linia 12"
+	}
+	
+	"PanelLine13"
+	{
+		"en"		"Example Line 13"
+		"pl"		"Przykładowa Linia 13"
+	}
+	
+	"PanelLine14"
+	{
+		"en"		"Example Line 14"
+		"pl"		"Przykładowa Linia 14"
+	}
+	
+	"PanelLine15"
+	{
+		"en"		"Example Line 15"
+		"pl"		"Przykładowa Linia 15"
+	}
+	
+	"PanelLine16"
+	{
+		"en"		"Example Line 16"
+		"pl"		"Przykładowa Linia 16"
+	}
+	//Hint Message
+	"HintMessage"
+	{
+		"en"		"Welcome on our server! GL and HF!"
+		"pl"		"Witaj na naszym serwerze! GL and HF!"
+	}
+	
+	//Mod Detection
+	"Insurgency"
+	{
+		"en"		"Set the maximum number of lines for Insurgency mod."
+		"pl"		"Ustawiono maksymalną liczbę linii dla Insurgency."
+	}
+	
+	"L4D"
+	{
+		"en"		"Set the maximum number of lines for Left 4 Dead."
+		"pl"		"Ustawiono maksymalną liczbę linii dla Left 4 Dead."
+	}
+		
+	"Other"
+	{
+		"en"		"Set the maximum number of lines of."
+		"pl"		"Ustawiono maksymalną liczbę linii."
+	}
+}

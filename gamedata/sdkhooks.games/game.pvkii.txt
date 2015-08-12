@@ -1,0 +1,154 @@
+"Games"
+{
+	/* Pirates, Vikings and Knights II */
+	"pvkii"
+	{
+		"Offsets"
+		{
+			"Blocked"
+			{
+				"windows"	"103"
+				"linux"		"104"
+				"mac"		"104"
+			}
+			"EndTouch"
+			{
+				"windows"	"101"
+				"linux"		"102"
+				"mac"		"102"
+			}
+			"FireBullets"
+			{
+				"windows"	"113"
+				"linux"		"114"
+				"mac"		"114"
+			}
+			"GetMaxHealth"
+			{
+				"windows"	"118"
+				"linux"		"119"
+				"mac"		"119"
+			}
+			"GroundEntChanged"
+			{
+				"windows"	"178"
+				"linux"		"180"
+				"mac"		"180"
+			}
+			"OnTakeDamage"
+			{
+				"windows"	"63"
+				"linux"		"64"
+				"mac"		"64"
+			}
+			"OnTakeDamage_Alive"
+			{
+				"windows"	"274"
+				"linux"		"275"
+				"mac"		"275"
+			}
+			"PreThink"
+			{
+				"windows"	"335"
+				"linux"		"336"
+				"mac"		"336"
+			}
+			"PostThink"
+			{
+				"windows"	"336"
+				"linux"		"337"
+				"mac"		"337"
+			}
+			"Reload"
+			{
+				"windows"	"272"
+				"linux"		"273"
+				"mac"		"273"
+			}
+			"SetTransmit"
+			{
+				"windows"	"21"
+				"linux"		"22"
+				"mac"		"22"
+			}
+			"ShouldCollide"
+			{
+				"windows"	"16"
+				"linux"		"17"
+				"mac"		"17"
+			}
+			"Spawn"
+			{
+				"windows"	"23"
+				"linux"		"24"
+				"mac"		"24"
+			}
+			"StartTouch"
+			{
+				"windows"	"99"
+				"linux"		"100"
+				"mac"		"100"
+			}
+			"Think"
+			{
+				"windows"	"48"
+				"linux"		"49"
+				"mac"		"49"
+			}
+			"Touch"
+			{
+				"windows"	"100"
+				"linux"		"101"
+				"mac"		"101"
+			}
+			"TraceAttack"
+			{
+				"windows"	"61"
+				"linux"		"62"
+				"mac"		"62"
+			}
+			"Use"
+			{
+				"windows"	"98"
+				"linux"		"99"
+				"mac"		"99"
+			}
+			"VPhysicsUpdate"
+			{
+				"windows"	"158"
+				"linux"		"159"
+				"mac"		"159"
+			}
+			"Weapon_CanSwitchTo"
+			{
+				"windows"	"268"
+				"linux"		"269"
+				"mac"		"269"
+			}
+			"Weapon_CanUse"
+			{
+				"windows"	"262"
+				"linux"		"263"
+				"mac"		"263"
+			}
+			"Weapon_Drop"
+			{
+				"windows"	"265"
+				"linux"		"266"
+				"mac"		"266"
+			}
+			"Weapon_Equip"
+			{
+				"windows"	"263"
+				"linux"		"264"
+				"mac"		"264"
+			}
+			"Weapon_Switch"
+			{
+				"windows"	"266"
+				"linux"		"267"
+				"mac"		"267"
+			}
+		}
+	}
+}

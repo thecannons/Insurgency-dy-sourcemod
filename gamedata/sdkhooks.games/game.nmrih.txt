@@ -1,0 +1,147 @@
+"Games"
+{
+	"nmrih"
+	{
+		"Offsets"
+		{
+			"Blocked"
+			{
+				"windows"	"104"
+				"linux"		"105"
+				"mac"		"105"
+			}
+			"EndTouch"
+			{
+				"windows"	"102"
+				"linux"		"103"
+				"mac"		"103"
+			}
+			"FireBullets"
+			{
+				"windows"	"114"
+				"linux"		"115"
+				"mac"		"115"
+			}
+			"GroundEntChanged"
+			{
+				"windows"	"179"
+				"linux"		"181"
+				"mac"		"181"
+			}
+			"OnTakeDamage"
+			{
+				"windows"	"62"
+				"linux"		"63"
+				"mac"		"63"
+			}
+			"OnTakeDamage_Alive"
+			{
+				"windows"	"274"
+				"linux"		"275"
+				"mac"		"275"
+			}
+			"PreThink"
+			{
+				"windows"	"346"
+				"linux"		"347"
+				"mac"		"347"
+			}
+			"PostThink"
+			{
+				"windows"	"326"
+				"linux"		"327"
+				"mac"		"327"
+			}
+			"Reload"
+			{
+				"windows"	"271"
+				"linux"		"272"
+				"mac"		"272"
+			}
+			"SetTransmit"
+			{
+				"windows"	"20"
+				"linux"		"21"
+				"mac"		"21"
+			}
+			"ShouldCollide"
+			{
+				"windows"	"16"
+				"linux"		"17"
+				"mac"		"17"
+			}
+			"Spawn"
+			{
+				"windows"	"22"
+				"linux"		"23"
+				"mac"		"23"
+			}
+			"StartTouch"
+			{
+				"windows"	"100"
+				"linux"		"101"
+				"mac"		"101"
+			}
+			"Think"
+			{
+				"windows"	"47"
+				"linux"		"48"
+				"mac"		"48"
+			}
+			"Touch"
+			{
+				"windows"	"101"
+				"linux"		"102"
+				"mac"		"102"
+			}
+			"TraceAttack"
+			{
+				"windows"	"60"
+				"linux"		"61"
+				"mac"		"61"
+			}
+			"Use"
+			{
+				"windows"	"98"
+				"linux"		"99"
+				"mac"		"99"
+			}
+			"VPhysicsUpdate"
+			{
+				"windows"	"159"
+				"linux"		"160"
+				"mac"		"160"
+			}
+			"Weapon_CanSwitchTo"
+			{
+				"windows"	"268"
+				"linux"		"269"
+				"mac"		"269"
+			}
+			"Weapon_CanUse"
+			{
+				"windows"	"262"
+				"linux"		"263"
+				"mac"		"263"
+			}
+			"Weapon_Drop"
+			{
+				"windows"	"265"
+				"linux"		"266"
+				"mac"		"266"
+			}
+			"Weapon_Equip"
+			{
+				"windows"	"263"
+				"linux"		"264"
+				"mac"		"264"
+			}
+			"Weapon_Switch"
+			{
+				"windows"	"266"
+				"linux"		"267"
+				"mac"		"267"
+			}
+		}
+	}
+}
