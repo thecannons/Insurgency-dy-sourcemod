@@ -101,6 +101,16 @@ new Handle:sm_fatal_head_chance = INVALID_HANDLE;
 new Handle:sm_nav_mesh_spawning = INVALID_HANDLE;
 new Handle:sm_spawn_security_on_counter = INVALID_HANDLE;
 new Handle:sm_enable_track_ammo = INVALID_HANDLE;
+new Handle:sm_min_counter_dur_sec = INVALID_HANDLE;
+new Handle:sm_max_counter_dur_sec = INVALID_HANDLE;
+new Handle:sm_counter_chance = INVALID_HANDLE;
+new Handle:sm_reinforce_multiplier = INVALID_HANDLE;
+new Handle:sm_reinforce_time = INVALID_HANDLE;
+new Handle:sm_reinforce_time_subsequent = INVALID_HANDLE;
+new Handle:sm_check_static_enemy = INVALID_HANDLE;
+//new Handle:sm_temp_map_fix = INVALID_HANDLE;
+
+
 
 //Medic specific
 new Handle:sm_revive_seconds = INVALID_HANDLE;
@@ -116,7 +126,7 @@ new Handle:cvarMinPlayerDistance = INVALID_HANDLE; //Min/max distance from playe
 new Handle:cvarMaxPlayerDistance = INVALID_HANDLE; //Min/max distance from players to spawn
 //new Float:g_vecOrigin[MAXPLAYERS+1][3];
 
-new g_always_counter, g_reinforceTime, g_iSpawnMode, g_team_lives_2, g_team_lives_3, g_team_lives_3_total, g_team_lives_2_total, g_teams_spawned_bool, g_respawn_lives_modifier, g_respawn_type, g_respawn_count_team2, g_respawn_count_team3, g_revive_seconds, g_revive_health, g_heal_amount, Float:g_flMinPlayerDistance, Float:g_flMaxPlayerDistance, Float:g_flMinCounterattackDistance;
+new g_checkStaticAmt, g_isConquer, g_isCheckpoint, g_isHunt, g_always_counter, g_reinforceTime, g_iSpawnMode, g_team_lives_2, g_team_lives_3, g_team_lives_3_total, g_team_lives_2_total, g_teams_spawned_bool, g_respawn_lives_modifier, g_respawn_type, g_respawn_count_team2, g_respawn_count_team3, g_revive_seconds, g_revive_health, g_heal_amount, Float:g_flMinPlayerDistance, Float:g_flMaxPlayerDistance, Float:g_flMinCounterattackDistance;
 new Float:g_vecOrigin[MAXPLAYERS+1][3];
 new Float:g_fInterval  = 5.0;
 enum SpawnModes {
@@ -124,6 +134,10 @@ enum SpawnModes {
 	SpawnMode_HidingSpots,
 	SpawnMode_SpawnPoints,
 };
+//Kill Stray Enemy Bots Globals
+new Float:g_enemyTimerPos[MAXPLAYERS+1][3];
+new Float:g_enemyPos[MAXPLAYERS+1][3];
+
 new g_iSpawnTokens[MAXPLAYERS+1];
 new g_hurtFatal[MAXPLAYERS+1];
 new Float:g_iDeadVectors[MAXPLAYERS+1][3];
@@ -154,9 +168,9 @@ public OnPluginStart()
 	}
 	//Nav Mesh Botspawn specific START
 	cvarSpawnMode = CreateConVar("sm_botspawns_spawn_mode", "1", "Only normal spawnpoints at the objective, the old way (0), spawn in hiding spots following rules (1), spawnpoints that meet rules (2)", FCVAR_NOTIFY | FCVAR_PLUGIN);
-	cvarMinCounterattackDistance = CreateConVar("sm_botspawns_min_counterattack_distance", "600.0", "Min distance from counterattack objective to spawn", FCVAR_NOTIFY | FCVAR_PLUGIN);
-	cvarMinPlayerDistance = CreateConVar("sm_botspawns_min_player_distance", "400.0", "Min distance from players to spawn", FCVAR_NOTIFY | FCVAR_PLUGIN);
-	cvarMaxPlayerDistance = CreateConVar("sm_botspawns_max_player_distance", "600.0", "Max distance from players to spawn", FCVAR_NOTIFY | FCVAR_PLUGIN);
+	cvarMinCounterattackDistance = CreateConVar("sm_botspawns_min_counterattack_distance", "800.0", "Min distance from counterattack objective to spawn", FCVAR_NOTIFY | FCVAR_PLUGIN);
+	cvarMinPlayerDistance = CreateConVar("sm_botspawns_min_player_distance", "800.0", "Min distance from players to spawn", FCVAR_NOTIFY | FCVAR_PLUGIN);
+	cvarMaxPlayerDistance = CreateConVar("sm_botspawns_max_player_distance", "1000.0", "Max distance from players to spawn", FCVAR_NOTIFY | FCVAR_PLUGIN);
 
 	//Nav Mesh Botspawn specific END
 
@@ -182,6 +196,15 @@ public OnPluginStart()
 	sm_fatal_head_chance = CreateConVar("sm_fatal_head_chance", "0.7", "Chance for a headshot kill to be fatal, 0.6 default = 60% chance to be fatal");
 	sm_spawn_security_on_counter = CreateConVar("sm_spawn_security_on_counter", "1", "0/1 When a counter attack starts, spawn all dead players and teleport them to point to defend");
 	sm_enable_track_ammo = CreateConVar("sm_enable_track_ammo", "1", "0/1 Track ammo on death to revive (may be buggy if using a different theatre that modifies ammo)");
+	sm_min_counter_dur_sec = CreateConVar("sm_min_counter_dur_sec", "66", "Minimum randomized counter attack duration");
+	sm_max_counter_dur_sec = CreateConVar("sm_max_counter_dur_sec", "126", "Maximum randomized counter attack duration");
+	sm_counter_chance = CreateConVar("sm_counter_chance", "0.5", "Percent chance that a counter attack will happen def: 50%");
+	sm_reinforce_multiplier = CreateConVar("sm_reinforce_multiplier", "4", "Division multiplier to determine when to start reinforce timer for bots based on team pool lives left over");
+	sm_reinforce_time = CreateConVar("sm_reinforce_time", "200", "When enemy forces are low on lives, how much time til they get reinforcements?");
+	sm_reinforce_time_subsequent = CreateConVar("sm_reinforce_time_subsequent", "140", "When enemy forces are low on lives and already reinforced, how much time til they get reinforcements on subsequent reinforcement?");
+	sm_check_static_enemy = CreateConVar("sm_check_static_enemy", "120.0", "Seconds amount to check if an AI has moved probably stuck");
+	
+	//sm_temp_map_fix = CreateConVar("sm_temp_map_fix", "embassy_coop", "Current starting map to fix model bug");
 	
 
 	//Daimyo Medic Revive
@@ -206,8 +229,8 @@ public OnPluginStart()
 	HookEvent("player_connect", Event_PlayerConnect);
 	///NavMesh Botspawn Specific Start
 	HookConVarChange(cvarSpawnMode,CvarChange);
-	//HookConVarChange(cvarMinPlayerDistance,CvarChange);
-	//HookConVarChange(cvarMaxPlayerDistance,CvarChange);
+	HookConVarChange(cvarMinPlayerDistance,CvarChange);
+	HookConVarChange(cvarMaxPlayerDistance,CvarChange);
 	//NavMesh Botspawn Specific End
 	HookConVarChange(sm_revive_seconds, UpdateRespawnCountConVar);
 	HookConVarChange(sm_revive_health, UpdateRespawnCountConVar);
@@ -259,6 +282,10 @@ public OnPluginStart()
 	LoadTranslations("respawn.phrases");
 	LoadTranslations("nearest_player.phrases.txt");
 	AutoExecConfig(true, "respawn");
+
+	//decl String:temp_map[256];
+	//GetConVarString(sm_temp_map_fix, temp_map, sizeof(temp_map));
+	//ForceChangeLevel(temp_map, "Fix Workshop By Changing Map");
 	//CreateTimer(1.0, Timer_ReviveLoop, _, TIMER_REPEAT);
 	
 	//CreateTimer(2.0, Timer_MedicMonitor,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
@@ -279,11 +306,29 @@ public UpdateCvars()
 	g_flMinCounterattackDistance = GetConVarFloat(cvarMinCounterattackDistance);
 	g_flMinPlayerDistance = GetConVarFloat(cvarMinPlayerDistance);
 	g_flMaxPlayerDistance = GetConVarFloat(cvarMaxPlayerDistance);
+	
+
 }
 
 public OnMapStart()
 {	
-	g_reinforceTime = 180;
+	g_isConquer = 0;
+	decl String:sGameMode[32];
+	GetConVarString(FindConVar("mp_gamemode"), sGameMode, sizeof(sGameMode));
+	if (StrEqual(sGameMode,"conquer")) // if Hunt?
+	{
+		g_isConquer = 1;
+		new fatalChance = FindConVar("sm_fatal_chance");
+		new headFatalChance = FindConVar("sm_fatal_head_chance");
+	   	SetConVarInt(fatalChance, 0.3, true, true);
+	   	SetConVarInt(headFatalChance, 0.4, true, true);
+	}
+	if (StrEqual(sGameMode,"checkpoint")) // if Hunt?
+	{
+		//g_isConquer = 1;
+	}
+	new reinforce_time = GetConVarInt(sm_reinforce_time);
+	g_reinforceTime = reinforce_time;
 	UpdateRespawnCount();
 
 	g_EnableRevive = 0;
@@ -294,16 +339,20 @@ public OnMapStart()
 	
 	if (GetConVarInt(sm_enable_track_ammo) == 1)
 		CreateTimer(1.0, Timer_GearMonitor,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
-	
-	CreateTimer(1.0, Timer_EnemyReinforce,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
-	
-	CreateTimer(30.0, Enemies_Remaining,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	if (g_isConquer != 1) 
+		CreateTimer(1.0, Timer_EnemyReinforce,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	if (g_isConquer != 1) 
+		CreateTimer(30.0, Enemies_Remaining,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 
 	CreateTimer(1.0, Timer_PlayerStatus,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	//CreateTimer(5.0, Timer_CheckEnemyStacks,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	g_checkStaticAmt = GetConVarFloat(sm_check_static_enemy);
+	CreateTimer(g_checkStaticAmt, Timer_CheckEnemyStatic,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 	//CreateTimer(1.0, Timer_PlayerTimeout,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 
 	//########### NOTHING BELOW THIS, IF THIS CODE CRASHES, NOTHING UNDER RUNS #######
-	if (g_hHidingSpots == INVALID_HANDLE) g_hHidingSpots = NavMesh_GetHidingSpots();
+	if (g_hHidingSpots == INVALID_HANDLE) 
+		g_hHidingSpots = NavMesh_GetHidingSpots();//try NavMesh_GetAreas(); or //NavMesh_GetPlaces(); // or NavMesh_GetEncounterPaths();
 		g_iHidingSpotCount = GetArraySize(g_hHidingSpots);
 
 	m_iNumControlPoints = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
@@ -446,7 +495,11 @@ public Action:Enemies_Remaining(Handle:Timer)
 public Action:Timer_EnemyReinforce(Handle:Timer)
 {
 	
-	if (g_team_lives_3 <= (g_team_lives_3_total / 4))
+	new reinforce_multiplier = GetConVarInt(sm_reinforce_multiplier);
+	new reinforce_time = GetConVarInt(sm_reinforce_time);
+	new reinforce_time_subsequent = GetConVarInt(sm_reinforce_time_subsequent);
+
+	if (g_team_lives_3 <= (g_team_lives_3_total / reinforce_multiplier))
 	{
 		g_reinforceTime = g_reinforceTime - 1;
 		if (g_reinforceTime % 10 == 0 && g_reinforceTime > 10)
@@ -469,30 +522,110 @@ public Action:Timer_EnemyReinforce(Handle:Timer)
 		}
 		if (g_reinforceTime <= 0)
 		{
-			
-			for (new client = 1; client <= MaxClients; client++)
-		    {
-		    	if (client > 0 && IsClientInGame(client))
-		    	{
-		    		new m_iTeam = GetClientTeam(client);
-			    	//new botTeamCount = Team_CountAlivePlayers(m_iTeam);
-			        if (IsFakeClient(client) && !IsPlayerAlive(client) && m_iTeam == TEAM_2)
-			        {
-			        	g_reinforceTime = 120;
-			            CreateRespawnTimer(client);
+			if (g_team_lives_3 > 0)
+			{
+				g_team_lives_3 = (g_team_lives_3_total / reinforce_multiplier);
+				decl String:textToPrint[64];
+	        	Format(textToPrint, sizeof(textToPrint), "Enemy Reinforcements Added to Existing Reinforcements!");
+				PrintHintTextToAll(textToPrint);
+				g_reinforceTime = reinforce_time_subsequent;
+			}
+			else
+			{
+				for (new client = 1; client <= MaxClients; client++)
+			    {
+			    	if (client > 0 && IsClientInGame(client))
+			    	{
+			    		new m_iTeam = GetClientTeam(client);
+				    	//new botTeamCount = Team_CountAlivePlayers(m_iTeam);
+				        if (IsFakeClient(client) && !IsPlayerAlive(client) && m_iTeam == TEAM_2)
+				        {
+				        	g_reinforceTime = reinforce_time_subsequent;
+				            CreateRespawnTimer(client);
 
-			        }
-		    	}
-		    	
+				        }
+			    	}
+				}
+		    	decl String:textToPrint[64];
+        		Format(textToPrint, sizeof(textToPrint), "Enemy Reinforcements Have Arrived!");
+				PrintHintTextToAll(textToPrint);
 		    }
-		    decl String:textToPrint[64];
-        	Format(textToPrint, sizeof(textToPrint), "Enemy Reinforcements Have Arrived!");
-			PrintHintTextToAll(textToPrint);
+		    
 		    
 		}
 	    
 	}
     
+}
+public Action:Timer_CheckEnemyStacks(Handle:Timer)
+{
+	for (new enemyBot = 1; enemyBot <= MaxClients; enemyBot++)
+	{	
+
+		new m_iTeam = GetClientTeam(enemyBot);
+		//new botTeamCount = Team_CountAlivePlayers(m_iTeam);
+		if (IsFakeClient(enemyBot) && IsPlayerAlive(enemyBot) && m_iTeam == TEAM_2)
+		{
+			// decl Float:enemyPos[3];
+			// GetClientAbsOrigin(enemyBot, Float:enemyPos);
+			// g_enemyPos[enemyBot] = enemyPos;
+			new bool:isBotStuck = false;
+			isBotStuck = CheckIfPlayerIsStuck(enemyBot);
+			if (isBotStuck == true)
+			{
+				PrintToServer("ENEMY STUCK - KILLING");
+				ForcePlayerSuicide(enemyBot);
+			}
+		}
+	}
+}
+
+// Check if a player(or bot) is stuck (credits to VEN) 
+stock bool:CheckIfPlayerIsStuck(iClient)
+{
+	decl Float:vecMin[3], Float:vecMax[3], Float:vecOrigin[3];
+	
+	GetClientMins(iClient, vecMin);
+	GetClientMaxs(iClient, vecMax);
+	GetClientAbsOrigin(iClient, vecOrigin);
+	
+	TR_TraceHullFilter(vecOrigin, vecOrigin, vecMin, vecMax, MASK_SOLID, TraceEntityFilterSolid);
+	return TR_DidHit();	// head in wall ?
+}
+
+
+public bool:TraceEntityFilterSolid(entity, contentsMask) 
+{
+	return entity > 1;
+}
+
+public Action:Timer_CheckEnemyStatic(Handle:Timer)
+{
+	for (new enemyBot = 1; enemyBot <= MaxClients; enemyBot++)
+	{	
+		if (IsClientInGame(enemyBot) && IsFakeClient(enemyBot))
+		{
+			new m_iTeam = GetClientTeam(enemyBot);
+			//new botTeamCount = Team_CountAlivePlayers(m_iTeam);
+			if (IsPlayerAlive(enemyBot) && m_iTeam == TEAM_2)
+			{
+				decl Float:enemyPos[3];
+				GetClientAbsOrigin(enemyBot, Float:enemyPos);
+				new Float:tDistance;
+				tDistance = GetVectorDistance(enemyPos,g_enemyTimerPos[enemyBot]);
+				if (tDistance <= 1) 
+				{
+					PrintToServer("ENEMY STATIC - KILLING");
+					ForcePlayerSuicide(enemyBot);
+				}
+				else
+				{
+					g_enemyTimerPos[enemyBot] = enemyPos;
+				}
+				
+			}
+		}
+	}
 }
 public Action:Timer_GearMonitor(Handle:Timer)
 {
@@ -572,8 +705,18 @@ SetPlayerAmmo(client)
 					playerGrenades = GetPlayerWeaponSlot(client, 3);
 					if (playerGrenades != -1 && IsValidEntity(playerGrenades)) // We need to figure out what slots are defined#define Slot_HEgrenade 11, #define Slot_Flashbang 12, #define Slot_Smokegrenade 13
 					{
-						RemovePlayerItem(client,playerGrenades);
-						AcceptEntityInput(playerGrenades, "kill");
+						// Remove grenades but not pistols
+						decl String:weapon[32];
+						GetEntityClassname(playerGrenades, weapon, sizeof(weapon));
+						if (!(StrEqual(weapon, "weapon_m93r", false) && 
+							StrEqual(weapon, "weapon_m9", false) && 
+							StrEqual(weapon, "weapon_m45", false) && 
+							StrEqual(weapon, "weapon_makarov", false) && 
+							StrEqual(weapon, "weapon_m1911", false)))
+						{
+							RemovePlayerItem(client,playerGrenades);
+							AcceptEntityInput(playerGrenades, "kill");
+						}
 					}
 				}
 				
@@ -810,16 +953,11 @@ stock Float:GetEntitiesDistance(ent1, ent2)
 # NAV MESH BOT SPAWNS FUNCTIONS START ###############################
 #####################################################################
 */
-GetBestHidingSpot(client,iteration=0)
+CheckHidingSpotRules(m_nActivePushPointIndex,iCPHIndex,iSpot,client)
 {
-	////PrintToServer("[BOTSPAWNS] GET BEST HIDING SPOT");
-	UpdatePlayerOrigins();
-	new m_nActivePushPointIndex = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
-//	if (Ins_InCounterAttack())
-//		m_nActivePushPointIndex--;
 	new m_iTeam = GetClientTeam(client);
+	new Float:distance,Float:furthest,Float:closest=-1.0,Float:flHidingSpot[3];
 	new Float:vecOrigin[3];
-	//Check to see if default spawn is ok
 	new needSpawn = 0;
 	for (new iTarget = 1; iTarget < MaxClients; iTarget++)
 	{
@@ -831,9 +969,9 @@ GetBestHidingSpot(client,iteration=0)
 		distance = GetVectorDistance(g_vecOrigin[client],g_vecOrigin[iTarget]);
 		if (GetClientTeam(iTarget) != m_iTeam && IsPlayerAlive(iTarget))
 		{
-			if ((distance < g_flMinPlayerDistance))// || ((IsVectorInSightRange(iTarget, g_vecOrigin[client], 120.0)) && (ClientCanSeeVector(iTarget, g_vecOrigin[client], g_flMaxPlayerDistance))))
+			if ((distance < g_flMinPlayerDistance))// || ((IsVectorInSightRange(iTarget, flHidingSpot, 120.0, g_flMinPlayerDistance)) && (ClientCanSeeVector(iTarget, flHidingSpot, g_flMinPlayerDistance))))
 			{
-				////PrintToServer("[BOTSPAWNS] ###PRE-SPAWN-CHECK###, Cannot Spawn due to player in DISTANCE/SIGHT");
+				PrintToServer("[BOTSPAWNS] ###PRE-SPAWN-CHECK###, Cannot Spawn due to player in DISTANCE/SIGHT");
 				needSpawn = 1;
 				break;
 			}
@@ -842,69 +980,74 @@ GetBestHidingSpot(client,iteration=0)
 	if (needSpawn == 1)
 	{
 		GetClientAbsOrigin(client,vecOrigin);
-		new minidx = (iteration) ? 0 : g_iCPLastHidingSpot[m_nActivePushPointIndex];
-		new maxidx = (iteration) ? g_iCPLastHidingSpot[m_nActivePushPointIndex] : g_iCPHidingSpotCount[m_nActivePushPointIndex];
-		for (new iCPHIndex = minidx; iCPHIndex < maxidx; iCPHIndex++)
+		flHidingSpot[0] = GetArrayCell(g_hHidingSpots, iSpot, NavMeshHidingSpot_X);
+		flHidingSpot[1] = GetArrayCell(g_hHidingSpots, iSpot, NavMeshHidingSpot_Y);
+		flHidingSpot[2] = GetArrayCell(g_hHidingSpots, iSpot, NavMeshHidingSpot_Z);
+		for (new iTarget = 1; iTarget < MaxClients; iTarget++)
 		{
-				
-			new pointok = 1;
-			new iSpot = g_iCPHidingSpots[m_nActivePushPointIndex][iCPHIndex];
-			new Float:distance,Float:furthest,Float:closest=-1.0,Float:flHidingSpot[3];
-			flHidingSpot[0] = GetArrayCell(g_hHidingSpots, iSpot, NavMeshHidingSpot_X);
-			flHidingSpot[1] = GetArrayCell(g_hHidingSpots, iSpot, NavMeshHidingSpot_Y);
-			flHidingSpot[2] = GetArrayCell(g_hHidingSpots, iSpot, NavMeshHidingSpot_Z);
-			for (new iTarget = 1; iTarget < MaxClients; iTarget++)
-			{
-				if (!IsValidClient(iTarget))
-					continue;
-				if (!IsClientInGame(iTarget))
-					continue;
-				distance = GetVectorDistance(flHidingSpot,g_vecOrigin[iTarget]);
-				//PrintToServer("[BOTSPAWNS] Distance from %N to iSpot %d iCPHIndex %d is %f",iTarget,iSpot,iCPHIndex,distance);
-				if (GetClientTeam(iTarget) != m_iTeam)
-				{
-					if (distance > furthest)
-						furthest = distance;
-					if ((distance < closest) || (closest < 0))
-						closest = distance;
-					if ((distance < g_flMinPlayerDistance))// || ((IsVectorInSightRange(iTarget, flHidingSpot, 120.0)) && (ClientCanSeeVector(iTarget, flHidingSpot, g_flMaxPlayerDistance))))
-					{
-						//PrintToServer("[BOTSPAWNS] Cannot spawn %N at iSpot %d iCPHIndex %d since it is in sight of %N",client,iSpot,iCPHIndex,iTarget);
-						pointok = 0;
-						break;
-					}
-					
-				}
-				//if (distance < MIN_PLAYER_DISTANCE)
-				//{
-				//	//PrintToServer("[BOTSPAWNS] Distance too small from %N to iSpot %d iCPHIndex %d distance %f",iTarget,iSpot,iCPHIndex,distance);
-				//	pointok = 0;
-				//	break;
-				//}
-			}
-			if (closest > g_flMaxPlayerDistance)
-			{
-				//PrintToServer("[BOTSPAWNS] iSpot %d iCPHIndex %d is too far from nearest player distance %f",iSpot,iCPHIndex,closest);
-				pointok = 0;
+			if (!IsValidClient(iTarget))
 				continue;
-			}
-			if (Ins_InCounterAttack())
+			if (!IsClientInGame(iTarget))
+				continue;
+			distance = GetVectorDistance(flHidingSpot,g_vecOrigin[iTarget]);
+			//PrintToServer("[BOTSPAWNS] Distance from %N to iSpot %d is %f",iTarget,iSpot,distance);
+			if (GetClientTeam(iTarget) != m_iTeam)
 			{
-				distance = GetVectorDistance(flHidingSpot,m_vCPPositions[m_nActivePushPointIndex]);
-				if (distance < g_flMinCounterattackDistance)
+				if (distance > furthest)
+					furthest = distance;
+				if ((distance < closest) || (closest < 0))
+					closest = distance;
+				if ((distance < g_flMinPlayerDistance))// || ((IsVectorInSightRange(iTarget, flHidingSpot, 120.0, g_flMinPlayerDistance)) && (ClientCanSeeVector(iTarget, flHidingSpot, g_flMinPlayerDistance))))
 				{
-					//PrintToServer("[BOTSPAWNS] iSpot %d iCPHIndex %d is too close counterattack point distance %f",iSpot,iCPHIndex,distance);
-					pointok = 0;
-					continue;
+					PrintToServer("[BOTSPAWNS] Cannot spawn %N at iSpot %d since it is in sight of %N",client,iSpot,iTarget);
+					return 0;
 				}
 			}
-			if (pointok)
+			// if (distance < MIN_PLAYER_DISTANCE)
+			// {
+			// 	PrintToServer("[BOTSPAWNS] Distance too small from %N to iSpot %d distance %f",iTarget,iSpot,distance);
+			// 	return 0;
+			// }
+		}
+		if (closest > g_flMaxPlayerDistance)
+		{
+			PrintToServer("[BOTSPAWNS] iSpot %d is too far from nearest player distance %f",iSpot,closest);
+			return 0;
+		}
+		if (Ins_InCounterAttack())
+		{
+			distance = GetVectorDistance(flHidingSpot,m_vCPPositions[m_nActivePushPointIndex]);
+			if (distance < g_flMinCounterattackDistance)
 			{
-				distance = GetVectorDistance(flHidingSpot,vecOrigin);
-				//PrintToServer("[BOTSPAWNS] Selected spot for %N, iCPHIndex %d iSpot %d distance %f",client,iCPHIndex,iSpot,distance);
-				g_iCPLastHidingSpot[m_nActivePushPointIndex] = iCPHIndex;
-				return iSpot;
+				PrintToServer("[BOTSPAWNS] iSpot %d is too close counterattack point distance %f",iSpot,distance);
+				return 0;
 			}
+		}
+		distance = GetVectorDistance(flHidingSpot,vecOrigin);
+		PrintToServer("[BOTSPAWNS] Selected spot for %N, iCPHIndex %d iSpot %d distance %f",client,iCPHIndex,iSpot,distance);
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
+}
+GetBestHidingSpot(client,iteration=0)
+{
+	UpdatePlayerOrigins();
+	new m_nActivePushPointIndex = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
+//	if (Ins_InCounterAttack())
+//		m_nActivePushPointIndex--;
+
+	new minidx = (iteration) ? 0 : g_iCPLastHidingSpot[m_nActivePushPointIndex];
+	new maxidx = (iteration) ? g_iCPLastHidingSpot[m_nActivePushPointIndex] : g_iCPHidingSpotCount[m_nActivePushPointIndex];
+	for (new iCPHIndex = minidx; iCPHIndex < maxidx; iCPHIndex++)
+	{
+		new iSpot = g_iCPHidingSpots[m_nActivePushPointIndex][iCPHIndex];
+		if (CheckHidingSpotRules(m_nActivePushPointIndex,iCPHIndex,iSpot,client))
+		{
+			g_iCPLastHidingSpot[m_nActivePushPointIndex] = iCPHIndex;
+			return iSpot;
 		}
 	}
 	if (iteration)
@@ -921,7 +1064,6 @@ public UpdatePlayerOrigins()
 		}
 	}
 }
-
 public Action:Timer_PostCounterSpawn(Handle:timer, any:client)
 {
 	g_hRespawnTimer[client] = INVALID_HANDLE;
@@ -954,13 +1096,13 @@ public Action:Timer_PostSpawn(Handle:timer, any:client)
 	g_hRespawnTimer[client] = INVALID_HANDLE;
 	//PrintToServer("[BOTSPAWNS] called Timer_PostSpawn for client %N (%d)",client,client);
 	//g_iSpawning[client] = 0;
-	if ((g_iHidingSpotCount) && !Ins_InCounterAttack())
+	if ((g_iHidingSpotCount) && !Ins_InCounterAttack() && (g_isConquer != 1) )
 	{	
 		//PrintToServer("[BOTSPAWNS] HAS g_iHidingSpotCount COUNT");
 			
 		new Float:flHidingSpot[3],Float:vecOrigin[3];
 		new iSpot = GetBestHidingSpot(client);
-		//PrintToServer("[BOTSPAWNS] FOUND Hiding spot %d",iSpot);
+		PrintToServer("[BOTSPAWNS] FOUND Hiding spot %d",iSpot);
 			
 		if (iSpot > -1)
 		{
@@ -970,7 +1112,7 @@ public Action:Timer_PostSpawn(Handle:timer, any:client)
 			GetClientAbsOrigin(client,vecOrigin);
 			new Float:distance = GetVectorDistance(flHidingSpot,vecOrigin);
 
-			//PrintToServer("[BOTSPAWNS] Teleporting %N to hiding spot %d at %f,%f,%f distance %f",client,iSpot,flHidingSpot[0],flHidingSpot[1],flHidingSpot[2],distance);
+			PrintToServer("[BOTSPAWNS] Teleporting %N to hiding spot %d at %f,%f,%f distance %f",client,iSpot,flHidingSpot[0],flHidingSpot[1],flHidingSpot[2],distance);
 			TeleportEntity(client, flHidingSpot, NULL_VECTOR, NULL_VECTOR);
 		}
 	}
@@ -1055,7 +1197,8 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 	{
 		SetPlayerSpawns();
 	}
-	g_reinforceTime = 180;
+	new reinforce_time = GetConVarInt(sm_reinforce_time);
+	g_reinforceTime = reinforce_time;
 	decl String:sGameMode[32];
 	GetConVarString(FindConVar("mp_gamemode"), sGameMode, sizeof(sGameMode));
 	if (!StrEqual(sGameMode,"checkpoint")) // if Hunt?
@@ -1063,12 +1206,12 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 		//PrintToServer("*******NOT CHECKPOINT | SETTING sm_respawn_count_team3 TO 3*******");
 		//PrintToServer("*******NOT CHECKPOINT | SETTING sm_respawn_count_team3 TO 3*******");
 		//PrintToServer("*******NOT CHECKPOINT | SETTING sm_respawn_count_team3 TO 3*******");
-		SetConVarInt(sm_respawn_count_team3, 6);
-		SetConVarInt(sm_respawn_count_team2, 1);
-		SetConVarFloat(sm_fatal_chance, 0.5);
-		SetConVarFloat(cvarMinCounterattackDistance, 600.0);
-		SetConVarFloat(cvarMinPlayerDistance, 1000.0);
-		SetConVarFloat(cvarMaxPlayerDistance, 1600.0);
+		// SetConVarInt(sm_respawn_count_team3, 6);
+		// SetConVarInt(sm_respawn_count_team2, 1);
+		// SetConVarFloat(sm_fatal_chance, 0.5);
+		// SetConVarFloat(cvarMinCounterattackDistance, 600.0);
+		// SetConVarFloat(cvarMinPlayerDistance, 1000.0);
+		// SetConVarFloat(cvarMaxPlayerDistance, 1600.0);
 	}
 	//PrintToServer("[REVIVE_DEBUG] ROUND STARTED");	
 	g_EnableRevive = 0;
@@ -1092,114 +1235,144 @@ public Action:Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadca
 
 public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	decl String:sGameMode[32];
-	GetConVarString(FindConVar("mp_gamemode"), sGameMode, sizeof(sGameMode));
+	if (g_isConquer != 1) {
+		decl String:sGameMode[32];
+		GetConVarString(FindConVar("mp_gamemode"), sGameMode, sizeof(sGameMode));
 
-	new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
-	new acp = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
-	new Handle:cvar;
-	new Float:fRandom = GetRandomFloat(0.0, 1.0);
+		new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
+		new acp = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
+		new Handle:cvar;
+		new Float:fRandom = GetRandomFloat(0.0, 1.0);
+		new min_ca_dur = GetConVarInt(sm_min_counter_dur_sec);
+		new max_ca_dur = GetConVarInt(sm_max_counter_dur_sec);
 
-	if (fRandom < 0.3 && StrEqual(sGameMode,"checkpoint") && ((acp+1) != ncp))
-	{
-		//PrintToServer("ALWAYS COUNTER 1");
-		new Handle:cvar;
-		cvar = FindConVar("mp_checkpoint_counterattack_always");
-   		//SetConVarBounds(cvar,ConVarBound_Upper, true, 18.0);
-   		SetConVarInt(cvar, 1, true, true);
+		new fRandomInt = GetRandomInt(min_ca_dur, max_ca_dur);
+		new Float:ins_ca_chance = GetConVarFloat(sm_counter_chance);
+			new Handle:cvar_ca_dur;
+			cvar_ca_dur = FindConVar("mp_checkpoint_counterattack_duration");
+			SetConVarInt(cvar_ca_dur, fRandomInt, true, true);
+			
+		if (fRandom < ins_ca_chance && StrEqual(sGameMode,"checkpoint") && ((acp+1) != ncp))
+		{
+			PrintToServer("COUNTER YES");
+			new Handle:cvar;
+			cvar = FindConVar("mp_checkpoint_counterattack_disable");
+	   		//SetConVarBounds(cvar,ConVarBound_Upper, true, 18.0);
+	   		SetConVarInt(cvar, 0, true, true);
+		}
+		else
+		{
+			PrintToServer("COUNTER NO");
+			new Handle:cvar;
+			cvar = FindConVar("mp_checkpoint_counterattack_disable");
+	   		//SetConVarBounds(cvar,ConVarBound_Upper, true, 18.0);
+	   		SetConVarInt(cvar, 1, true, true);
+		}
+		
+		if (StrEqual(sGameMode,"checkpoint") && ((acp+1) == ncp))
+		{
+			new Handle:cvar;
+			cvar = FindConVar("mp_checkpoint_counterattack_disable");
+	   		//SetConVarBounds(cvar,ConVarBound_Upper, true, 18.0);
+	   		SetConVarInt(cvar, 0, true, true);
+		}
 	}
-	else
-	{
-		//PrintToServer("ALWAYS COUNTER 2");
-		new Handle:cvar;
-		cvar = FindConVar("mp_checkpoint_counterattack_always");
-   		//SetConVarBounds(cvar,ConVarBound_Upper, true, 18.0);
-   		SetConVarInt(cvar, 0, true, true);
-	}
-	
-	if (StrEqual(sGameMode,"checkpoint") && ((acp+1) == ncp))
-	{
-		new Handle:cvar;
-		cvar = FindConVar("mp_checkpoint_counterattack_always");
-   		//SetConVarBounds(cvar,ConVarBound_Upper, true, 18.0);
-   		SetConVarInt(cvar, 1, true, true);
-	}
-	
 
 	return Plugin_Continue;
 }
 public Action:Event_ControlPointCaptured(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	g_reinforceTime = 180;
-	if (GetConVarInt(sm_respawn_reset_each_round))
-	{
-		SetPlayerSpawns();
+	if (g_isConquer != 1)  {
+		new reinforce_time = GetConVarInt(sm_reinforce_time);
+		g_reinforceTime = reinforce_time;
+		if (GetConVarInt(sm_respawn_reset_each_round))
+		{
+			SetPlayerSpawns();
+		}
+		//PrintToServer("CONTROL POINT CAPTURED");
 	}
-	//PrintToServer("CONTROL POINT CAPTURED");
-	
 	return Plugin_Continue;
 }
 public Action:Event_ControlPointCaptured_Post(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
-	new acp = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
-	
-	//PrintToServer("CONTROL POINT CAPTURED POST");
-	// if (((acp+1) != ncp)) //GetConVarInt(FindConVar("mp_checkpoint_counterattack_always")) == 1 && 
-	// {
-		decl String:cappers[256],String:cpname[64];
-		GetEventString(event, "cappers", cappers, sizeof(cappers));
-		new spawnCount = 0;
-		//PrintToServer("CONTROL POINT CAPTURED POST 1");
-		new cappersLength = strlen(cappers);
-		for (new i = 0 ; i < cappersLength; i++)
-		{
-			//i = i + spawnCount;
-			new clientCapper = cappers[i];
-			// if (!IsValidClient(clientCapper) || i >= cappersLength)
-			// {
-			// 	//PrintToServer("CONTROL POINT CAPTURED POST 2");
-			// 	spawnCount = 0;
-			// 	break;
-			// }
-			if(clientCapper > 0 && IsClientInGame(clientCapper) && IsValidClient(clientCapper) && IsPlayerAlive(clientCapper) && !IsFakeClient(clientCapper))
+	if (g_isConquer != 1) {
+		new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
+		new acp = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
+		
+		//PrintToServer("CONTROL POINT CAPTURED POST");
+		// if (((acp+1) != ncp)) //GetConVarInt(FindConVar("mp_checkpoint_counterattack_disable")) == 1 && 
+		// {
+			decl String:cappers[256],String:cpname[64];
+			GetEventString(event, "cappers", cappers, sizeof(cappers));
+			new spawnCount = 0;
+			//PrintToServer("CONTROL POINT CAPTURED POST 1");
+			new cappersLength = strlen(cappers);
+			for (new i = 0 ; i < cappersLength; i++)
 			{
-				//PrintToServer("CONTROL POINT CAPTURED POST 3");
-				new Float:capperPos[3];
-				GetClientAbsOrigin(clientCapper, Float:capperPos);
-
-				g_SecurityCounterSpawn = capperPos;
-				
-				//spawnCount++;
-				break;
-			}
-		}		
-		if (GetConVarInt(sm_spawn_security_on_counter) == 1)
-		{
-			//PrintToServer("CONTROL POINT CAPTURED POST 0 ");
-			for (new client = 1; client <= MaxClients; client++)
-			{	
-				if (client > 0 && IsClientConnected(client) && !IsFakeClient(client) && IsValidClient(client))
+				//i = i + spawnCount;
+				new clientCapper = cappers[i];
+				// if (!IsValidClient(clientCapper) || i >= cappersLength)
+				// {
+				// 	//PrintToServer("CONTROL POINT CAPTURED POST 2");
+				// 	spawnCount = 0;
+				// 	break;
+				// }
+				if(clientCapper > 0 && IsClientInGame(clientCapper) && IsValidClient(clientCapper) && IsPlayerAlive(clientCapper) && !IsFakeClient(clientCapper))
 				{
-					new team = GetClientTeam(client);
-					if(IsClientInGame(client) && !IsClientTimingOut(client) && playerFirstDeath[client] == true && playerPickSquad[client] == 1 && playerFirstJoin[client] == false && !IsPlayerAlive(client) && team == TEAM_1)
-					{
-						CreateCounterRespawnTimer(client);
-					}
+					//PrintToServer("CONTROL POINT CAPTURED POST 3");
+					new Float:capperPos[3];
+					GetClientAbsOrigin(clientCapper, Float:capperPos);
+
+					g_SecurityCounterSpawn = capperPos;
+					
+					//spawnCount++;
+					break;
 				}
-				
+			}		
+			if (GetConVarInt(sm_spawn_security_on_counter) == 1)
+			{
+				//PrintToServer("CONTROL POINT CAPTURED POST 0 ");
+				for (new client = 1; client <= MaxClients; client++)
+				{	
+					if (client > 0 && IsClientConnected(client) && !IsFakeClient(client) && IsValidClient(client))
+					{
+						new team = GetClientTeam(client);
+						if(IsClientInGame(client) && !IsClientTimingOut(client) && playerFirstDeath[client] == true && playerPickSquad[client] == 1 && playerFirstJoin[client] == false && !IsPlayerAlive(client) && team == TEAM_1)
+						{
+							CreateCounterRespawnTimer(client);
+						}
+					}
+					
+				}
 			}
+		// }
 		}
-	// }
 		return Plugin_Continue;
 
 }
 public Action:Event_ObjectDestroyed(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	g_reinforceTime = 180;
-	if (GetConVarInt(sm_respawn_reset_each_objective))
-	{
-		SetPlayerSpawns();
+	if (g_isConquer != 1)  {
+		new reinforce_time = GetConVarInt(sm_reinforce_time);
+		g_reinforceTime = reinforce_time;
+		if (GetConVarInt(sm_respawn_reset_each_objective))
+		{
+			SetPlayerSpawns();
+		}
+	}
+	if (g_isConquer == 1) {
+		for (new client = 1; client <= MaxClients; client++)
+		{	
+			if (client > 0 && IsClientConnected(client) && !IsFakeClient(client) && IsValidClient(client))
+			{
+				new team = GetClientTeam(client);
+				if(IsClientInGame(client) && !IsClientTimingOut(client) && playerFirstDeath[client] == true && playerPickSquad[client] == 1 && playerFirstJoin[client] == false && !IsPlayerAlive(client) && team == TEAM_1)
+				{
+					CreateRespawnTimer(client);
+				}
+			}
+			
+		}
 	}
 	return Plugin_Continue;
 }
@@ -1207,61 +1380,62 @@ public Action:Event_ObjectDestroyed(Handle:event, const String:name[], bool:dont
 //Run this to mark a bot as ready to spawn. Add tokens if you want them to be able to spawn.
 SetPlayerSpawns(client=-1)
 {
-	
-	new mc = MaxClients;
-	new iTeam;
-	if (!GetConVarBool(sm_respawn_enabled))
-	{
-		return;
-	}
-	if (client == -1)
-	{
-		client = 1;
-	}
-	else
-	{
-		mc = client;
-	}
-	new t_team_lives_2 = 0; // temp count for players/bots
-	new t_team_lives_3 = 0;
-	//PrintToServer("[RESPAWNS] Called SetPlayerSpawns with client %d mc %d",client,mc);
-	for (; client<=mc; client++)
-	{
-		if(client > 0 && client <= MaxClients && IsClientInGame(client))
+	if (g_isConquer != 1) {
+		new mc = MaxClients;
+		new iTeam;
+		if (!GetConVarBool(sm_respawn_enabled))
 		{
-			iTeam = GetClientTeam(client);
-			if (g_respawn_type == 1)
+			return;
+		}
+		if (client == -1)
+		{
+			client = 1;
+		}
+		else
+		{
+			mc = client;
+		}
+		new t_team_lives_2 = 0; // temp count for players/bots
+		new t_team_lives_3 = 0;
+		//PrintToServer("[RESPAWNS] Called SetPlayerSpawns with client %d mc %d",client,mc);
+		for (; client<=mc; client++)
+		{
+			if(client > 0 && client <= MaxClients && IsClientInGame(client))
 			{
-				g_iSpawnTokens[client] = g_iRespawnCount[iTeam];
+				iTeam = GetClientTeam(client);
+				if (g_respawn_type == 1)
+				{
+					g_iSpawnTokens[client] = g_iRespawnCount[iTeam];
 
-			}
-			else if (g_respawn_type == 2)
-			{
-				if(!IsFakeClient(client))
-				{
-					t_team_lives_2++;
 				}
-				else if (IsFakeClient(client))
+				else if (g_respawn_type == 2)
 				{
-					t_team_lives_3++;
+					if(!IsFakeClient(client))
+					{
+						t_team_lives_2++;
+					}
+					else if (IsFakeClient(client))
+					{
+						t_team_lives_3++;
+					}
 				}
+					
 			}
-				
+
 		}
 
-	}
-
-	if (g_respawn_type == 2)
-	{
-		if (g_respawn_count_team2 > 0)
+		if (g_respawn_type == 2)
 		{
-			g_team_lives_2 = (t_team_lives_2 * g_respawn_lives_modifier); // If 10 bots alive, * 2 = 20 lives, so 10 initial lives + 20 = 30 total
-			g_team_lives_2_total = (t_team_lives_2 * g_respawn_lives_modifier);
-		}
-		if (g_respawn_count_team3 > 0)
-		{
-			g_team_lives_3 = (t_team_lives_3 * g_respawn_lives_modifier);
-			g_team_lives_3_total = (t_team_lives_3 * g_respawn_lives_modifier);
+			if (g_respawn_count_team2 > 0)
+			{
+				g_team_lives_2 = (t_team_lives_2 * g_respawn_lives_modifier); // If 10 bots alive, * 2 = 20 lives, so 10 initial lives + 20 = 30 total
+				g_team_lives_2_total = (t_team_lives_2 * g_respawn_lives_modifier);
+			}
+			if (g_respawn_count_team3 > 0)
+			{
+				g_team_lives_3 = (t_team_lives_3 * g_respawn_lives_modifier);
+				g_team_lives_3_total = (t_team_lives_3 * g_respawn_lives_modifier);
+			}
 		}
 	}
 }
@@ -1793,41 +1967,41 @@ public UpdateRespawnCountConVar(Handle:convar, const String:oldValue[], const St
 }
 public UpdateRespawnCount()
 {
-	
-	new ism_respawn_count = GetConVarInt(sm_respawn_count);
-		g_respawn_count_team2 = GetConVarInt(sm_respawn_count_team2);
-		g_respawn_count_team3 = GetConVarInt(sm_respawn_count_team3);
-		g_respawn_type = GetConVarInt(sm_respawn_type);
-		g_respawn_lives_modifier = GetConVarInt(sm_respawn_lives_modifier);
-	//new ism_respawn_reset_each_round = GetConVarInt(sm_respawn_reset_each_round);
-	if (g_respawn_type == 1)
-	{
-		if (g_respawn_count_team2 > -1)
+	if (g_isConquer != 1) {
+		new ism_respawn_count = GetConVarInt(sm_respawn_count);
+			g_respawn_count_team2 = GetConVarInt(sm_respawn_count_team2);
+			g_respawn_count_team3 = GetConVarInt(sm_respawn_count_team3);
+			g_respawn_type = GetConVarInt(sm_respawn_type);
+			g_respawn_lives_modifier = GetConVarInt(sm_respawn_lives_modifier);
+		//new ism_respawn_reset_each_round = GetConVarInt(sm_respawn_reset_each_round);
+		if (g_respawn_type == 1)
 		{
-			g_iRespawnCount[2] = g_respawn_count_team2;
-		}
-		else
-		{
-			g_iRespawnCount[2] = ism_respawn_count;
-		}
-		if (g_respawn_count_team3 > -1)
-		{
-			g_iRespawnCount[3] = g_respawn_count_team3;
-		}
-		else
-		{
-			g_iRespawnCount[3] = ism_respawn_count;
+			if (g_respawn_count_team2 > -1)
+			{
+				g_iRespawnCount[2] = g_respawn_count_team2;
+			}
+			else
+			{
+				g_iRespawnCount[2] = ism_respawn_count;
+			}
+			if (g_respawn_count_team3 > -1)
+			{
+				g_iRespawnCount[3] = g_respawn_count_team3;
+			}
+			else
+			{
+				g_iRespawnCount[3] = ism_respawn_count;
+			}
 		}
 	}
-
-	//Revive counts
-	new ism_revive_seconds = GetConVarInt(sm_revive_seconds);
-	new ism_revive_health = GetConVarInt(sm_revive_health);
-	new ism_heal_amount = GetConVarInt(sm_heal_amount);
-	
-	g_revive_seconds = ism_revive_seconds;
-	g_revive_health = ism_revive_health;
-	g_heal_amount = ism_heal_amount;
+		//Revive counts
+		new ism_revive_seconds = GetConVarInt(sm_revive_seconds);
+		new ism_revive_health = GetConVarInt(sm_revive_health);
+		new ism_heal_amount = GetConVarInt(sm_heal_amount);
+		
+		g_revive_seconds = ism_revive_seconds;
+		g_revive_health = ism_revive_health;
+		g_heal_amount = ism_heal_amount;
 }
 
 public TagsChanged(Handle:convar, const String:oldValue[], const String:newValue[])
