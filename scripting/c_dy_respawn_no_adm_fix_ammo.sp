@@ -1190,6 +1190,8 @@ GetBestHidingSpot(client,iteration=0)
 //	if (Ins_InCounterAttack())
 //		m_nActivePushPointIndex--;
 
+	if (m_nActivePushPointIndex < 0) return -1;
+	
 	new minidx = (iteration) ? 0 : g_iCPLastHidingSpot[m_nActivePushPointIndex];
 	new maxidx = (iteration) ? g_iCPLastHidingSpot[m_nActivePushPointIndex] : g_iCPHidingSpotCount[m_nActivePushPointIndex];
 	for (new iCPHIndex = minidx; iCPHIndex < maxidx; iCPHIndex++)
