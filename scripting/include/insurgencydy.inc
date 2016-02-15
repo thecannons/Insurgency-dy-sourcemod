@@ -20,7 +20,7 @@
 stock GetWeaponAmmo(client, weapon, type)
 {
 	new PropType:proptype = Prop_Data;
-	new ammoOffset = FindSendPropInfo("CINSPlayer", "m_iAmmo");
+	//new ammoOffset = FindSendPropInfo("CINSPlayer", "m_iAmmo");
 	new m_iPrimaryAmmoType, ammo;
 				
 	
@@ -90,7 +90,7 @@ stock GetPrimaryAmmo(client, weap, type)
 
 stock SetPrimaryAmmo(client, weap, ammo, type)
 {
-	new PropType:proptype = Prop_Data;
+	//new PropType:proptype = Prop_Data;
 	//new myweapons = FindSendPropInfo("CCSPlayer", "m_hMyWeapons");
 	//new weap = GetEntDataEnt2(client, myweapons+ (slot*4));
 	if(IsValidEntity(weap))
