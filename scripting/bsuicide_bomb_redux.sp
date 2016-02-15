@@ -18,16 +18,20 @@
 #define PLUGIN_DESCRIPTION "Adds suicide bomb for bots"
 #define UPDATE_URL    ""
 
+#define MAX_FILE_LEN 80
+
 new Handle:cvarVersion = INVALID_HANDLE; // version cvar!
 new Handle:cvarEnabled = INVALID_HANDLE; // are we enabled?
 new Handle:cvarDeathChance = INVALID_HANDLE; //global death chance
 new Handle:cvarIncenDeathChance = INVALID_HANDLE; //death chance if explosion
 new Handle:cvarExplosiveDeathChance = INVALID_HANDLE; //death chance if explosion
 new Handle:cvarChestStomachDeathChance = INVALID_HANDLE; //death chance if chest/stomach
+new Handle:cvar_yelling_delay = INVALID_HANDLE; //Yelling delay time
 new g_ClientBombs[MAXPLAYERS+1];
 new String:g_client_last_classstring[MAXPLAYERS+1][64];
-new bool:bEnabled = false;
+//new bool:bEnabled = false;
 new g_isDetonating[MAXPLAYERS+1];
+new g_yellCounter[MAXPLAYERS+1];
 /*hitgroups
 generic = 0?
 head = 1
@@ -39,6 +43,27 @@ leftLeg = 6
 rightLeg = 7
 Gear = 8 ?
 */
+
+
+// list of specific files that are decent
+new String:DetonateYellSounds[][] = {
+	"allahuakbar/detonate01.ogg",
+	"allahuakbar/detonate02.ogg"
+};
+new String:RoamingSounds[][] = {
+	"allahuakbar/roam01.ogg",
+	"allahuakbar/roam02.ogg",
+	"allahuakbar/roam03.ogg",
+	"allahuakbar/roam04.ogg",
+	"allahuakbar/roam05.ogg",
+	"allahuakbar/roam06.ogg",
+	"allahuakbar/roam07.ogg",
+	"allahuakbar/roam08.ogg",
+	"allahuakbar/roam09.ogg",
+	"allahuakbar/roam10.ogg",
+	"allahuakbar/roam11.ogg"
+};
+
 public Plugin:myinfo = {
 	name= "[INS] Suicide Bombers",
 	author  = "Jared Ballou (jballou)",
@@ -50,26 +75,69 @@ public Plugin:myinfo = {
 public OnPluginStart()
 {
 	//PrintToServer("[SUICIDE] Starting");
-	cvarVersion = CreateConVar("sm_suicidebomb_version", PLUGIN_VERSION, PLUGIN_DESCRIPTION, FCVAR_NOTIFY | FCVAR_PLUGIN | FCVAR_DONTRECORD);
-	cvarEnabled = CreateConVar("sm_suicidebomb_enabled", "1", "sets whether suicide bombs are enabled", FCVAR_NOTIFY | FCVAR_PLUGIN, true, 0.0, true, 1.0);
-	cvarDeathChance = CreateConVar("sm_suicidebomb_death_chance", "0.0", "Chance as a fraction of 1 that a bomber will explode when killed", FCVAR_NOTIFY | FCVAR_PLUGIN, true, 0.0, true, 1.0);
-	cvarIncenDeathChance = CreateConVar("sm_suicidebomb_incen_death_chance", "0.15", "Chance as a fraction of 1 that a bomber will explode when hurt by incen/molotov", FCVAR_NOTIFY | FCVAR_PLUGIN, true, 0.0, true, 1.0);
-	cvarExplosiveDeathChance = CreateConVar("sm_suicidebomb_explosive_death_chance", "0.75", "Chance as a fraction of 1 that a bomber will explode when hurt by explosive", FCVAR_NOTIFY | FCVAR_PLUGIN, true, 0.0, true, 1.0);
-	cvarChestStomachDeathChance = CreateConVar("sm_suicidebomb_chest_stomach_death_chance", "0.50", "Chance as a fraction of 1 that a bomber will explode if shot in stomach/chest", FCVAR_NOTIFY | FCVAR_PLUGIN, true, 0.0, true, 1.0);
+	cvarVersion = CreateConVar("sm_suicidebomb_version", PLUGIN_VERSION, PLUGIN_DESCRIPTION, FCVAR_NOTIFY | FCVAR_DONTRECORD);
+	cvarEnabled = CreateConVar("sm_suicidebomb_enabled", "1", "sets whether suicide bombs are enabled", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	cvarDeathChance = CreateConVar("sm_suicidebomb_death_chance", "0.0", "Chance as a fraction of 1 that a bomber will explode when killed", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	cvarIncenDeathChance = CreateConVar("sm_suicidebomb_incen_death_chance", "0.15", "Chance as a fraction of 1 that a bomber will explode when hurt by incen/molotov", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	cvarExplosiveDeathChance = CreateConVar("sm_suicidebomb_explosive_death_chance", "0.75", "Chance as a fraction of 1 that a bomber will explode when hurt by explosive", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	cvarChestStomachDeathChance = CreateConVar("sm_suicidebomb_chest_stomach_death_chance", "0.50", "Chance as a fraction of 1 that a bomber will explode if shot in stomach/chest", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	cvar_yelling_delay = CreateConVar("sm_yelling_delay", "6", "Yelling delay time");
+	
+	AutoExecConfig(true,"plugin.suicide");
 	
 	HookConVarChange(cvarEnabled,ConVarChanged);
 	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Pre);
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Pre);
 	HookEvent("player_pick_squad", Event_PlayerPickSquad);
+
+}
+public OnConfigsExecuted()
+{
+	decl String:buffer[MAX_FILE_LEN];
+	new noncached = 0;
+	
+	// cache sounds in string array to be used
+	for (new i = 0; i < sizeof(RoamingSounds); i++) {
+		Format(buffer, sizeof(buffer), "sound/%s", RoamingSounds[i]);
+		AddFileToDownloadsTable(buffer);
+		noncached++;
+	}
+	for (new i = 0; i < sizeof(DetonateYellSounds); i++) {
+		Format(buffer, sizeof(buffer), "sound/%s", DetonateYellSounds[i]);
+		AddFileToDownloadsTable(buffer);
+		noncached++;
+	}
+	PrintToServer("[SUICIDE] Done adding %d sounds to download table", noncached);
 }
 public OnMapStart()
 {	
 	CreateTimer(2.0, Timer_BomberLoop, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	PrecacheAllahuSound();
+}
+PrecacheAllahuSound()
+{
+	new noncached = 0;
+	// cache sounds in string array to be used
+	for (new i = 0; i < sizeof(RoamingSounds); i++) {
+		//if (!IsSoundPrecached(RoamingSounds[i])) {
+			PrecacheSound(RoamingSounds[i]);
+			noncached++;
+			//PrintToServer("[FY] Cached: %s", sAllahuSounds[i]);
+		//}
+	}
+	for (new i = 0; i < sizeof(DetonateYellSounds); i++) {
+		//if (!IsSoundPrecached(DetonateYellSounds[i])) {
+			PrecacheSound(DetonateYellSounds[i]);
+			noncached++;
+			//PrintToServer("[FY] Cached: %s", sAllahuSounds[i]);
+		//}
+	}
+	PrintToServer("[SUICIDE] Done caching %d sounds", noncached);
 }
 public ConVarChanged(Handle:cvar, const String:oldVal[], const String:newVal[])
 {
-	if(cvar == cvarEnabled)
-		bEnabled = bool:StringToInt(newVal);
+	//if(cvar == cvarEnabled)
+	//	bEnabled = bool:StringToInt(newVal);
 }
 public Event_PlayerPickSquad(Handle:event, const String:name[], bool:dontBroadcast)
 {
@@ -99,6 +167,17 @@ public Action:Timer_BomberLoop(Handle:timer) //this controls bomber loop to chec
 		{
 			////PrintToServer("[SUICIDE] TIMER BOMBER DETECTED");
 			
+			// yell allahu akbar
+			if (g_yellCounter[bomber] <= 0)
+			{
+				YellRomaingSound(bomber);
+				g_yellCounter[bomber] = GetConVarInt(cvar_yelling_delay) / 2;
+			}
+			else
+			{
+				g_yellCounter[bomber]--;
+			}
+			
 			for (new victim = 1; victim <= MaxClients; victim++) // lets get our victim to compare distance
 			{
 				if (victim < 1 || !IsClientInGame(victim) || IsFakeClient(victim))
@@ -114,7 +193,7 @@ public Action:Timer_BomberLoop(Handle:timer) //this controls bomber loop to chec
 					if (tDistance < fBomberDistance)
 					{
 						new Float:fBomberViewThreshold = 0.75; // if negative, bombers back is turned
-						new Bool:tCanBomberSeeTarget = (ClientViews(bomber, victim, fBomberDistance, fBomberViewThreshold));
+						new tCanBomberSeeTarget = (ClientViews(bomber, victim, fBomberDistance, fBomberViewThreshold));
 						if (tCanBomberSeeTarget)
 						{
 							//new victimId = GetClientUserId(bomber);
@@ -214,8 +293,8 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 		
 		new hitgroup = GetEventInt(event, "hitgroup");
 		decl String:weapon[32];
-		new Int:dmg_taken = GetEventInt(event, "dmg_health");
-		new Int:victimHealth = GetEventInt(event, "health");
+		new Float:dmg_taken = GetEventFloat(event, "dmg_health");
+		//new Int:victimHealth = GetEventInt(event, "health");
 		GetEventString(event, "weapon", weapon, sizeof(weapon));
 		//PrintToServer("[SUICIDE] victimHealth is: %i, Damage Taken: %i | RETURNING",victimHealth, dmg_taken);
 		
@@ -316,13 +395,15 @@ public Action:Timer_DetonatePeriod(Handle:timer, any:client)
 	clientPos[2] = clientPos[2] + 54;
     //client is our victim and we are running through all medics to see whos nearby
 	if(IsFakeClient(client) && IsPlayerAlive(client) && bomb > 0 && bomb != INVALID_ENT_REFERENCE && IsValidEdict(bomb) && IsValidEntity(bomb))
-	{
+	{	
 		TeleportEntity(bomb, clientPos, NULL_VECTOR, NULL_VECTOR);
 	}
 	else
 	{
 		return Plugin_Stop;
 	}
+	
+	return Plugin_Continue;
 }
 public CheckExplodeHurt(client) {
 	g_isDetonating[client] = 1;
@@ -355,8 +436,10 @@ public CheckExplodeHurt(client) {
         // WritePackCell(bomberPack, ent);
 
 		if (DispatchSpawn(ent)) {
-			DealDamage(ent,304,client,DMG_BLAST,"weapon_c4_ied");
+			YellDetonateSound(client);
+			PrintToChatAll("\x05Suicide Bomber detonated bomb.");
 			
+			DealDamage(ent,304,client,DMG_BLAST,"weapon_c4_ied");
 		}
 	}
 }
@@ -409,7 +492,7 @@ public CheckExplodeDeath(client) {
 	//new m_iSquad = GetEntProp(client, Prop_Send, "m_iSquad");
 	//new m_iSquadSlot = GetEntProp(client, Prop_Send, "m_iSquadSlot");
 	//new Float:fDeathChance = GetConVarFloat(cvarDeathChance);
-	new Float:fExplosiveDeathChance = GetConVarFloat(cvarExplosiveDeathChance);
+	//new Float:fExplosiveDeathChance = GetConVarFloat(cvarExplosiveDeathChance);
 	
 	//PrintToServer("[SUICIDE] Running CheckExplodeDEATH for client %d name %N squad %d squadslot %d",client,client,m_iSquad,m_iSquadSlot);
 
@@ -442,6 +525,10 @@ public CheckExplodeDeath(client) {
 		
 		if (DispatchSpawn(ent)) {
 			//PrintToServer("[SUICIDE] Detonating IED entity");
+			
+			YellDetonateSound(client);
+			PrintToChatAll("\x05Suicide Bomber detonated bomb.");
+			
 			DealDamage(ent,304,client,DMG_BLAST,"weapon_c4_ied");
 		}
 	}
@@ -474,4 +561,31 @@ DealDamage(victim,damage,attacker=0,dmg_type=DMG_GENERIC,String:weapon[]="")
 		}
 	}
 
+}
+
+public Action:YellRomaingSound(client) {
+	// statics
+	static idx_Sound = -1;
+	// static voice = false;
+
+	// decide on voice or sound
+	new idx_Old = idx_Sound;
+	idx_Sound = GetRandomInt(0, sizeof(RoamingSounds) - 1);
+
+	//PrintToServer("[SUICIDE] Sound ID: Old %d, New %d", idx_Old, idx_Sound);
+
+	// prevent playing the same sound in a row
+	if (idx_Old == idx_Sound) {
+		return YellRomaingSound(client);
+	} else {
+		EmitSoundToAll(RoamingSounds[idx_Sound], client);
+	}
+	
+	return Plugin_Continue;
+}
+YellDetonateSound(client) {
+	new idx_Sound = -1;
+	idx_Sound = GetRandomInt(0, sizeof(DetonateYellSounds) - 1);
+
+	EmitSoundToAll(DetonateYellSounds[idx_Sound], client);
 }
