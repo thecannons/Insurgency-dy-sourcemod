@@ -15,8 +15,11 @@
 #define PREFIX_LEN 7
 #define MAX_SQUADS 8
 #define SQUAD_SIZE 8
+#define MAX_MAPS 256
+#define MAX_GAMEMODES 16
 
 native Ins_ObjectiveResource_GetProp(const String:prop[], size=4, element=0);
+native Ins_Log(ELOG_LEVEL:level,const String:format[], any:...);
 native Ins_GetWeaponGetMaxClip1(weapon);
 native Float:Ins_ObjectiveResource_GetPropFloat(const String:prop[], size=4, element=0);
 native Ins_ObjectiveResource_GetPropEnt(const String:prop[], element=0);
@@ -88,6 +91,15 @@ enum WeaponStatFields
 	LOG_HIT_RIGHTLEG,
 }
 
+enum LOG_LEVEL
+{
+	DEFAULT = 0,
+	TRACE,
+	DEBUG,
+	INFO,
+	WARN,
+	ERROR
+}
 
 stock AddFolderToDownloadTable(const String:Directory[], bool:recursive=false)
 {
