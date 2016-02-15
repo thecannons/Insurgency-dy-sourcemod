@@ -169,6 +169,8 @@ new Float:g_iDeadRagdollVectors[MAXPLAYERS+1][3];
 new g_ClientRagdolls[MAXPLAYERS+1];
 new g_iRespawnCount[4];
 new Float:g_SecurityCounterSpawn[3];
+new g_isMapInit;
+
 #define PLUGIN_VERSION "1.7.0"
 #define PLUGIN_DESCRIPTION "Respawn dead players via admincommand or by queues"
 #define UPDATE_URL    "http://ins.jballou.com/sourcemod/update-respawn.txt"
@@ -363,6 +365,9 @@ public OnMapStart()
 
 public Action:Timer_MapStart(Handle:Timer)
 {
+	if (g_isMapInit == 1) return;
+	g_isMapInit = 1;
+	
 	g_isConquer = 0;
 	
 	// reset hiding spot
@@ -463,6 +468,7 @@ public OnMapEnd()
 {
 	//PrintToServer("[REVIVE_DEBUG] MAP ENDED");	
 	SetPlayerSpawns();
+	g_isMapInit = 0;
 }
 
 public Action:Command_Respawn(client, args)
@@ -681,8 +687,8 @@ public Action:Timer_EnemyReinforce(Handle:Timer)
 				    	//new botTeamCount = Team_CountAlivePlayers(m_iTeam);
 				        if (IsFakeClient(client) && !IsPlayerAlive(client) && m_iTeam == TEAM_2)
 						{
-				        	g_reinforceTime = reinforce_time_subsequent;
-						CreateRespawnTimer(client);
+							g_reinforceTime = reinforce_time_subsequent;
+							CreateRespawnTimer(client);
 				        }
 			    	}
 				}
@@ -2003,33 +2009,37 @@ public Action:RespawnPlayer(client, target)
 public Action:RespawnPlayer2(Handle:Timer, any:client)
 {
 	h_RespawnTimers[client] = INVALID_HANDLE;
-	decl String:game[40];
-	GetGameFolderName(game, sizeof(game));
-	new iTeam = GetClientTeam(client);
-	if ((g_respawn_type == 1 || iTeam == TEAM_1) && g_iSpawnTokens[client] > 0)
+	if (IsClientInGame(client))
 	{
-		g_iSpawnTokens[client]--;
-	}
-	else if (g_respawn_type == 2)
-	{
-		//If have lives, spawn
-		if  (iTeam == TEAM_1 && g_team_lives_2 > 0)
+		new iTeam = GetClientTeam(client);
+		if ((g_respawn_type == 1 || iTeam == TEAM_1) && g_iSpawnTokens[client] > 0)
 		{
-			g_team_lives_2--;
-			if (g_team_lives_2 <= 0)
-				g_team_lives_2 = 0;
+			g_iSpawnTokens[client]--;
 		}
-		else if (iTeam == TEAM_2 && g_team_lives_3 > 0)
+		else if (g_respawn_type == 2)
 		{
-			g_team_lives_3--;
-			if (g_team_lives_3 <= 0)
-				g_team_lives_3 = 0;
-			//PrintToServer("######################TEAM 2 LIVES REMAINING %i", g_team_lives_3);
+			//If have lives, spawn
+			if  (iTeam == TEAM_1 && g_team_lives_2 > 0)
+			{
+				g_team_lives_2--;
+				if (g_team_lives_2 <= 0)
+					g_team_lives_2 = 0;
+			}
+			else if (iTeam == TEAM_2 && g_team_lives_3 > 0)
+			{
+				g_team_lives_3--;
+				if (g_team_lives_3 <= 0)
+					g_team_lives_3 = 0;
+				//PrintToServer("######################TEAM 2 LIVES REMAINING %i", g_team_lives_3);
+			}
 		}
 	}
 	//PrintToServer("######################TEAM 2 LIVES REMAINING %i", g_team_lives_3);
 	//PrintToServer("######################TEAM 2 LIVES REMAINING %i", g_team_lives_3);
 	//PrintToServer("[RESPAWN] Respawning client %N who has %d lives remaining", client, g_iSpawnTokens[client]);
+	
+	decl String:game[40];
+	GetGameFolderName(game, sizeof(game));
 	if (StrEqual(game, "cstrike") || StrEqual(game, "csgo"))
 	{
 		CS_RespawnPlayer(client);
@@ -2042,9 +2052,6 @@ public Action:RespawnPlayer2(Handle:Timer, any:client)
 	{
 		SDKCall(g_hPlayerRespawn, client);
 	}
-
-	
-	
 
 	if (IsFakeClient(client))
 		g_hRespawnTimer[client] = CreateTimer(0.0, Timer_PostSpawn, client); //Do the post-spawn stuff like moving to final "spawnpoint" selected
