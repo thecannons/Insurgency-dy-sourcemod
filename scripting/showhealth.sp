@@ -15,10 +15,14 @@ public Plugin:myinfo =
 new Handle:cvar_show_health = INVALID_HANDLE;
 new Handle:cvar_show_health_on_hit_only = INVALID_HANDLE;
 new Handle:cvar_show_health_text_area = INVALID_HANDLE;
+new Handle:cvar_show_health_display_delay = INVALID_HANDLE;
 
 new bool:show_health = true;
 new bool:show_health_on_hit_only = true;
 new show_health_text_area = 1;
+new Float:g_fDisplayDelay;
+new bool:g_bIsInit = false;
+new bool:g_bIsChangedDelay = false;
 
 new bool:option_show_health[MAXPLAYERS + 1] = {true,...};
 new Handle:cookie_show_health = INVALID_HANDLE;
@@ -27,24 +31,47 @@ public OnPluginStart()
 {
 	CreateConVar("sm_show_health_version", PLUGIN_VERSION, "Show Health Version", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY|FCVAR_DONTRECORD);
 	cvar_show_health = CreateConVar("sm_show_health", "1", "Enabled/Disabled show health functionality, 0 = off/1 = on", FCVAR_PLUGIN, true, 0.0, true, 1.0);
-	cvar_show_health_on_hit_only = CreateConVar("sm_show_health_on_hit_only", "1", "Defines the weather when to show a health text:\n0 = always show your health on a screen\n1 = show your health only when somebody hit you", FCVAR_PLUGIN, true, 0.0, true, 1.0);
+	cvar_show_health_on_hit_only = CreateConVar("sm_show_health_on_hit_only", "0", "Defines the weather when to show a health text:\n0 = show your health on a screen based on delay time.\n1 = show your health only when somebody hit you", FCVAR_PLUGIN, true, 0.0, true, 1.0);
 	cvar_show_health_text_area = CreateConVar("sm_show_health_text_area", "1", "Defines the area for health text:\n 1 = in the hint text area\n 2 = in the center of the screen", FCVAR_PLUGIN, true, 1.0, true, 2.0);
+	cvar_show_health_display_delay = CreateConVar("sm_show_health_display_delay", "10", "Defines display delay time", FCVAR_PLUGIN);
 	
 	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Post);
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
 	
 	HookConVarChange(cvar_show_health, OnCVarChange);
-	HookConVarChange(cvar_show_health_on_hit_only, OnCVarChange);
 	HookConVarChange(cvar_show_health_text_area, OnCVarChange);
+	HookConVarChange(cvar_show_health_on_hit_only, OnDisplayDelayChange);
+	HookConVarChange(cvar_show_health_display_delay, OnDisplayDelayChange);
 	
 	AutoExecConfig(true, "plugin.showhealth");
 	LoadTranslations("common.phrases");
 	LoadTranslations("showhealth.phrases");
 	
 	cookie_show_health = RegClientCookie("Show Health On/Off", "", CookieAccess_Private);
-	SetCookieMenuItem(CookieMenuHandler_ShowHealth, 0, "Show Health");
+	SetCookieMenuItem(CookieMenuHandler_ShowHealth, 1, "Show Health");
 	
-	CreateTimer(1.5, RefreshHealthText, _, TIMER_REPEAT);
+	AutoExecConfig(true,"plugin.showhealth");
+	
+	if(!g_bIsInit)
+	{
+		g_bIsInit = true;
+		g_fDisplayDelay = GetConVarFloat(cvar_show_health_display_delay);
+		CreateTimer(g_fDisplayDelay, Timer_RefreshHealthText, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	}
+}
+
+public OnMapStart()
+{	
+	if(!g_bIsInit)
+	{
+		g_bIsInit = true;
+		g_fDisplayDelay = GetConVarFloat(cvar_show_health_display_delay);
+		CreateTimer(g_fDisplayDelay, Timer_RefreshHealthText, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	}
+}
+public OnMapEnd()
+{	
+	g_bIsInit = false;
 }
 
 public CookieMenuHandler_ShowHealth(client, CookieMenuAction:action, any:info, String:buffer[], maxlen)
@@ -99,11 +126,22 @@ public OnConfigsExecuted()
 	GetCVars();
 }
 
-public Action:RefreshHealthText(Handle:timer)
+public Action:Timer_RefreshHealthText(Handle:timer)
 {
+	if (g_bIsChangedDelay)
+	{
+		g_bIsChangedDelay = false;
+		g_bIsInit = false;
+		CreateTimer(g_fDisplayDelay, Timer_RestartHealthTimer);
+		PrintToServer("[Health] Restarting");
+		return Plugin_Stop;
+	}
+	
 	if (!show_health || show_health_on_hit_only)
 	{
-		return;
+		PrintToServer("[Health] Stoped.(show_health: %d / show_health_on_hit_only: %d)", show_health, show_health_on_hit_only);
+		g_bIsInit = false;
+		return Plugin_Stop;
 	}
 	
 	for (new client = 1; client <= MaxClients; client++)
@@ -113,6 +151,7 @@ public Action:RefreshHealthText(Handle:timer)
 			ShowHealth(client, GetClientHealth(client));
 		}
 	}
+	return Plugin_Continue;
 }
 
 public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
@@ -155,8 +194,8 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 
 public ShowHealth(client, health)
 {
-	if (!option_show_health[client])
-		return;
+	//if (!option_show_health[client])
+	//	return;
 	
 	switch (show_health_text_area)
 	{
@@ -172,14 +211,36 @@ public ShowHealth(client, health)
 	}
 }
 
+public OnDisplayDelayChange(Handle:convar_hndl, const String:oldValue[], const String:newValue[])
+{
+	g_bIsChangedDelay = true;
+	show_health_on_hit_only = GetConVarBool(cvar_show_health_on_hit_only);
+	g_fDisplayDelay = GetConVarFloat(cvar_show_health_display_delay)
+	CreateTimer(g_fDisplayDelay, Timer_RestartHealthTimer);
+	PrintToServer("[Health] Timer cvars changed (g_fDisplayDelay: %f)", g_fDisplayDelay);
+}
+
+public Action:Timer_RestartHealthTimer(Handle:timer)
+{
+	PrintToServer("[Health] Restart Timer (g_bIsInit: %d)", g_bIsInit);
+	if(!g_bIsInit)
+	{
+		g_bIsInit = true;
+		g_fDisplayDelay = GetConVarFloat(cvar_show_health_display_delay);
+		CreateTimer(g_fDisplayDelay, Timer_RefreshHealthText, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	}
+}
+
 public OnCVarChange(Handle:convar_hndl, const String:oldValue[], const String:newValue[])
 {
 	GetCVars();
+	PrintToServer("[Health] Cvars changed");
 }
 
 public GetCVars()
 {
 	show_health = GetConVarBool(cvar_show_health);
-	show_health_on_hit_only = GetConVarBool(cvar_show_health_on_hit_only);
 	show_health_text_area = GetConVarInt(cvar_show_health_text_area);
+	show_health_on_hit_only = GetConVarBool(cvar_show_health_on_hit_only);
+	g_fDisplayDelay = GetConVarFloat(cvar_show_health_display_delay);
 }
