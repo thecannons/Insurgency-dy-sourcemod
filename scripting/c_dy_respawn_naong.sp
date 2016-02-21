@@ -23,27 +23,15 @@
 #define Gren_AT4 67
 #define Gren_RPG7 61
 
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
-=======
-//Player binds
-#define MAX_BUTTONS 25
-//new g_LastButtons[MAXPLAYERS+1];
-
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 #undef REQUIRE_PLUGIN
 
 // Handle for revive
 new Handle:g_hPlayerRespawn;
 new Handle:g_hGameConfig;
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
-=======
-//new Handle:h_ragdollRemoveTimer[MAXPLAYERS+1];
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 new Handle:h_RespawnTimers[MAXPLAYERS+1];
 new Handle:h_RespawnPlayerTimers[MAXPLAYERS+1];
 new Handle:h_ReviveTimer[MAXPLAYERS+1];
 new Handle:h_RespawnCounterTimer[MAXPLAYERS+1];
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 new Handle:h_RagdollTimer[MAXPLAYERS+1];
 
 // Player respawn
@@ -66,32 +54,14 @@ new playerClip[MAXPLAYERS + 1][2]; // Track primary and secondary ammo
 new playerAmmo[MAXPLAYERS + 1][4]; // track player ammo based on weapon slot 0 - 4
 //new playerGrenadeType[MAXPLAYERS + 1][10]; //track player grenade types
 //new playerRole[MAXPLAYERS + 1]; // tracks player role so if it changes while wounded, he dies
-=======
-//new Handle:h_PreReviveTimer;
-new Handle:h_RagdollTimer[MAXPLAYERS+1];
-
-//Remaining time for respawn
-new g_iRespawnTimeRemaining[MAXPLAYERS+1];
-
-//Ammo Amounts
-new playerClip[MAXPLAYERS + 1][2]; // Track primary and secondary ammo
-new playerAmmo[MAXPLAYERS + 1][4]; // track player ammo based on weapon slot 0 - 4
-//new Handle:playerGrenadeType[MAXPLAYERS + 1][10]; //track player grenade types
-//new Handle:playerRole[MAXPLAYERS + 1]; // tracks player role so if it changes while wounded, he dies
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 new playerPrimary[MAXPLAYERS + 1];
 new playerSecondary[MAXPLAYERS + 1];
 new bool:playerRevived[MAXPLAYERS + 1];
 new bool:playerFirstJoin[MAXPLAYERS + 1];
 new bool:playerFirstDeath[MAXPLAYERS + 1];
 new playerPickSquad[MAXPLAYERS + 1];
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 
 // Navmesh Init
-=======
-//Navmesh Init
-new Handle:g_hHidingSpots = INVALID_HANDLE;
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 #define MAX_OBJECTIVES 13
 #define MAX_HIDING_SPOTS 2048
 #define MIN_PLAYER_DISTANCE 128.0
@@ -118,16 +88,9 @@ new unit = 1;
 #define TEAM_1		2
 #define TEAM_2		3
 
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 // Handle for config
 new Handle:sm_respawn_enabled = INVALID_HANDLE;
 new Handle:sm_respawn_delay_bot = INVALID_HANDLE;
-=======
-//new bool:TF2 = false;
-
-new Handle:sm_respawn_enabled = INVALID_HANDLE;
-new Handle:sm_respawn_delay = INVALID_HANDLE;
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 new Handle:sm_respawn_delay_player = INVALID_HANDLE;
 new Handle:sm_respawn_delay_player_count_01 = INVALID_HANDLE;
 new Handle:sm_respawn_delay_player_count_02 = INVALID_HANDLE;
@@ -145,16 +108,10 @@ new Handle:sm_respawn_delay_player_count_13 = INVALID_HANDLE;
 new Handle:sm_respawn_delay_player_count_14 = INVALID_HANDLE;
 new Handle:sm_respawn_delay_player_count_15 = INVALID_HANDLE;
 new Handle:sm_respawn_delay_player_count_16 = INVALID_HANDLE;
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 new Handle:sm_respawn_delay_player_count_17 = INVALID_HANDLE;
 new Handle:sm_respawn_delay_player_count_18 = INVALID_HANDLE;
 new Handle:sm_respawn_count = INVALID_HANDLE;
 new Handle:sm_respawn_counterattack = INVALID_HANDLE;
-=======
-new Handle:sm_respawn_count = INVALID_HANDLE;
-new Handle:sm_respawn_counterattack = INVALID_HANDLE;
-//new Handle:sm_always_finale_counterattack = INVALID_HANDLE;
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 new Handle:sm_respawn_final_counterattack = INVALID_HANDLE;
 new Handle:sm_respawn_count_team2 = INVALID_HANDLE;
 new Handle:sm_respawn_count_team3 = INVALID_HANDLE;
@@ -169,10 +126,6 @@ new Handle:sm_fatal_explosive_dmg = INVALID_HANDLE;
 new Handle:sm_fatal_chest_stomach = INVALID_HANDLE;
 new Handle:sm_fatal_chance = INVALID_HANDLE;
 new Handle:sm_fatal_head_chance = INVALID_HANDLE;
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
-=======
-//new Handle:sm_nav_mesh_spawning = INVALID_HANDLE;
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 new Handle:sm_spawn_security_on_counter = INVALID_HANDLE;
 new Handle:sm_enable_track_ammo = INVALID_HANDLE;
 new Handle:sm_min_counter_dur_sec = INVALID_HANDLE;
@@ -183,19 +136,12 @@ new Handle:sm_reinforce_time = INVALID_HANDLE;
 new Handle:sm_reinforce_time_subsequent = INVALID_HANDLE;
 new Handle:sm_check_static_enemy = INVALID_HANDLE;
 new Handle:sm_remaininglife = INVALID_HANDLE;
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 new Handle:sm_check_static_enemy_counter;
-=======
-//new Handle:sm_temp_map_fix = INVALID_HANDLE;
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 
 // Medic specific
 new Handle:sm_revive_seconds = INVALID_HANDLE;
 new Handle:sm_revive_bonus = INVALID_HANDLE;
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 new Handle:sm_heal_bonus = INVALID_HANDLE;
-=======
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 new Handle:sm_revive_health = INVALID_HANDLE;
 new Handle:sm_heal_amount = INVALID_HANDLE;
 new String:g_client_last_classstring[MAXPLAYERS+1][64];
@@ -207,15 +153,9 @@ new Handle:cvarMinCounterattackDistance = INVALID_HANDLE; //Min distance from co
 new Handle:cvarMinPlayerDistance = INVALID_HANDLE; //Min/max distance from players to spawn
 new Handle:cvarMaxPlayerDistance = INVALID_HANDLE; //Min/max distance from players to spawn
 
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 // Init global variables
 new Int:g_checkStaticAmt, Int:g_checkStaticAmtCntr, g_isConquer, g_reinforceTime, g_team_lives_2, g_team_lives_3, g_team_lives_3_total, g_respawn_lives_modifier, g_respawn_type, g_respawn_count_team2, g_respawn_count_team3, g_revive_seconds, g_heal_amount, Float:g_flMinPlayerDistance, Float:g_flMaxPlayerDistance, Float:g_flMinCounterattackDistance;
 
-=======
-new Float:g_checkStaticAmt, g_isConquer, /*g_isCheckpoint, g_isHunt, g_always_counter,*/ g_reinforceTime, /*g_iSpawnMode,*/ g_team_lives_2, g_team_lives_3, g_team_lives_3_total, /*g_team_lives_2_total, g_teams_spawned_bool,*/ g_respawn_lives_modifier, g_respawn_type, g_respawn_count_team2, g_respawn_count_team3, g_revive_seconds, /*g_revive_health, g_heal_amount,*/ Float:g_flMinPlayerDistance, Float:g_flMaxPlayerDistance, Float:g_flMinCounterattackDistance;
-new Float:g_vecOrigin[MAXPLAYERS+1][3];
-//new Float:g_fInterval  = 5.0;
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 enum SpawnModes {
         SpawnMode_Normal = 0,
 	SpawnMode_HidingSpots,
@@ -224,21 +164,7 @@ enum SpawnModes {
 
 // Kill Stray Enemy Bots Globals
 new Float:g_enemyTimerPos[MAXPLAYERS+1][3];
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 
-=======
-//new Float:g_enemyPos[MAXPLAYERS+1][3];
-
-new g_iSpawnTokens[MAXPLAYERS+1];
-new g_hurtFatal[MAXPLAYERS+1];
-new Float:g_iDeadVectors[MAXPLAYERS+1][3];
-new Float:g_iDeadRagdollVectors[MAXPLAYERS+1][3];
-new g_ClientRagdolls[MAXPLAYERS+1];
-new g_iRespawnCount[4];
-new Float:g_SecurityCounterSpawn[3];
-new g_isMapInit;
-
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 #define PLUGIN_VERSION "1.7.0"
 #define PLUGIN_DESCRIPTION "Respawn dead players via admincommand or by queues"
 #define UPDATE_URL    "http://ins.jballou.com/sourcemod/update-respawn.txt"
@@ -253,36 +179,16 @@ public Plugin:myinfo =
 };
 public OnPluginStart()
 {
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 	// Nav Mesh Botspawn specific START
-=======
-	decl String:gamemod[40];
-	GetGameFolderName(gamemod, sizeof(gamemod));
-	
-	if(StrEqual(gamemod, "tf"))
-	{
-		//TF2 = true;
-	}
-	//Nav Mesh Botspawn specific START
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 	cvarSpawnMode = CreateConVar("sm_botspawns_spawn_mode", "1", "Only normal spawnpoints at the objective, the old way (0), spawn in hiding spots following rules (1), spawnpoints that meet rules (2)", FCVAR_NOTIFY);
 	cvarMinCounterattackDistance = CreateConVar("sm_botspawns_min_counterattack_distance", "800.0", "Min distance from counterattack objective to spawn", FCVAR_NOTIFY);
 	cvarMinPlayerDistance = CreateConVar("sm_botspawns_min_player_distance", "800.0", "Min distance from players to spawn", FCVAR_NOTIFY);
 	cvarMaxPlayerDistance = CreateConVar("sm_botspawns_max_player_distance", "1000.0", "Max distance from players to spawn", FCVAR_NOTIFY);
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 	// Nav Mesh Botspawn specific END
 
 	CreateConVar("sm_respawn_version", PLUGIN_VERSION, PLUGIN_DESCRIPTION, FCVAR_NOTIFY | FCVAR_DONTRECORD);
 	sm_respawn_enabled = CreateConVar("sm_respawn_enabled", "1", "Automatically respawn players when they die; 0 - disabled, 1 - enabled");
 	sm_respawn_delay_bot = CreateConVar("sm_respawn_delay_bot", "1.0", "How many seconds to delay the respawn (bots)");
-=======
-
-	//Nav Mesh Botspawn specific END
-
-	CreateConVar("sm_respawn_version", PLUGIN_VERSION, PLUGIN_DESCRIPTION, FCVAR_NOTIFY | FCVAR_DONTRECORD);
-	sm_respawn_enabled = CreateConVar("sm_respawn_enabled", "1", "Automatically respawn players when they die; 0 - disabled, 1 - enabled");
-	sm_respawn_delay = CreateConVar("sm_respawn_delay", "1.0", "How many seconds to delay the respawn (bots)");
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 	sm_respawn_delay_player = CreateConVar("sm_respawn_delay_player", "30.0", "How many seconds to delay the respawn (when players count is over 16)");
 	sm_respawn_delay_player_count_01 = CreateConVar("sm_respawn_delay_player_count_01", "5.0", "How many seconds to delay the respawn (when player count is 1)");
 	sm_respawn_delay_player_count_02 = CreateConVar("sm_respawn_delay_player_count_02", "10.0", "How many seconds to delay the respawn (when player count is 2)");
@@ -300,11 +206,8 @@ public OnPluginStart()
 	sm_respawn_delay_player_count_14 = CreateConVar("sm_respawn_delay_player_count_14", "100.0", "How many seconds to delay the respawn (when player count is 14)");
 	sm_respawn_delay_player_count_15 = CreateConVar("sm_respawn_delay_player_count_15", "110.0", "How many seconds to delay the respawn (when player count is 15)");
 	sm_respawn_delay_player_count_16 = CreateConVar("sm_respawn_delay_player_count_16", "110.0", "How many seconds to delay the respawn (when player count is 16)");
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 	sm_respawn_delay_player_count_17 = CreateConVar("sm_respawn_delay_player_count_17", "120.0", "How many seconds to delay the respawn (when player count is 17)");
 	sm_respawn_delay_player_count_18 = CreateConVar("sm_respawn_delay_player_count_18", "120.0", "How many seconds to delay the respawn (when player count is 18)");
-=======
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 	sm_respawn_counterattack = CreateConVar("sm_respawn_counterattack", "2", "Respawn during counterattack? (0: no, 1: yes, 2: infinite)");
 	sm_respawn_final_counterattack = CreateConVar("sm_respawn_final_counterattack", "2", "Respawn during final counterattack? (0: no, 1: yes, 2: infinite)");
 	sm_respawn_count = CreateConVar("sm_respawn_count", "0", "Respawn all players this many times");
@@ -319,10 +222,6 @@ public OnPluginStart()
 	sm_fatal_burn_dmg = CreateConVar("sm_fatal_burn_dmg", "50", "Amount of damage to fatally kill player in burn");
 	sm_fatal_explosive_dmg = CreateConVar("sm_fatal_explosive_dmg", "200", "Amount of damage to fatally kill player in explosive");
 	sm_fatal_chest_stomach = CreateConVar("sm_fatal_chest_stomach", "100", "Amount of damage to fatally kill player in chest/stomach");
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
-=======
-	//sm_nav_mesh_spawning = CreateConVar("sm_nav_mesh_spawning", "1", "Attempt to spawn on nav_mesh if player in range of original spawn");
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 	sm_fatal_chance = CreateConVar("sm_fatal_chance", "0.6", "Chance for a kill to be fatal, 0.6 default = 60% chance to be fatal");
 	sm_fatal_head_chance = CreateConVar("sm_fatal_head_chance", "0.7", "Chance for a headshot kill to be fatal, 0.6 default = 60% chance to be fatal");
 	sm_spawn_security_on_counter = CreateConVar("sm_spawn_security_on_counter", "1", "0/1 When a counter attack starts, spawn all dead players and teleport them to point to defend");
@@ -330,10 +229,9 @@ public OnPluginStart()
 	sm_min_counter_dur_sec = CreateConVar("sm_min_counter_dur_sec", "66", "Minimum randomized counter attack duration");
 	sm_max_counter_dur_sec = CreateConVar("sm_max_counter_dur_sec", "126", "Maximum randomized counter attack duration");
 	sm_counter_chance = CreateConVar("sm_counter_chance", "0.5", "Percent chance that a counter attack will happen def: 50%");
-	sm_reinforce_multiplier = CreateConVar("sm_reinforce_multiplier", "1", "Division multiplier to determine when to start reinforce timer for bots based on team pool lives left over");
+	sm_reinforce_multiplier = CreateConVar("sm_reinforce_multiplier", "4", "Division multiplier to determine when to start reinforce timer for bots based on team pool lives left over");
 	sm_reinforce_time = CreateConVar("sm_reinforce_time", "200", "When enemy forces are low on lives, how much time til they get reinforcements?");
 	sm_reinforce_time_subsequent = CreateConVar("sm_reinforce_time_subsequent", "140", "When enemy forces are low on lives and already reinforced, how much time til they get reinforcements on subsequent reinforcement?");
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 	sm_check_static_enemy = CreateConVar("sm_check_static_enemy", "120", "Seconds amount to check if an AI has moved probably stuck");
 	sm_remaininglife = CreateConVar("sm_remaininglife", "-1", "Returns total remaining life.");
 	sm_check_static_enemy_counter = CreateConVar("sm_check_static_enemy_counter", "10", "Seconds amount to check if an AI has moved during counter");
@@ -341,31 +239,13 @@ public OnPluginStart()
 	sm_revive_seconds = CreateConVar("sm_revive_seconds", "5", "Time in seconds medic needs to stand over body to revive");
 	sm_revive_bonus = CreateConVar("sm_revive_bonus", "1", "Bonus revive score(kill count) for medic");
 	sm_heal_bonus = CreateConVar("sm_heal_bonus", "1", "Bonus heal score(kill count) for medic");
-=======
-	sm_check_static_enemy = CreateConVar("sm_check_static_enemy", "120.0", "Seconds amount to check if an AI has moved probably stuck");
-	
-	sm_remaininglife = CreateConVar("sm_remaininglife", "-1", "Returns total remaining life.");
-	
-	//sm_temp_map_fix = CreateConVar("sm_temp_map_fix", "embassy_coop", "Current starting map to fix model bug");
-	
-
-	//Daimyo Medic Revive
-	sm_revive_seconds = CreateConVar("sm_revive_seconds", "5", "Time in seconds medic needs to stand over body to revive");
-	sm_revive_bonus = CreateConVar("sm_revive_bonus", "20", "Bonus revive score for medic");
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 	sm_revive_health = CreateConVar("sm_revive_health", "50", "Health restored when revived");
 	sm_heal_amount = CreateConVar("sm_heal_amount", "5", "Heal amount per 0.5 seconds");
 	
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 	// Add admin respawn console command
 	RegAdminCmd("sm_respawn", Command_Respawn, ADMFLAG_SLAY, "sm_respawn <#userid|name>");
 	
 	// Event hooking
-=======
-	// add admin respawn console command
-	RegAdminCmd("sm_respawn", Command_Respawn, ADMFLAG_SLAY, "sm_respawn <#userid|name>");
-	
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 	HookEvent("player_hurt", Event_PlayerHurt);
 	HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("round_start", Event_RoundStart);
@@ -457,15 +337,8 @@ public CvarChange(Handle:cvar, const String:oldvalue[], const String:newvalue[])
 public UpdateCvars()
 {
 	g_revive_seconds = GetConVarInt(sm_revive_seconds);
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 	g_heal_amount = GetConVarInt(sm_heal_amount);
 	
-=======
-	//g_revive_health = GetConVarInt(sm_revive_health);
-	//g_heal_amount = GetConVarInt(sm_heal_amount);
-	
-	//g_iSpawnMode = GetConVarInt(cvarSpawnMode);
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 	g_flMinCounterattackDistance = GetConVarFloat(cvarMinCounterattackDistance);
 	g_flMinPlayerDistance = GetConVarFloat(cvarMinPlayerDistance);
 	g_flMaxPlayerDistance = GetConVarFloat(cvarMaxPlayerDistance);
@@ -474,42 +347,27 @@ public UpdateCvars()
 
 public OnMapStart()
 {	
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 	// Wait for navmesh
-=======
-	// wait for navmesh
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 	CreateTimer(2.0, Timer_MapStart);
 }
 
 public Action:Timer_MapStart(Handle:Timer)
 {
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 	// Check is map initialized
 	if (g_isMapInit == 1) 
 	{
-		PrintToServer("[RESPPAWN] Prevented repetitive call");
+		//PrintToServer("[RESPPAWN] Prevented repetitive call");
 		return;
 	}
-=======
-	if (g_isMapInit == 1) return;
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 	g_isMapInit = 1;
 	
 	g_isConquer = 0;
 	
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 	// Reset hiding spot
 	new iEmptyArray[MAX_OBJECTIVES];
 	g_iCPHidingSpotCount = iEmptyArray;
 	
 	// Check gamemode
-=======
-	// reset hiding spot
-	new iEmptyArray[MAX_OBJECTIVES];
-	g_iCPHidingSpotCount = iEmptyArray;
-	
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 	decl String:sGameMode[32];
 	GetConVarString(FindConVar("mp_gamemode"), sGameMode, sizeof(sGameMode));
 	if (StrEqual(sGameMode,"conquer")) // if Hunt?
@@ -564,21 +422,14 @@ public Action:Timer_MapStart(Handle:Timer)
 	//CreateTimer(1.0, Timer_PlayerTimeout,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 
 	//########### NOTHING BELOW THIS, IF THIS CODE CRASHES, NOTHING UNDER RUNS #######
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 	// Get hiding spot count
-=======
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 	g_hHidingSpots = NavMesh_GetHidingSpots();//try NavMesh_GetAreas(); or //NavMesh_GetPlaces(); // or NavMesh_GetEncounterPaths();
 	if (g_hHidingSpots != INVALID_HANDLE)
 		g_iHidingSpotCount = GetArraySize(g_hHidingSpots);
 	else
 		g_iHidingSpotCount = 0;
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 	
 	// Get the number of control points
-=======
-		
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 	m_iNumControlPoints = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
 	//PrintToServer("[BOTSPAWNS] m_iNumControlPoints %d",m_iNumControlPoints);
 	for (new i = 0; i < m_iNumControlPoints; i++)
@@ -635,22 +486,16 @@ public OnMapEnd()
 	g_isMapInit = 0;
 }
 
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 // Respawn function for console command
 public Action:Command_Respawn(client, args)
 {
 	// Check argument
-=======
-public Action:Command_Respawn(client, args)
-{
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 	if (args < 1)
 	{
 		ReplyToCommand(client, "[SM] Usage: sm_player_respawn <#userid|name>");
 		return Plugin_Handled;
 	}
 
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 	// Retrive argument
 	new String:arg[65];
 	GetCmdArg(1, arg, sizeof(arg));
@@ -658,14 +503,6 @@ public Action:Command_Respawn(client, args)
 	new target_list[MaxClients], target_count, bool:tn_is_ml;
 	
 	// Get target count
-=======
-	new String:arg[65];
-	GetCmdArg(1, arg, sizeof(arg));
-
-	new String:target_name[MAX_TARGET_LENGTH];
-	new target_list[MaxClients], target_count, bool:tn_is_ml;
-
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 	target_count = ProcessTargetString(
 					arg,
 					client,
@@ -675,13 +512,8 @@ public Action:Command_Respawn(client, args)
 					target_name,
 					sizeof(target_name),
 					tn_is_ml);
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 					
 	// Check target count
-=======
-
-
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 	if(target_count <= COMMAND_TARGET_NONE) 	// If we don't have dead players
 	{
 		ReplyToTargetError(client, target_count);
@@ -691,10 +523,7 @@ public Action:Command_Respawn(client, args)
 	// Team filter dead players, re-order target_list array with new_target_count
 	new target, team, new_target_count;
 
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 	// Check team
-=======
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 	for (new i = 0; i < target_count; i++)
 	{
 		target = target_list[i];
@@ -707,24 +536,15 @@ public Action:Command_Respawn(client, args)
 		}
 	}
 
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 	// Check target count
-=======
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 	if(new_target_count == COMMAND_TARGET_NONE) // No dead players from  team 2 and 3
 	{
 		ReplyToTargetError(client, new_target_count);
 		return Plugin_Handled;
 	}
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 	target_count = new_target_count; // re-set new value.
 
 	// If target exists
-=======
-
-	target_count = new_target_count; // re-set new value.
-
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 	if (tn_is_ml)
 	{
 		ShowActivity2(client, "[SM] ", "%t", "Toggled respawn on target", target_name);
@@ -734,10 +554,7 @@ public Action:Command_Respawn(client, args)
 		ShowActivity2(client, "[SM] ", "%t", "Toggled respawn on target", "_s", target_name);
 	}
 
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 	// Process respawn
-=======
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 	for (new i = 0; i < target_count; i++)
 	{
 		RespawnPlayer(client, target_list[i]);
@@ -809,11 +626,6 @@ public Action:Timer_PlayerStatus(Handle:Timer)
 				// Player was killed
 	            else if (g_hurtFatal[client] == 0 && !Ins_InCounterAttack())
 	            {
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
-=======
-					//decl String:wounded_hint[64];
-					//Format(wounded_hint, 255,"You were wounded for %i damage", g_clientDamageDone[client]);
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 					if (!GetConVarBool(sm_respawn_enabled) || GetConVarInt(sm_respawn_count_team2) == -1 || g_iSpawnTokens[client] <= 0)
 					{
 						PrintCenterText(client, "[You are WOUNDED]..wait patiently for a medic..do NOT mic/chat spam!");
@@ -822,13 +634,7 @@ public Action:Timer_PlayerStatus(Handle:Timer)
 				// Player was killed during counter attack
 	            else if (g_hurtFatal[client] == 0 && Ins_InCounterAttack())
 	            {
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 	            	if (!GetConVarBool(sm_respawn_enabled) || GetConVarInt(sm_respawn_count_team2) == -1 || g_iSpawnTokens[client] <= 0) 
-=======
-	            	//decl String:wounded_hint[64];
-	        		//Format(wounded_hint, 255,"You were wounded for %i damage", g_clientDamageDone[client]);
-					if (!GetConVarBool(sm_respawn_enabled) || GetConVarInt(sm_respawn_count_team2) == -1 || g_iSpawnTokens[client] <= 0) 
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 					{
 						PrintCenterText(client, "You are WOUNDED during a Counter-Attack..if its close to ending..dont bother asking for a medic!");
 					}
@@ -864,10 +670,6 @@ public Action:Timer_EnemyReinforce(Handle:Timer)
 {
 	// Retrive config
 	new reinforce_multiplier = GetConVarInt(sm_reinforce_multiplier);
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
-=======
-	//new reinforce_time = GetConVarInt(sm_reinforce_time);
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 	new reinforce_time_subsequent = GetConVarInt(sm_reinforce_time_subsequent);
 
 	// Check enemy remaining
@@ -918,11 +720,7 @@ public Action:Timer_EnemyReinforce(Handle:Timer)
 				        if (IsFakeClient(client) && !IsPlayerAlive(client) && m_iTeam == TEAM_2)
 						{
 							g_reinforceTime = reinforce_time_subsequent;
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 							CreateBotRespawnTimer(client);
-=======
-							CreateRespawnTimer(client);
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 				        }
 			    	}
 				}
@@ -960,7 +758,7 @@ public Action:Timer_CheckEnemyStatic(Handle:Timer)
 						// If enemy position is static, kill him
 						if (tDistance <= 1) 
 						{
-							PrintToServer("ENEMY STATIC - KILLING");
+							//PrintToServer("ENEMY STATIC - KILLING");
 							ForcePlayerSuicide(enemyBot);
 						}
 						// Update current position
@@ -999,7 +797,7 @@ public Action:Timer_CheckEnemyStatic(Handle:Timer)
 						// If enemy position is static, kill him
 						if (tDistance <= 1) 
 						{
-							PrintToServer("ENEMY STATIC - KILLING");
+							//PrintToServer("ENEMY STATIC - KILLING");
 							ForcePlayerSuicide(enemyBot);
 						}
 						// Update current position
@@ -1237,33 +1035,17 @@ public Action:Timer_RevivePeriod(Handle:Timer, Handle:revivePack)
 						
 						if (g_reviveCounter[client] > g_revive_seconds)
 						{	
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 							//Client_PrintToChatAll(false, "{OG}%N{N} revived {R}%N", medic, client);
 							PrintToChatAll("\x05%N\x01 revived \x03%N", medic, client);
-=======
-							decl String:medicName[32];
-							decl String:clientName[32];
-							GetClientName(medic, medicName, sizeof(medicName));
-							GetClientName(client, clientName, sizeof(clientName));
-							//Format(revive_to_all, 255,"Medic {G}%s{N} revived {R}%s", medicName, clientName);
-							//PrintToChatAll("%s", revive_to_all);
-							//PrintToChatAll("Medic \x04%s\x01 revived \x05%s", medicName, clientName);
-							Client_PrintToChatAll(false, "Medic {G}%s{N} revived {R}%s", medicName, clientName);
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 							Format(hint_medic, 255,"You revived %N", client);
 							PrintHintText(medic, "%s", hint_medic);
 							Format(hint, 255,"Medic %N revived you", medic);
 							PrintHintText(client, "%s", hint);
 							
 							new iBonus = GetConVarInt(sm_revive_bonus);
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 							//new iOldScore = GetEntProp(client, Prop_Data, "m_iFrags");
 							new iScore = GetClientFrags(medic) + iBonus;
 							SetEntProp(medic, Prop_Data, "m_iFrags", iScore);
-=======
-							new iOldScore = GetEntProp(client, Prop_Data, "m_iFrags");
-							SetEntProp(client, Prop_Data, "m_iFrags", (iOldScore + iBonus));
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 							
 							g_iDeadRagdollVectors[client] = ragPos;
 							g_reviveCounter[client] = 0;
@@ -1375,7 +1157,7 @@ CheckHidingSpotRules(m_nActivePushPointIndex,iCPHIndex,iSpot,client)
 		{
 			if ((distance < g_flMinPlayerDistance))// || ((IsVectorInSightRange(iTarget, flHidingSpot, 120.0, g_flMinPlayerDistance)) && (ClientCanSeeVector(iTarget, flHidingSpot, g_flMinPlayerDistance))))
 			{
-				PrintToServer("[BOTSPAWNS] ###PRE-SPAWN-CHECK###, Cannot Spawn due to player in DISTANCE/SIGHT");
+				//PrintToServer("[BOTSPAWNS] ###PRE-SPAWN-CHECK###, Cannot Spawn due to player in DISTANCE/SIGHT");
 				needSpawn = 1;
 				break;
 			}
@@ -1403,19 +1185,19 @@ CheckHidingSpotRules(m_nActivePushPointIndex,iCPHIndex,iSpot,client)
 					closest = distance;
 				if ((distance < g_flMinPlayerDistance))// || ((IsVectorInSightRange(iTarget, flHidingSpot, 120.0, g_flMinPlayerDistance)) && (ClientCanSeeVector(iTarget, flHidingSpot, g_flMinPlayerDistance))))
 				{
-					PrintToServer("[BOTSPAWNS] Cannot spawn %N at iSpot %d since it is in sight of %N",client,iSpot,iTarget);
+					//PrintToServer("[BOTSPAWNS] Cannot spawn %N at iSpot %d since it is in sight of %N",client,iSpot,iTarget);
 					return 0;
 				}
 			}
 			// if (distance < MIN_PLAYER_DISTANCE)
 			// {
-			// 	PrintToServer("[BOTSPAWNS] Distance too small from %N to iSpot %d distance %f",iTarget,iSpot,distance);
+			// 	//PrintToServer("[BOTSPAWNS] Distance too small from %N to iSpot %d distance %f",iTarget,iSpot,distance);
 			// 	return 0;
 			// }
 		}
 		if (closest > g_flMaxPlayerDistance)
 		{
-			PrintToServer("[BOTSPAWNS] iSpot %d is too far from nearest player distance %f",iSpot,closest);
+			//PrintToServer("[BOTSPAWNS] iSpot %d is too far from nearest player distance %f",iSpot,closest);
 			return 0;
 		}
 		if (Ins_InCounterAttack())
@@ -1423,12 +1205,12 @@ CheckHidingSpotRules(m_nActivePushPointIndex,iCPHIndex,iSpot,client)
 			distance = GetVectorDistance(flHidingSpot,m_vCPPositions[m_nActivePushPointIndex]);
 			if (distance < g_flMinCounterattackDistance)
 			{
-				PrintToServer("[BOTSPAWNS] iSpot %d is too close counterattack point distance %f",iSpot,distance);
+				//PrintToServer("[BOTSPAWNS] iSpot %d is too close counterattack point distance %f",iSpot,distance);
 				return 0;
 			}
 		}
 		distance = GetVectorDistance(flHidingSpot,vecOrigin);
-		PrintToServer("[BOTSPAWNS] Selected spot for %N, iCPHIndex %d iSpot %d distance %f",client,iCPHIndex,iSpot,distance);
+		//PrintToServer("[BOTSPAWNS] Selected spot for %N, iCPHIndex %d iSpot %d distance %f",client,iCPHIndex,iSpot,distance);
 		return 1;
 	}
 	else
@@ -1509,7 +1291,7 @@ public Action:Timer_PostSpawn(Handle:timer, any:client)
 			
 		new Float:flHidingSpot[3],Float:vecOrigin[3];
 		new iSpot = GetBestHidingSpot(client);
-		PrintToServer("[BOTSPAWNS] FOUND Hiding spot %d",iSpot);
+		//PrintToServer("[BOTSPAWNS] FOUND Hiding spot %d",iSpot);
 			
 		if (iSpot > -1)
 		{
@@ -1519,7 +1301,7 @@ public Action:Timer_PostSpawn(Handle:timer, any:client)
 			GetClientAbsOrigin(client,vecOrigin);
 			new Float:distance = GetVectorDistance(flHidingSpot,vecOrigin);
 
-			PrintToServer("[BOTSPAWNS] Teleporting %N to hiding spot %d at %f,%f,%f distance %f",client,iSpot,flHidingSpot[0],flHidingSpot[1],flHidingSpot[2],distance);
+			//PrintToServer("[BOTSPAWNS] Teleporting %N to hiding spot %d at %f,%f,%f distance %f",client,iSpot,flHidingSpot[0],flHidingSpot[1],flHidingSpot[2],distance);
 			TeleportEntity(client, flHidingSpot, NULL_VECTOR, NULL_VECTOR);
 		}
 	}
@@ -1686,7 +1468,7 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 		if (fRandom < ins_ca_chance && StrEqual(sGameMode,"checkpoint") && ((acp+1) != ncp))
 		{
 			cvar = INVALID_HANDLE;
-			PrintToServer("COUNTER YES");
+			//PrintToServer("COUNTER YES");
 			cvar = FindConVar("mp_checkpoint_counterattack_disable");
 	   		//SetConVarBounds(cvar,ConVarBound_Upper, true, 18.0);
 	   		SetConVarInt(cvar, 0, true, true);
@@ -1694,7 +1476,7 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 		else
 		{
 			cvar = INVALID_HANDLE;
-			PrintToServer("COUNTER NO");
+			//PrintToServer("COUNTER NO");
 			cvar = FindConVar("mp_checkpoint_counterattack_disable");
 	   		//SetConVarBounds(cvar,ConVarBound_Upper, true, 18.0);
 	   		SetConVarInt(cvar, 1, true, true);
@@ -1772,11 +1554,7 @@ public Action:Event_ControlPointCaptured_Post(Handle:event, const String:name[],
 						{
 							if (!IsFakeClient(client))
 							{
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 								if (!IsClientTimingOut(client))
-=======
-								if (IsClientTimingOut(client))
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 									CreateCounterRespawnTimer(client);
 							}
 							else
@@ -2185,21 +1963,13 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 				{
 					if (IsFakeClient(client))
 					{
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 						//CreateBotRespawnTimer(client);
-=======
-						//CreateRespawnTimer(client);
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 						CreatePlayerRespawnTimer(client);
 					}
 					else
 					{
 						//if (g_hurtFatal[client] == 1)
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 						//CreateBotRespawnTimer(client);
-=======
-						//	CreateRespawnTimer(client);
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 						CreatePlayerRespawnTimer(client);
 					}
 				}
@@ -2217,11 +1987,7 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 				if  (team == TEAM_1 && g_team_lives_2 > 0)
 				{
 						//if (g_hurtFatal[client] == 1)
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 						//CreateBotRespawnTimer(client);
-=======
-						//	CreateRespawnTimer(client);
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 						CreatePlayerRespawnTimer(client);
 				}
 				else if (team == TEAM_2 && g_team_lives_3 > 0)
@@ -2310,32 +2076,6 @@ public CreatePlayerRespawnTimer(client)
 	}
 	
 }
-public CreatePlayerRespawnTimer(client)
-{	
-	//h_RespawnTimers[client] = CreateTimer(GetConVarFloat(sm_respawn_delay), RespawnPlayer2, client);
-	switch (GetRealClientCount())
-	{
-		case 1: g_iRespawnTimeRemaining[client] = GetConVarInt(sm_respawn_delay_player_count_01);
-		case 2: g_iRespawnTimeRemaining[client] = GetConVarInt(sm_respawn_delay_player_count_02);
-		case 3: g_iRespawnTimeRemaining[client] = GetConVarInt(sm_respawn_delay_player_count_03);
-		case 4: g_iRespawnTimeRemaining[client] = GetConVarInt(sm_respawn_delay_player_count_04);
-		case 5: g_iRespawnTimeRemaining[client] = GetConVarInt(sm_respawn_delay_player_count_05);
-		case 6: g_iRespawnTimeRemaining[client] = GetConVarInt(sm_respawn_delay_player_count_06);
-		case 7: g_iRespawnTimeRemaining[client] = GetConVarInt(sm_respawn_delay_player_count_07);
-		case 8: g_iRespawnTimeRemaining[client] = GetConVarInt(sm_respawn_delay_player_count_08);
-		case 9: g_iRespawnTimeRemaining[client] = GetConVarInt(sm_respawn_delay_player_count_09);
-		case 10: g_iRespawnTimeRemaining[client] = GetConVarInt(sm_respawn_delay_player_count_10);
-		case 11: g_iRespawnTimeRemaining[client] = GetConVarInt(sm_respawn_delay_player_count_11);
-		case 12: g_iRespawnTimeRemaining[client] = GetConVarInt(sm_respawn_delay_player_count_12);
-		case 13: g_iRespawnTimeRemaining[client] = GetConVarInt(sm_respawn_delay_player_count_13);
-		case 14: g_iRespawnTimeRemaining[client] = GetConVarInt(sm_respawn_delay_player_count_14);
-		case 15: g_iRespawnTimeRemaining[client] = GetConVarInt(sm_respawn_delay_player_count_15);
-		case 16: g_iRespawnTimeRemaining[client] = GetConVarInt(sm_respawn_delay_player_count_16);
-		default: g_iRespawnTimeRemaining[client] = GetConVarInt(sm_respawn_delay_player);
-	}
-	
-	h_RespawnPlayerTimers[client] = CreateTimer(1.0, Timer_PlayerRespawn, client, TIMER_REPEAT);
-}
 
 public Action:RespawnPlayer(client, target)
 {
@@ -2359,7 +2099,6 @@ public Action:RespawnPlayer(client, target)
 public Action:RespawnBot(Handle:Timer, any:client)
 {
 	h_RespawnTimers[client] = INVALID_HANDLE;
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 	if (!IsClientInGame(client)) return;
 	
 	new iTeam = GetClientTeam(client);
@@ -2368,31 +2107,20 @@ public Action:RespawnBot(Handle:Timer, any:client)
 		g_iSpawnTokens[client]--;
 	}
 	else if (g_respawn_type == 2)
-=======
-	if (IsClientInGame(client))
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 	{
-		new iTeam = GetClientTeam(client);
-		if ((g_respawn_type == 1 || iTeam == TEAM_1) && g_iSpawnTokens[client] > 0)
+		//If have lives, spawn
+		if  (iTeam == TEAM_1 && g_team_lives_2 > 0)
 		{
-			g_iSpawnTokens[client]--;
+			g_team_lives_2--;
+			if (g_team_lives_2 <= 0)
+				g_team_lives_2 = 0;
 		}
-		else if (g_respawn_type == 2)
+		else if (iTeam == TEAM_2 && g_team_lives_3 > 0)
 		{
-			//If have lives, spawn
-			if  (iTeam == TEAM_1 && g_team_lives_2 > 0)
-			{
-				g_team_lives_2--;
-				if (g_team_lives_2 <= 0)
-					g_team_lives_2 = 0;
-			}
-			else if (iTeam == TEAM_2 && g_team_lives_3 > 0)
-			{
-				g_team_lives_3--;
-				if (g_team_lives_3 <= 0)
-					g_team_lives_3 = 0;
-				//PrintToServer("######################TEAM 2 LIVES REMAINING %i", g_team_lives_3);
-			}
+			g_team_lives_3--;
+			if (g_team_lives_3 <= 0)
+				g_team_lives_3 = 0;
+			//PrintToServer("######################TEAM 2 LIVES REMAINING %i", g_team_lives_3);
 		}
 	}
 	//PrintToServer("######################TEAM 2 LIVES REMAINING %i", g_team_lives_3);
@@ -2429,10 +2157,7 @@ public Action:Timer_PlayerRespawn(Handle:Timer, any:client)
 			PrintCenterText(client, sRemainingTime);
 		}
 		g_iRespawnTimeRemaining[client]--;
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 		return Plugin_Continue;
-=======
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 	}
 	else if (g_iRespawnTimeRemaining[client] <= 0 && g_RoundStatus == 1 && IsClientInGame(client) && !IsPlayerAlive(client))
 	{
@@ -2454,7 +2179,6 @@ public Action:Timer_PlayerRespawn(Handle:Timer, any:client)
 		GetClientName(client, name, sizeof(name));
 		PrintToChatAll("\x05%s\x01 is respawned..", name);
 		
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 		g_iPlayerRespawnTimerActive[client] = 0;
 		return Plugin_Stop;
 	}
@@ -2462,31 +2186,17 @@ public Action:Timer_PlayerRespawn(Handle:Timer, any:client)
 	{
 		g_iPlayerRespawnTimerActive[client] = 0;
 		return Plugin_Stop;
-=======
-		KillRespawnTimer(client);
-	}
-	else
-	{
-		KillRespawnTimer(client);
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 	}
 }
 public KillRespawnTimer(client)
 {
 	if (h_RespawnPlayerTimers[client] != INVALID_HANDLE)
 	{
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 		g_iPlayerRespawnTimerActive[client] = 0;
-=======
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 		KillTimer(h_RespawnPlayerTimers[client]);
 		h_RespawnPlayerTimers[client] = INVALID_HANDLE;
 	}
 }
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
-=======
-
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 
 public Action:PreReviveTimer(Handle:Timer)
 {
@@ -2521,12 +2231,7 @@ public Action:ConvertDeleteRagdoll(Handle:Timer, any:client)
 				clientRagdoll = INVALID_ENT_REFERENCE;
 			}
 		}
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 		
-=======
-	
-	    
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 		if (g_hurtFatal[client] != 1)
 		{
 
@@ -2547,10 +2252,6 @@ public Action:ConvertDeleteRagdoll(Handle:Timer, any:client)
 				CreateDataTimer(1.0 , Timer_RevivePeriod, revivePack, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);	
 				WritePackCell(revivePack, client);
 				WritePackCell(revivePack, tempRag);
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
-=======
-			   
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 			}
 			else
 			{
@@ -2986,7 +2687,6 @@ stock GetRemainingLife()
 	}
 	
 	return iResult;
-<<<<<<< HEAD:scripting/c_dy_respawn_naong.sp
 }
 
 stock TraceClientViewEntity(client)
@@ -3108,6 +2808,4 @@ bool:hasReservedSlotAccess(const String:playername[], userFlags) {
   } else {
     return false;
   }
-=======
->>>>>>> origin/master:scripting/c_dy_respawn_no_adm_fix_ammo.sp
 }
