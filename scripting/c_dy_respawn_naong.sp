@@ -87,11 +87,11 @@ new
 new
 	Handle:g_hHidingSpots = INVALID_HANDLE,
 	g_iHidingSpotCount,
-	g_iNumControlPoints,
+	m_iNumControlPoints,
 	g_iCPHidingSpots[MAX_OBJECTIVES][MAX_HIDING_SPOTS],
 	g_iCPHidingSpotCount[MAX_OBJECTIVES],
 	g_iCPLastHidingSpot[MAX_OBJECTIVES],
-	Float:g_fCPPositions[MAX_OBJECTIVES][3];
+	Float:m_vCPPositions[MAX_OBJECTIVES][3];
 
 // Status
 new
@@ -689,15 +689,15 @@ public Action:Timer_MapStart(Handle:Timer)
 		g_iHidingSpotCount = 0;
 	
 	// Get the number of control points
-	g_iNumControlPoints = Ins_ObjectiveResource_GetProp("g_iNumControlPoints");
-	////PrintToServer("[BOTSPAWNS] g_iNumControlPoints %d",g_iNumControlPoints);
-	for (new i = 0; i < g_iNumControlPoints; i++)
+	m_iNumControlPoints = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
+	////PrintToServer("[BOTSPAWNS] m_iNumControlPoints %d",m_iNumControlPoints);
+	for (new i = 0; i < m_iNumControlPoints; i++)
 	{
-		Ins_ObjectiveResource_GetPropVector("g_fCPPositions",g_fCPPositions[i],i);
-		////PrintToServer("[BOTSPAWNS] i %d (%f,%f,%f)",i,g_fCPPositions[i][0],g_fCPPositions[i][1],g_fCPPositions[i][2]);
+		Ins_ObjectiveResource_GetPropVector("m_vCPPositions",m_vCPPositions[i],i);
+		////PrintToServer("[BOTSPAWNS] i %d (%f,%f,%f)",i,m_vCPPositions[i][0],m_vCPPositions[i][1],m_vCPPositions[i][2]);
 	}
 	// Init last hiding spot variable
-	for (new iCP = 0; iCP < g_iNumControlPoints; iCP++)
+	for (new iCP = 0; iCP < m_iNumControlPoints; iCP++)
 	{
 		g_iCPLastHidingSpot[iCP] = 0;
 	}
@@ -712,9 +712,9 @@ public Action:Timer_MapStart(Handle:Timer)
 			flHidingSpot[1] = GetArrayCell(g_hHidingSpots, iIndex, NavMeshHidingSpot_Y);
 			flHidingSpot[2] = GetArrayCell(g_hHidingSpots, iIndex, NavMeshHidingSpot_Z);
 			new Float:dist,Float:closest = -1.0,pointidx=-1;
-			for (new i = 0; i < g_iNumControlPoints; i++)
+			for (new i = 0; i < m_iNumControlPoints; i++)
 			{
-				dist = GetVectorDistance(flHidingSpot,g_fCPPositions[i]);
+				dist = GetVectorDistance(flHidingSpot,m_vCPPositions[i]);
 				if ((dist < closest) || (closest == -1.0))
 				{
 					closest = dist;
@@ -1335,7 +1335,7 @@ int CheckHidingSpotRules(m_nActivePushPointIndex, iCPHIndex, iSpot, client)
 		if (Ins_InCounterAttack())
 		{
 			// Get distance from counter attack point
-			distance = GetVectorDistance(flHidingSpot,g_fCPPositions[m_nActivePushPointIndex]);
+			distance = GetVectorDistance(flHidingSpot,m_vCPPositions[m_nActivePushPointIndex]);
 			
 			// If the distance is shorter than cvarMinCounterattackDistance
 			if (distance < g_flMinCounterattackDistance)
@@ -1570,7 +1570,7 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 	GetConVarString(FindConVar("mp_gamemode"), sGameMode, sizeof(sGameMode));
 
 	// Get the number of control points
-	new ncp = Ins_ObjectiveResource_GetProp("g_iNumControlPoints");
+	new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
 	
 	// Get active push point
 	new acp = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
@@ -2038,7 +2038,7 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 		if (team == TEAM_1 || team == TEAM_2)
 		{
 			// The number of control points
-			new ncp = Ins_ObjectiveResource_GetProp("g_iNumControlPoints");
+			new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
 			
 			// Active control poin
 			new acp = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
