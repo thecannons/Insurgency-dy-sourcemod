@@ -96,7 +96,8 @@ new
 // Status
 new
 	g_isMapInit,
-	g_RoundStatus = 0, //0 is over, 1 is active
+	g_iRoundStatus = 0, //0 is over, 1 is active
+	bool:g_bIsCounterAttackTimerActive = false;
 	g_clientDamageDone[MAXPLAYERS+1],
 	playerPickSquad[MAXPLAYERS + 1],
 	bool:playerRevived[MAXPLAYERS + 1],
@@ -213,6 +214,7 @@ new
 	g_iCvar_respawn_enable,
 	g_iCvar_respawn_type_team_ins,
 	g_iCvar_respawn_type_team_sec,
+	g_iCvar_respawn_reset_each_objective,
 	g_checkStaticAmt,
 	g_checkStaticAmtCntr,
 	g_iReinforceTime,
@@ -315,43 +317,43 @@ public OnPluginStart()
 	sm_respawn_lives_team_sec = CreateConVar("sm_respawn_lives_team_sec", 
 		"-1", "Respawn players this many times (-1: Disables player respawn)");
 	sm_respawn_lives_team_ins = CreateConVar("sm_respawn_lives_team_ins", 
-		"75", "If 'sm_respawn_type_team_ins' set 1, respawn bots this many times. If 'sm_respawn_type_team_ins' set 2, total bot count (If not set 'sm_respawn_lives_team_ins_player_count_XX' uses this value)");
+		"10", "If 'sm_respawn_type_team_ins' set 1, respawn bots this many times. If 'sm_respawn_type_team_ins' set 2, total bot count (If not set 'sm_respawn_lives_team_ins_player_count_XX' uses this value)");
 	sm_respawn_lives_team_ins_player_count_01 = CreateConVar("sm_respawn_lives_team_ins_player_count_01", 
-		"6", "Total bot count (when player count is 1)(sm_respawn_type_team_ins must be 2)");
+		"5", "Total bot count (when player count is 1)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_02 = CreateConVar("sm_respawn_lives_team_ins_player_count_02", 
-		"8", "Total bot count (when player count is 2)(sm_respawn_type_team_ins must be 2)");
+		"10", "Total bot count (when player count is 2)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_03 = CreateConVar("sm_respawn_lives_team_ins_player_count_03", 
-		"10", "Total bot count (when player count is 3)(sm_respawn_type_team_ins must be 2)");
+		"15", "Total bot count (when player count is 3)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_04 = CreateConVar("sm_respawn_lives_team_ins_player_count_04", 
-		"12", "Total bot count (when player count is 4)(sm_respawn_type_team_ins must be 2)");
+		"20", "Total bot count (when player count is 4)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_05 = CreateConVar("sm_respawn_lives_team_ins_player_count_05", 
-		"14", "Total bot count (when player count is 5)(sm_respawn_type_team_ins must be 2)");
+		"25", "Total bot count (when player count is 5)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_06 = CreateConVar("sm_respawn_lives_team_ins_player_count_06", 
-		"16", "Total bot count (when player count is 6)(sm_respawn_type_team_ins must be 2)");
+		"30", "Total bot count (when player count is 6)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_07 = CreateConVar("sm_respawn_lives_team_ins_player_count_07", 
-		"18", "Total bot count (when player count is 7)(sm_respawn_type_team_ins must be 2)");
+		"35", "Total bot count (when player count is 7)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_08 = CreateConVar("sm_respawn_lives_team_ins_player_count_08", 
-		"20", "Total bot count (when player count is 8)(sm_respawn_type_team_ins must be 2)");
+		"40", "Total bot count (when player count is 8)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_09 = CreateConVar("sm_respawn_lives_team_ins_player_count_09", 
-		"22", "Total bot count (when player count is 9)(sm_respawn_type_team_ins must be 2)");
+		"45", "Total bot count (when player count is 9)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_10 = CreateConVar("sm_respawn_lives_team_ins_player_count_10", 
-		"24", "Total bot count (when player count is 10)(sm_respawn_type_team_ins must be 2)");
+		"50", "Total bot count (when player count is 10)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_11 = CreateConVar("sm_respawn_lives_team_ins_player_count_11", 
-		"26", "Total bot count (when player count is 11)(sm_respawn_type_team_ins must be 2)");
+		"55", "Total bot count (when player count is 11)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_12 = CreateConVar("sm_respawn_lives_team_ins_player_count_12", 
-		"28", "Total bot count (when player count is 12)(sm_respawn_type_team_ins must be 2)");
+		"60", "Total bot count (when player count is 12)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_13 = CreateConVar("sm_respawn_lives_team_ins_player_count_13", 
-		"30", "Total bot count (when player count is 13)(sm_respawn_type_team_ins must be 2)");
+		"65", "Total bot count (when player count is 13)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_14 = CreateConVar("sm_respawn_lives_team_ins_player_count_14", 
-		"32", "Total bot count (when player count is 14)(sm_respawn_type_team_ins must be 2)");
+		"70", "Total bot count (when player count is 14)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_15 = CreateConVar("sm_respawn_lives_team_ins_player_count_15", 
-		"34", "Total bot count (when player count is 15)(sm_respawn_type_team_ins must be 2)");
+		"75", "Total bot count (when player count is 15)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_16 = CreateConVar("sm_respawn_lives_team_ins_player_count_16", 
-		"36", "Total bot count (when player count is 16)(sm_respawn_type_team_ins must be 2)");
+		"80", "Total bot count (when player count is 16)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_17 = CreateConVar("sm_respawn_lives_team_ins_player_count_17", 
-		"38", "Total bot count (when player count is 17)(sm_respawn_type_team_ins must be 2)");
+		"85", "Total bot count (when player count is 17)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_18 = CreateConVar("sm_respawn_lives_team_ins_player_count_18", 
-		"40", "Total bot count (when player count is 18)(sm_respawn_type_team_ins must be 2)");
+		"90", "Total bot count (when player count is 18)(sm_respawn_type_team_ins must be 2)");
 	
 	// Fatally death
 	sm_respawn_fatal_limb_dmg = CreateConVar("sm_respawn_fatal_limb_dmg", "80", "Amount of damage to fatally kill player in limb");
@@ -498,8 +500,12 @@ void UpdateRespawnCvars()
 	// Update Cvars
 	g_iCvar_respawn_enable = GetConVarInt(sm_respawn_enabled);
 	
+	// Respawn type
 	g_iCvar_respawn_type_team_ins = GetConVarInt(sm_respawn_type_team_ins);
 	g_iCvar_respawn_type_team_sec = GetConVarInt(sm_respawn_type_team_sec);
+	
+	// Reset respawn tokens each objective
+	g_iCvar_respawn_reset_each_objective = GetConVarInt(sm_respawn_reset_each_objective);
 	
 	//Revive counts
 	g_iReviveSeconds = GetConVarInt(sm_revive_seconds);
@@ -512,7 +518,7 @@ void UpdateRespawnCvars()
 	
 	// Set respawn delay time
 	g_iRespawnSeconds = -1;
-	switch (GetRealClientCount())
+	switch (GetTeamSecCount())
 	{
 		case 0: g_iRespawnSeconds = GetConVarInt(sm_respawn_delay_team_sec_player_count_01);
 		case 1: g_iRespawnSeconds = GetConVarInt(sm_respawn_delay_team_sec_player_count_01);
@@ -552,7 +558,7 @@ void UpdateRespawnCvars()
 	{
 		// Set base value of remaining lives for team insurgent
 		g_iRespawn_lives_team_ins = -1;
-		switch (GetRealClientCount())
+		switch (GetTeamSecCount())
 		{
 			case 0: g_iRespawn_lives_team_ins = GetConVarInt(sm_respawn_lives_team_ins_player_count_01);
 			case 1: g_iRespawn_lives_team_ins = GetConVarInt(sm_respawn_lives_team_ins_player_count_01);
@@ -873,7 +879,7 @@ public Action:Timer_PlayerStatus(Handle:Timer)
 		if (IsClientInGame(client) && IsValidClient(client) && !IsFakeClient(client) && playerPickSquad[client] == 1)
 		{
 			new team = GetClientTeam(client);
-			if (!IsPlayerAlive(client) && !IsClientTimingOut(client) && IsClientObserver(client) && team == TEAM_1 && g_iEnableRevive == 1 && g_RoundStatus == 1 && playerFirstJoin[client] == false) //
+			if (!IsPlayerAlive(client) && !IsClientTimingOut(client) && IsClientObserver(client) && team == TEAM_1 && g_iEnableRevive == 1 && g_iRoundStatus == 1 && playerFirstJoin[client] == false) //
 			{
 				// Player connected or changed squad
 				if (g_iHurtFatal[client] == -1)
@@ -1100,7 +1106,7 @@ public Action:Timer_GearMonitor(Handle:Timer)
 	{
 		if (client > 0 && IsClientInGame(client) && !IsFakeClient(client) && IsPlayerAlive(client) && !IsClientObserver(client))
 		{
-		   if (g_iEnableRevive == 1 && g_RoundStatus == 1 && GetConVarInt(sm_respawn_enable_track_ammo) == 1)
+		   if (g_iEnableRevive == 1 && g_iRoundStatus == 1 && GetConVarInt(sm_respawn_enable_track_ammo) == 1)
 			{	   
 				GetPlayerAmmo(client);
 			}
@@ -1451,6 +1457,9 @@ public Action:Event_PlayerDisconnect(Handle:event, const String:name[], bool:don
 		new playerRag = EntRefToEntIndex(g_iClientRagdolls[client]);
 		if (playerRag > 0 && IsValidEdict(playerRag) && IsValidEntity(playerRag))
 			RemoveRagdoll(client);
+		
+		// Update cvar
+		UpdateRespawnCvars();
 	}
 	return Plugin_Continue;
 }
@@ -1526,7 +1535,7 @@ public Action:PreReviveTimer(Handle:Timer)
 {
 	//h_PreReviveTimer = INVALID_HANDLE;
 	////PrintToServer("ROUND STATUS AND REVIVE ENABLED********************");
-	g_RoundStatus = 1;
+	g_iRoundStatus = 1;
 	g_iEnableRevive = 1;
 	
 	// Update remaining life cvar
@@ -1552,7 +1561,7 @@ public Action:Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadca
 	////PrintToServer("[REVIVE_DEBUG] ROUND ENDED");	
 	// Cooldown revive
 	g_iEnableRevive = 0;
-	g_RoundStatus = 0;
+	g_iRoundStatus = 0;
 	
 	// Reset respawn toke
 	if (GetConVarInt(sm_respawn_reset_each_round))
@@ -1603,6 +1612,15 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 		//PrintToServer("COUNTER YES");
 		cvar = FindConVar("mp_checkpoint_counterattack_disable");
 		SetConVarInt(cvar, 0, true, true);
+		cvar = FindConVar("mp_checkpoint_counterattack_always");
+		SetConVarInt(cvar, 1, true, true);
+		
+		// Call counter-attack end timer
+		if (!g_bIsCounterAttackTimerActive)
+		{
+			g_bIsCounterAttackTimerActive = true;
+			CreateTimer(1.0, Timer_CounterAttackEnd, _, TIMER_REPEAT);
+		}
 	}
 	// If last capture point
 	else if (StrEqual(sGameMode, "checkpoint") && ((acp+1) == ncp))
@@ -1610,6 +1628,15 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 		cvar = INVALID_HANDLE;
 		cvar = FindConVar("mp_checkpoint_counterattack_disable");
 		SetConVarInt(cvar, 0, true, true);
+		cvar = FindConVar("mp_checkpoint_counterattack_always");
+		SetConVarInt(cvar, 1, true, true);
+		
+		// Call counter-attack end timer
+		if (!g_bIsCounterAttackTimerActive)
+		{
+			g_bIsCounterAttackTimerActive = true;
+			CreateTimer(1.0, Timer_CounterAttackEnd, _, TIMER_REPEAT);
+		}
 	}
 	// Not occurs counter attack
 	else
@@ -1717,7 +1744,7 @@ public Action:Event_ObjectDestroyed(Handle:event, const String:name[], bool:dont
 		g_iReinforceTime = reinforce_time;
 		
 		// Reset respawn tokens
-		if (GetConVarInt(sm_respawn_reset_each_objective))
+		if (g_iCvar_respawn_reset_each_objective)
 			ResetPlayerLives();
 	}
 	
@@ -1735,6 +1762,45 @@ public Action:Event_ObjectDestroyed(Handle:event, const String:name[], bool:dont
 				}
 			}
 		}
+	}
+	
+	return Plugin_Continue;
+}
+
+// When counter-attack end, reset reinforcement time
+public Action:Timer_CounterAttackEnd(Handle:Timer)
+{
+	// If round end, exit
+	if (g_iRoundStatus == 0)
+	{
+		g_bIsCounterAttackTimerActive = false;
+		return Plugin_Stop;
+	}
+	
+	// Checkpoint
+	if (g_isConquer != 1)
+	{
+		// Check counter-attack end
+		if (!Ins_InCounterAttack())
+		{
+			// Reset reinforcement time
+			new reinforce_time = GetConVarInt(sm_respawn_reinforce_time);
+			g_iReinforceTime = reinforce_time;
+			
+			// Reset respawn tokens
+			if (g_iCvar_respawn_reset_each_objective)
+			{
+				ResetPlayerLives();
+			}
+			
+			g_bIsCounterAttackTimerActive = false;
+			return Plugin_Stop;
+		}
+	}
+	else
+	{
+		g_bIsCounterAttackTimerActive = false;
+		return Plugin_Stop;
 	}
 	
 	return Plugin_Continue;
@@ -1955,7 +2021,7 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 		}
 	}
 	// Tracking ammo
-	if (g_iEnableRevive == 1 && g_RoundStatus == 1 && GetConVarInt(sm_respawn_enable_track_ammo) == 1)
+	if (g_iEnableRevive == 1 && g_iRoundStatus == 1 && GetConVarInt(sm_respawn_enable_track_ammo) == 1)
 	{
 		////PrintToServer("### GET PLAYER WEAPONS ###");
 		//CONSIDER IF PLAYER CHOOSES DIFFERENT CLASS
@@ -2030,7 +2096,7 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 			g_fDeadPosition[client] = vecPos;
 			
 			// Call ragdoll timer
-			if (g_iEnableRevive == 1 && g_RoundStatus == 1)
+			if (g_iEnableRevive == 1 && g_iRoundStatus == 1)
 				CreateTimer(5.0, ConvertDeleteRagdoll, client);
 		}
 		
@@ -2153,7 +2219,7 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 // Convert dead body to new ragdoll
 public Action:ConvertDeleteRagdoll(Handle:Timer, any:client)
 {	
-	if (IsClientInGame(client) && g_RoundStatus == 1 && !IsPlayerAlive(client)) 
+	if (IsClientInGame(client) && g_iRoundStatus == 1 && !IsPlayerAlive(client)) 
 	{
 		////PrintToServer("CONVERT RAGDOLL********************");
 		//new clientRagdoll = GetEntPropEnt(client, Prop_Send, "m_hRagdoll");
@@ -2281,6 +2347,7 @@ public Action:RespawnPlayerRevive(Handle:Timer, any:client)
 {
 	// Exit if client is not in game
 	if (!IsClientInGame(client)) return;
+	if (IsPlayerAlive(client) || g_iRoundStatus == 0) return;
 	
 	////PrintToServer("[REVIVE_RESPAWN] REVIVING client %N who has %d lives remaining", client, g_iSpawnTokens[client]);
 	// Call forcerespawn fucntion
@@ -2321,6 +2388,7 @@ public Action:RespawnPlayerCounter(Handle:Timer, any:client)
 {
 	// Exit if client is not in game
 	if (!IsClientInGame(client)) return;
+	if (IsPlayerAlive(client) || g_iRoundStatus == 0) return;
 	
 	////PrintToServer("[Counter Respawn] Respawning client %N who has %d lives remaining", client, g_iSpawnTokens[client]);
 	// Call forcerespawn fucntion
@@ -2362,7 +2430,7 @@ public Action:RespawnPlayerPost(Handle:timer, any:client)
 public Action:RespawnBot(Handle:Timer, any:client)
 {
 	// Exit if client is not in game
-	if (!IsClientInGame(client)) return;
+	if (!IsClientInGame(client) || g_iRoundStatus == 0) return;
 	
 	// Check respawn type
 	if (g_iCvar_respawn_type_team_ins == 1 && g_iSpawnTokens[client] > 0)
@@ -2435,7 +2503,7 @@ public Action:Timer_PlayerRespawn(Handle:Timer, any:client)
 	// Exit if client is not in game
 	if (!IsClientInGame(client)) return Plugin_Stop;
 	
-	if (!IsPlayerAlive(client) && g_RoundStatus == 1)
+	if (!IsPlayerAlive(client) && g_iRoundStatus == 1)
 	{
 		if (g_iRespawnTimeRemaining[client] > 0)
 		{
@@ -2676,6 +2744,8 @@ public Action:Timer_RevivePeriod(Handle:Timer, Handle:revivePack)
 // Handles reviving for medics
 public Action:Timer_ReviveMonitor(Handle:timer, any:data)
 {
+	if (g_iRoundStatus == 0) return Plugin_Continue;
+	
 	// Init variables
 	new Float:fReviveDistance = 65.0;
 	new iInjured;
@@ -2917,32 +2987,33 @@ public Action:Timer_NearestBody(Handle:timer, any:data)
 				// Search dead body
 				for (new search = 1; search <= MaxClients; search++)
 				{
-					// Check if valid
-					if (search > 0 && IsClientInGame(search) && !IsPlayerAlive(search) && g_iHurtFatal[search] == 0 
-						&& search != medic && GetClientTeam(medic) == GetClientTeam(search)
-					)
+					if (IsClientInGame(search) && !IsPlayerAlive(search))
 					{
-						// Get found client's ragdoll
-						new clientRagdoll = EntRefToEntIndex(g_iClientRagdolls[search]);
-						if (clientRagdoll > 0 && IsValidEdict(clientRagdoll) && IsValidEntity(clientRagdoll) && clientRagdoll != INVALID_ENT_REFERENCE)
+						// Check if valid
+						if (g_iHurtFatal[search] == 0 && search != medic && GetClientTeam(medic) == GetClientTeam(search))
 						{
-							// Get ragdoll's position
-							searchOrigin = g_fRagdollPosition[search];
-							
-							// Get distance from ragdoll
-							distance = GetVectorDistance(clientOrigin, searchOrigin);
+							// Get found client's ragdoll
+							new clientRagdoll = EntRefToEntIndex(g_iClientRagdolls[search]);
+							if (clientRagdoll > 0 && IsValidEdict(clientRagdoll) && IsValidEntity(clientRagdoll) && clientRagdoll != INVALID_ENT_REFERENCE)
+							{
+								// Get ragdoll's position
+								searchOrigin = g_fRagdollPosition[search];
+								
+								// Get distance from ragdoll
+								distance = GetVectorDistance(clientOrigin, searchOrigin);
 
-							// Is he more near to the player as the player before?
-							if (near == 0.0)
-							{
-								near = distance;
-								nearest = search;
-							}
-							// Set new distance and new nearest player
-							else if (distance < near)
-							{
-								near = distance;
-								nearest = search;
+								// Is he more near to the player as the player before?
+								if (near == 0.0)
+								{
+									near = distance;
+									nearest = search;
+								}
+								// Set new distance and new nearest player
+								else if (distance < near)
+								{
+									near = distance;
+									nearest = search;
+								}
 							}
 						}
 					}
@@ -3079,6 +3150,21 @@ stock TagsCheck(const String:tag[], bool:remove = false)
 		ReplaceString(tags, sizeof(tags), ",,", ",", false);
 		SetConVarString(hTags, tags);
 	}
+}
+
+// Get tesm2 player count
+stock GetTeamSecCount() {
+	new clients = 0;
+	new iTeam;
+	for( new i = 1; i <= GetMaxClients(); i++ ) {
+		if (IsClientInGame(i) && IsClientConnected(i))
+		{
+			iTeam = GetClientTeam(i);
+			if(iTeam == TEAM_1 && !playerFirstJoin[i])
+				clients++;
+		}
+	}
+	return clients;
 }
 
 // Get real client count
