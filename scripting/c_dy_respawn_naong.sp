@@ -164,13 +164,13 @@ new
 	Handle:sm_respawn_lives_team_ins_player_count_18 = INVALID_HANDLE,
 	
 	// Fatal dead
+	Handle:sm_respawn_fatal_chance = INVALID_HANDLE,
+	Handle:sm_respawn_fatal_head_chance = INVALID_HANDLE,
 	Handle:sm_respawn_fatal_limb_dmg = INVALID_HANDLE,
 	Handle:sm_respawn_fatal_head_dmg = INVALID_HANDLE,
 	Handle:sm_respawn_fatal_burn_dmg = INVALID_HANDLE,
 	Handle:sm_respawn_fatal_explosive_dmg = INVALID_HANDLE,
 	Handle:sm_respawn_fatal_chest_stomach = INVALID_HANDLE,
-	Handle:sm_respawn_fatal_chance = INVALID_HANDLE,
-	Handle:sm_respawn_fatal_head_chance = INVALID_HANDLE,
 	
 	// Counter-attack
 	Handle:sm_respawn_counterattack_type = INVALID_HANDLE,
@@ -179,6 +179,7 @@ new
 	Handle:sm_respawn_counter_chance = INVALID_HANDLE,
 	Handle:sm_respawn_min_counter_dur_sec = INVALID_HANDLE,
 	Handle:sm_respawn_max_counter_dur_sec = INVALID_HANDLE,
+	Handle:sm_respawn_final_counter_dur_sec = INVALID_HANDLE,
 	
 	// Misc
 	Handle:sm_respawn_reset_each_round = INVALID_HANDLE,
@@ -215,6 +216,21 @@ new
 	g_iCvar_respawn_type_team_ins,
 	g_iCvar_respawn_type_team_sec,
 	g_iCvar_respawn_reset_each_objective,
+	Float:g_fCvar_respawn_delay_team_ins,
+	g_iCvar_enable_track_ammo,
+	g_iCvar_counterattack_type,
+	g_iCvar_final_counterattack_type,
+	g_iCvar_SpawnMode,
+	
+	// Fatal dead
+	Float:g_fCvar_fatal_chance,
+	Float:g_fCvar_fatal_head_chance,
+	g_iCvar_fatal_limb_dmg,
+	g_iCvar_fatal_head_dmg,
+	g_iCvar_fatal_burn_dmg,
+	g_iCvar_fatal_explosive_dmg,
+	g_iCvar_fatal_chest_stomach,
+	
 	g_checkStaticAmt,
 	g_checkStaticAmtCntr,
 	g_iReinforceTime,
@@ -356,21 +372,22 @@ public OnPluginStart()
 		"90", "Total bot count (when player count is 18)(sm_respawn_type_team_ins must be 2)");
 	
 	// Fatally death
+	sm_respawn_fatal_chance = CreateConVar("sm_respawn_fatal_chance", "0.6", "Chance for a kill to be fatal, 0.6 default = 60% chance to be fatal (To disable set 0.0)");
+	sm_respawn_fatal_head_chance = CreateConVar("sm_respawn_fatal_head_chance", "0.7", "Chance for a headshot kill to be fatal, 0.6 default = 60% chance to be fatal");
 	sm_respawn_fatal_limb_dmg = CreateConVar("sm_respawn_fatal_limb_dmg", "80", "Amount of damage to fatally kill player in limb");
 	sm_respawn_fatal_head_dmg = CreateConVar("sm_respawn_fatal_head_dmg", "100", "Amount of damage to fatally kill player in head");
 	sm_respawn_fatal_burn_dmg = CreateConVar("sm_respawn_fatal_burn_dmg", "50", "Amount of damage to fatally kill player in burn");
 	sm_respawn_fatal_explosive_dmg = CreateConVar("sm_respawn_fatal_explosive_dmg", "200", "Amount of damage to fatally kill player in explosive");
 	sm_respawn_fatal_chest_stomach = CreateConVar("sm_respawn_fatal_chest_stomach", "100", "Amount of damage to fatally kill player in chest/stomach");
-	sm_respawn_fatal_chance = CreateConVar("sm_respawn_fatal_chance", "0.6", "Chance for a kill to be fatal, 0.6 default = 60% chance to be fatal");
-	sm_respawn_fatal_head_chance = CreateConVar("sm_respawn_fatal_head_chance", "0.7", "Chance for a headshot kill to be fatal, 0.6 default = 60% chance to be fatal");
 	
 	// Counter attack
+	sm_respawn_counter_chance = CreateConVar("sm_respawn_counter_chance", "0.5", "Percent chance that a counter attack will happen def: 50%");
 	sm_respawn_counterattack_type = CreateConVar("sm_respawn_counterattack_type", "2", "Respawn during counterattack? (0: no, 1: yes, 2: infinite)");
 	sm_respawn_final_counterattack_type = CreateConVar("sm_respawn_final_counterattack_type", "2", "Respawn during final counterattack? (0: no, 1: yes, 2: infinite)");
 	sm_respawn_security_on_counter = CreateConVar("sm_respawn_security_on_counter", "1", "0/1 When a counter attack starts, spawn all dead players and teleport them to point to defend");
 	sm_respawn_min_counter_dur_sec = CreateConVar("sm_respawn_min_counter_dur_sec", "66", "Minimum randomized counter attack duration");
 	sm_respawn_max_counter_dur_sec = CreateConVar("sm_respawn_max_counter_dur_sec", "126", "Maximum randomized counter attack duration");
-	sm_respawn_counter_chance = CreateConVar("sm_respawn_counter_chance", "0.5", "Percent chance that a counter attack will happen def: 50%");
+	sm_respawn_final_counter_dur_sec = CreateConVar("sm_respawn_final_counter_dur_sec", "180", "Final counter attack duration");
 	
 	// Misc
 	sm_respawn_reset_each_round = CreateConVar("sm_respawn_reset_each_round", "1", "Reset player respawn counts each round");
@@ -398,6 +415,9 @@ public OnPluginStart()
 	// Add admin respawn console command
 	RegAdminCmd("sm_respawn", Command_Respawn, ADMFLAG_SLAY, "sm_respawn <#userid|name>");
 	
+	// Add reload config console command for admin
+	RegAdminCmd("sm_respawn_reload", Command_Reload, ADMFLAG_SLAY, "sm_respawn_reload");
+	
 	// Event hooking
 	HookEvent("player_hurt", Event_PlayerHurt);
 	HookEvent("player_death", Event_PlayerDeath);
@@ -405,6 +425,7 @@ public OnPluginStart()
 	HookEvent("round_end", Event_RoundEnd);
 	HookEvent("player_pick_squad", Event_PlayerPickSquad);
 	HookEvent("player_spawn", Event_PlayerSpawn);
+	HookEvent("object_destroyed", Event_ObjectDestroyed_Pre, EventHookMode_Pre);
 	HookEvent("object_destroyed", Event_ObjectDestroyed);
 	HookEvent("controlpoint_captured", Event_ControlPointCaptured_Pre, EventHookMode_Pre);
 	HookEvent("controlpoint_captured", Event_ControlPointCaptured);
@@ -500,6 +521,12 @@ void UpdateRespawnCvars()
 	// Update Cvars
 	g_iCvar_respawn_enable = GetConVarInt(sm_respawn_enabled);
 	
+	// Bot spawn mode
+	g_iCvar_SpawnMode = GetConVarInt(cvarSpawnMode);
+	
+	// Tracking ammo
+	g_iCvar_enable_track_ammo = GetConVarInt(sm_respawn_enable_track_ammo);
+	
 	// Respawn type
 	g_iCvar_respawn_type_team_ins = GetConVarInt(sm_respawn_type_team_ins);
 	g_iCvar_respawn_type_team_sec = GetConVarInt(sm_respawn_type_team_sec);
@@ -512,6 +539,15 @@ void UpdateRespawnCvars()
 	
 	// Heal Amount
 	g_iHeal_amount = GetConVarInt(sm_heal_amount);
+	
+	// Fatal dead
+	g_fCvar_fatal_chance = GetConVarFloat(sm_respawn_fatal_chance);
+	g_fCvar_fatal_head_chance = GetConVarFloat(sm_respawn_fatal_head_chance);
+	g_iCvar_fatal_limb_dmg = GetConVarInt(sm_respawn_fatal_limb_dmg);
+	g_iCvar_fatal_head_dmg = GetConVarInt(sm_respawn_fatal_head_dmg);
+	g_iCvar_fatal_burn_dmg = GetConVarInt(sm_respawn_fatal_burn_dmg);
+	g_iCvar_fatal_explosive_dmg = GetConVarInt(sm_respawn_fatal_explosive_dmg);
+	g_iCvar_fatal_chest_stomach = GetConVarInt(sm_respawn_fatal_chest_stomach);
 	
 	// Nearest body distance metric
 	g_iUnitMetric = GetConVarInt(sm_revive_distance_metric);
@@ -543,6 +579,9 @@ void UpdateRespawnCvars()
 	// If not set use default
 	if (g_iRespawnSeconds == -1)
 		g_iRespawnSeconds = GetConVarInt(sm_respawn_delay_team_sec);
+		
+	// Respawn delay for team ins
+	g_fCvar_respawn_delay_team_ins = GetConVarFloat(sm_respawn_delay_team_ins);
 	
 	// Respawn type 1
 	g_iRespawnCount[2] = GetConVarInt(sm_respawn_lives_team_sec);
@@ -590,6 +629,8 @@ void UpdateRespawnCvars()
 	g_flMinCounterattackDistance = GetConVarFloat(cvarMinCounterattackDistance);
 	g_flMinPlayerDistance = GetConVarFloat(cvarMinPlayerDistance);
 	g_flMaxPlayerDistance = GetConVarFloat(cvarMaxPlayerDistance);
+	g_iCvar_counterattack_type = GetConVarInt(sm_respawn_counterattack_type);
+	g_iCvar_final_counterattack_type = GetConVarInt(sm_respawn_final_counterattack_type);
 }
 
 // When tags changed
@@ -634,10 +675,8 @@ public Action:Timer_MapStart(Handle:Timer)
 	if (StrEqual(sGameMode,"conquer")) // if Hunt?
 	{
 		g_isConquer = 1;
-		new Handle:fatalChance = FindConVar("sm_respawn_fatal_chance");
-		new Handle:headFatalChance = FindConVar("sm_respawn_fatal_head_chance");
-	   	SetConVarFloat(fatalChance, 0.3, true, true);
-	   	SetConVarFloat(headFatalChance, 0.4, true, true);
+	   	SetConVarFloat(sm_respawn_fatal_chance, 0.3, true, false);
+	   	SetConVarFloat(sm_respawn_fatal_head_chance, 0.4, true, false);
 	}
 	if (StrEqual(sGameMode,"checkpoint")) // if Hunt?
 	{
@@ -653,9 +692,6 @@ public Action:Timer_MapStart(Handle:Timer)
 	
 	// Reset respawn token
 	ResetPlayerLives();
-
-	// Display nearest body for medics
-	CreateTimer(0.2, Timer_NearestBody, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE); //Needs more than 2 people to test
 	
 	// Ammo tracking timer
 	if (GetConVarInt(sm_respawn_enable_track_ammo) == 1)
@@ -677,6 +713,9 @@ public Action:Timer_MapStart(Handle:Timer)
 	
 	// Heal monitor
 	CreateTimer(0.5, Timer_MedicMonitor, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+
+	// Display nearest body for medics
+	CreateTimer(0.2, Timer_NearestBody, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 	
 	// Static enemy check timer
 	g_checkStaticAmt = GetConVarInt(sm_respawn_check_static_enemy);
@@ -751,6 +790,16 @@ public OnMapEnd()
 	// Reset respawn token
 	ResetPlayerLives();
 	g_isMapInit = 0;
+}
+
+// Console command for reload config
+public Action:Command_Reload(client, args)
+{
+	ServerCommand("exec sourcemod/respawn.cfg");
+	ResetPlayerLives();
+	
+	PrintToServer("[RESPAWN] %N reloaded respawn config.", client);
+	ReplyToCommand(client, "[SM] Reloaded 'sourcemod/respawn.cfg' file.");
 }
 
 // Respawn function for console command
@@ -1106,7 +1155,7 @@ public Action:Timer_GearMonitor(Handle:Timer)
 	{
 		if (client > 0 && IsClientInGame(client) && !IsFakeClient(client) && IsPlayerAlive(client) && !IsClientObserver(client))
 		{
-		   if (g_iEnableRevive == 1 && g_iRoundStatus == 1 && GetConVarInt(sm_respawn_enable_track_ammo) == 1)
+		   if (g_iEnableRevive == 1 && g_iRoundStatus == 1 && g_iCvar_enable_track_ammo == 1)
 			{	   
 				GetPlayerAmmo(client);
 			}
@@ -1209,7 +1258,6 @@ void GetPlayerAmmo(client)
 {
 	if (IsClientInGame(client) && IsValidClient(client) && !IsFakeClient(client))
 	{
-		
 		//CONSIDER IF PLAYER CHOOSES DIFFERENT CLASS
 		new primaryWeapon = GetPlayerWeaponSlot(client, 0);
 		new secondaryWeapon = GetPlayerWeaponSlot(client, 1);
@@ -1498,7 +1546,7 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 	SetConVarInt(hCvar, -1);
 	
 	// Reset respawn token
-	if (GetConVarInt(sm_respawn_reset_each_round))
+	if (g_iCvar_respawn_reset_each_objective)
 		ResetPlayerLives();
 	
 	// Reset reinforce time
@@ -1564,7 +1612,7 @@ public Action:Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadca
 	g_iRoundStatus = 0;
 	
 	// Reset respawn toke
-	if (GetConVarInt(sm_respawn_reset_each_round))
+	if (g_iCvar_respawn_reset_each_objective)
 		ResetPlayerLives();
 }
 
@@ -1590,6 +1638,7 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 	// Set minimum and maximum counter attack duration tim
 	new min_ca_dur = GetConVarInt(sm_respawn_min_counter_dur_sec);
 	new max_ca_dur = GetConVarInt(sm_respawn_max_counter_dur_sec);
+	new final_ca_dur = GetConVarInt(sm_respawn_final_counter_dur_sec);
 
 	// Get random duration
 	new fRandomInt = GetRandomInt(min_ca_dur, max_ca_dur);
@@ -1597,7 +1646,13 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 	// Set counter attack duration to server
 	new Handle:cvar_ca_dur;
 	cvar_ca_dur = FindConVar("mp_checkpoint_counterattack_duration");
-	SetConVarInt(cvar_ca_dur, fRandomInt, true, true);
+	
+	// Final counter attack
+	if ((acp+1) == ncp)
+		SetConVarInt(cvar_ca_dur, final_ca_dur, true, false);
+	// Normal counter attack
+	else
+		SetConVarInt(cvar_ca_dur, fRandomInt, true, false);
 	
 	// Get counter attack chance
 	new Float:ins_ca_chance = GetConVarFloat(sm_respawn_counter_chance);
@@ -1611,15 +1666,16 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 		cvar = INVALID_HANDLE;
 		//PrintToServer("COUNTER YES");
 		cvar = FindConVar("mp_checkpoint_counterattack_disable");
-		SetConVarInt(cvar, 0, true, true);
+		SetConVarInt(cvar, 0, true, false);
 		cvar = FindConVar("mp_checkpoint_counterattack_always");
-		SetConVarInt(cvar, 1, true, true);
+		SetConVarInt(cvar, 1, true, false);
 		
 		// Call counter-attack end timer
 		if (!g_bIsCounterAttackTimerActive)
 		{
 			g_bIsCounterAttackTimerActive = true;
 			CreateTimer(1.0, Timer_CounterAttackEnd, _, TIMER_REPEAT);
+			//PrintToServer("[RESPAWN] Counter-attack timer started. (Normal counter-attack)");
 		}
 	}
 	// If last capture point
@@ -1627,15 +1683,16 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 	{
 		cvar = INVALID_HANDLE;
 		cvar = FindConVar("mp_checkpoint_counterattack_disable");
-		SetConVarInt(cvar, 0, true, true);
+		SetConVarInt(cvar, 0, true, false);
 		cvar = FindConVar("mp_checkpoint_counterattack_always");
-		SetConVarInt(cvar, 1, true, true);
+		SetConVarInt(cvar, 1, true, false);
 		
 		// Call counter-attack end timer
 		if (!g_bIsCounterAttackTimerActive)
 		{
 			g_bIsCounterAttackTimerActive = true;
 			CreateTimer(1.0, Timer_CounterAttackEnd, _, TIMER_REPEAT);
+			//PrintToServer("[RESPAWN] Counter-attack timer started. (Last counter-attack)");
 		}
 	}
 	// Not occurs counter attack
@@ -1644,7 +1701,7 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 		cvar = INVALID_HANDLE;
 		//PrintToServer("COUNTER NO");
 		cvar = FindConVar("mp_checkpoint_counterattack_disable");
-		SetConVarInt(cvar, 1, true, true);
+		SetConVarInt(cvar, 1, true, false);
 	}
 	
 	return Plugin_Continue;
@@ -1661,7 +1718,7 @@ public Action:Event_ControlPointCaptured(Handle:event, const String:name[], bool
 	g_iReinforceTime = reinforce_time;
 	
 	// Reset respawn tokens
-	if (GetConVarInt(sm_respawn_reset_each_round))
+	if (g_iCvar_respawn_reset_each_objective)
 		ResetPlayerLives();
 
 	////PrintToServer("CONTROL POINT CAPTURED");
@@ -1722,6 +1779,15 @@ public Action:Event_ControlPointCaptured_Post(Handle:event, const String:name[],
 	////PrintToServer("CONTROL POINT CAPTURED POST");
 	
 	return Plugin_Continue;
+}
+
+
+// When ammo cache destroyed, update respawn position and reset variables
+public Action:Event_ObjectDestroyed_Pre(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	new Handle:cvar = INVALID_HANDLE;
+	cvar = FindConVar("mp_checkpoint_counterattack_always");
+	SetConVarInt(cvar, 0, true, false);
 }
 
 // When ammo cache destroyed, update respawn position and reset variables
@@ -1794,6 +1860,12 @@ public Action:Timer_CounterAttackEnd(Handle:Timer)
 			}
 			
 			g_bIsCounterAttackTimerActive = false;
+			
+			new Handle:cvar = INVALID_HANDLE;
+			cvar = FindConVar("mp_checkpoint_counterattack_always");
+			SetConVarInt(cvar, 0, true, false);
+			
+			PrintToServer("[RESPAWN] Counter-attack is over.");
 			return Plugin_Stop;
 		}
 	}
@@ -1813,7 +1885,7 @@ void ResetPlayerLives()
 	if (g_isConquer == 1) return;
 	
 	// Return if respawn is disabled
-	if (!GetConVarBool(sm_respawn_enabled)) return;
+	if (!g_iCvar_respawn_enable) return;
 	
 	UpdateRespawnCvars();
 	
@@ -1911,117 +1983,118 @@ public Action:Event_PlayerPickSquad( Handle:event, const String:name[], bool:don
 // Triggers when player hurt
 public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	// Get information for event structure
-	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 	new victim = GetClientOfUserId(GetEventInt(event, "userid"));
-	new hitgroup = GetEventInt(event, "hitgroup");
 	
-	// Update last damege (related to 'hurt_fatal')
-	new dmg_taken = GetEventInt(event, "dmg_health");
-	g_clientDamageDone[victim] = dmg_taken;
-	
-	// Get weapon
-	decl String:weapon[32];
-	GetEventString(event, "weapon", weapon, sizeof(weapon));
-	
-	////PrintToServer("[DAMAGE TAKEN] Weapon used: %s, Damage done: %i",weapon, dmg_taken);
-	
-	// Check is team attack
-	new attackerTeam;
-	if (attacker > 0 && IsClientInGame(attacker) && IsValidClient(attacker))
+	if (g_fCvar_fatal_chance > 0.0)
 	{
-		attackerTeam = GetClientTeam(attacker);
-	}
-	
-	// Get fatal chance
-	new Float:fFatalChance = GetConVarFloat(sm_respawn_fatal_chance);
-	new Float:fFatalHeadChance = GetConVarFloat(sm_respawn_fatal_head_chance);
-	new Float:fRandom = GetRandomFloat(0.0, 1.0);
-	
-	// Is client valid
-	if (IsClientInGame(victim))
-	{
-		// Explosive
-		if (hitgroup == 0)
+		// Get information for event structure
+		new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
+		new hitgroup = GetEventInt(event, "hitgroup");
+		
+		// Update last damege (related to 'hurt_fatal')
+		new dmg_taken = GetEventInt(event, "dmg_health");
+		g_clientDamageDone[victim] = dmg_taken;
+		
+		// Get weapon
+		decl String:weapon[32];
+		GetEventString(event, "weapon", weapon, sizeof(weapon));
+		
+		////PrintToServer("[DAMAGE TAKEN] Weapon used: %s, Damage done: %i",weapon, dmg_taken);
+		
+		// Check is team attack
+		new attackerTeam;
+		if (attacker > 0 && IsClientInGame(attacker) && IsValidClient(attacker))
+			attackerTeam = GetClientTeam(attacker);
+		
+		// Get fatal chance
+		new Float:fRandom = GetRandomFloat(0.0, 1.0);
+		
+		// Is client valid
+		if (IsClientInGame(victim))
 		{
-			//explosive list
-			//incens
-			//grenade_molotov, grenade_anm14
-			////PrintToServer("[HITGROUP HURT BURN]");
-			//grenade_m67, grenade_f1, grenade_ied, grenade_c4, rocket_rpg7, rocket_at4, grenade_gp25_he, grenade_m203_he
-			
-			// flame
-			if (StrEqual(weapon, "grenade_anm14", false) || StrEqual(weapon, "grenade_molotov", false))
+			// Explosive
+			if (hitgroup == 0)
 			{
-				////PrintToServer("[SUICIDE] incen/molotov DETECTED!");
-				if (dmg_taken >= GetConVarInt(sm_respawn_fatal_burn_dmg) && (fRandom <= fFatalChance))
+				//explosive list
+				//incens
+				//grenade_molotov, grenade_anm14
+				////PrintToServer("[HITGROUP HURT BURN]");
+				//grenade_m67, grenade_f1, grenade_ied, grenade_c4, rocket_rpg7, rocket_at4, grenade_gp25_he, grenade_m203_he
+				
+				// flame
+				if (StrEqual(weapon, "grenade_anm14", false) || StrEqual(weapon, "grenade_molotov", false))
+				{
+					////PrintToServer("[SUICIDE] incen/molotov DETECTED!");
+					if (dmg_taken >= g_iCvar_fatal_burn_dmg && (fRandom <= g_fCvar_fatal_chance))
+					{
+						// Hurt fatally
+						g_iHurtFatal[victim] = 1;
+						
+						////PrintToServer("[PLAYER HURT BURN]");
+					}
+				}
+				// explosive
+				else if (StrEqual(weapon, "grenade_m67", false) || 
+					StrEqual(weapon, "grenade_f1", false) || 
+					StrEqual(weapon, "grenade_ied", false) || 
+					StrEqual(weapon, "grenade_c4", false) || 
+					StrEqual(weapon, "rocket_rpg7", false) || 
+					StrEqual(weapon, "rocket_at4", false) || 
+					StrEqual(weapon, "grenade_gp25_he", false) || 
+					StrEqual(weapon, "grenade_m203_he", false))
+				{
+					////PrintToServer("[HITGROUP HURT EXPLOSIVE]");
+					if (dmg_taken >= g_iCvar_fatal_explosive_dmg && (fRandom <= g_fCvar_fatal_chance))
+					{
+						// Hurt fatally
+						g_iHurtFatal[victim] = 1;
+						
+						////PrintToServer("[PLAYER HURT EXPLOSIVE]");
+					}
+				}
+				////PrintToServer("[SUICIDE] HITRGOUP 0 [GENERIC]");
+			}
+			// Headshot
+			else if (hitgroup == 1)
+			{
+				////PrintToServer("[PLAYER HURT HEAD]");
+				if (dmg_taken >= g_iCvar_fatal_head_dmg && (fRandom <= g_fCvar_fatal_head_chance) && attackerTeam != TEAM_1)
 				{
 					// Hurt fatally
 					g_iHurtFatal[victim] = 1;
 					
-					////PrintToServer("[PLAYER HURT BURN]");
+					////PrintToServer("[BOTSPAWNS] BOOM HEADSHOT");
 				}
 			}
-			// explosive
-			else if (StrEqual(weapon, "grenade_m67", false) || 
-				StrEqual(weapon, "grenade_f1", false) || 
-				StrEqual(weapon, "grenade_ied", false) || 
-				StrEqual(weapon, "grenade_c4", false) || 
-				StrEqual(weapon, "rocket_rpg7", false) || 
-				StrEqual(weapon, "rocket_at4", false) || 
-				StrEqual(weapon, "grenade_gp25_he", false) || 
-				StrEqual(weapon, "grenade_m203_he", false))
+			// Chest
+			else if (hitgroup == 2 || hitgroup == 3)
 			{
-				////PrintToServer("[HITGROUP HURT EXPLOSIVE]");
-				if (dmg_taken >= GetConVarInt(sm_respawn_fatal_explosive_dmg) && (fRandom <= fFatalChance))
+				////PrintToServer("[HITGROUP HURT CHEST]");
+				if (dmg_taken >= g_iCvar_fatal_chest_stomach && (fRandom <= g_fCvar_fatal_chance))
 				{
 					// Hurt fatally
 					g_iHurtFatal[victim] = 1;
 					
-					////PrintToServer("[PLAYER HURT EXPLOSIVE]");
+					////PrintToServer("[PLAYER HURT CHEST]");
 				}
 			}
-			////PrintToServer("[SUICIDE] HITRGOUP 0 [GENERIC]");
-		}
-		// Headshot
-		else if (hitgroup == 1)
-		{
-			////PrintToServer("[PLAYER HURT HEAD]");
-			if (dmg_taken >= GetConVarInt(sm_respawn_fatal_head_dmg) && (fRandom <= fFatalHeadChance) && attackerTeam != TEAM_1)
+			// Limbs
+			else if (hitgroup == 4 || hitgroup == 5  || hitgroup == 6 || hitgroup == 7)
 			{
-				// Hurt fatally
-				g_iHurtFatal[victim] = 1;
-				
-				////PrintToServer("[BOTSPAWNS] BOOM HEADSHOT");
-			}
-		}
-		// Chest
-		else if (hitgroup == 2 || hitgroup == 3)
-		{
-			////PrintToServer("[HITGROUP HURT CHEST]");
-			if (dmg_taken >= GetConVarInt(sm_respawn_fatal_chest_stomach) && (fRandom <= fFatalChance))
-			{
-				// Hurt fatally
-				g_iHurtFatal[victim] = 1;
-				
-				////PrintToServer("[PLAYER HURT CHEST]");
-			}
-		}
-		// Limbs
-		else if (hitgroup == 4 || hitgroup == 5  || hitgroup == 6 || hitgroup == 7)
-		{
-			////PrintToServer("[HITGROUP HURT LIMBS]");
-			if (dmg_taken >= GetConVarInt(sm_respawn_fatal_limb_dmg) && (fRandom <= fFatalChance))
-			{
-				// Hurt fatally
-				g_iHurtFatal[victim] = 1;
-				
-				////PrintToServer("[PLAYER HURT LIMBS]");
+				////PrintToServer("[HITGROUP HURT LIMBS]");
+				if (dmg_taken >= g_iCvar_fatal_limb_dmg && (fRandom <= g_fCvar_fatal_chance))
+				{
+					// Hurt fatally
+					g_iHurtFatal[victim] = 1;
+					
+					////PrintToServer("[PLAYER HURT LIMBS]");
+				}
 			}
 		}
 	}
+	
 	// Tracking ammo
-	if (g_iEnableRevive == 1 && g_iRoundStatus == 1 && GetConVarInt(sm_respawn_enable_track_ammo) == 1)
+	if (g_iEnableRevive == 1 && g_iRoundStatus == 1 && g_iCvar_enable_track_ammo == 1)
 	{
 		////PrintToServer("### GET PLAYER WEAPONS ###");
 		//CONSIDER IF PLAYER CHOOSES DIFFERENT CLASS
@@ -2084,7 +2157,7 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 	GetConVarString(FindConVar("mp_gamemode"), sGameMode, sizeof(sGameMode));
 	
 	// Check enables
-	if (GetConVarBool(sm_respawn_enabled))
+	if (g_iCvar_respawn_enable)
 	{
 		// Convert ragdoll
 		new team = GetClientTeam(client);
@@ -2111,12 +2184,12 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 			
 			// Do not decrease life in counterattack
 			if (StrEqual(sGameMode,"checkpoint") && Ins_InCounterAttack() && 
-				(((acp+1) == ncp && GetConVarInt(sm_respawn_final_counterattack_type) == 2) || 
-				((acp+1) != ncp && GetConVarInt(sm_respawn_counterattack_type) == 2))
+				(((acp+1) == ncp &&  g_iCvar_final_counterattack_type == 2) || 
+				((acp+1) != ncp && g_iCvar_counterattack_type == 2))
 			)
 			{
 				// Respawn type 1
-				if ((g_iCvar_respawn_type_team_sec == 1 && team == TEAM_1)|| (g_iCvar_respawn_type_team_ins == 1 && team == TEAM_2))
+				if ((g_iCvar_respawn_type_team_sec == 1 && team == TEAM_1) || (g_iCvar_respawn_type_team_ins == 1 && team == TEAM_2))
 				{
 					if ((g_iSpawnTokens[client] < g_iRespawnCount[team]))
 						g_iSpawnTokens[client] = (g_iRespawnCount[team] + 1);
@@ -2145,7 +2218,7 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 				}
 			}
 			// Normal respawn
-			else if ((g_iCvar_respawn_type_team_sec == 1 && team == TEAM_1)|| (g_iCvar_respawn_type_team_ins == 1 && team == TEAM_2))
+			else if ((g_iCvar_respawn_type_team_sec == 1 && team == TEAM_1) || (g_iCvar_respawn_type_team_ins == 1 && team == TEAM_2))
 			{
 				if (g_iSpawnTokens[client] > 0)
 				{
@@ -2194,19 +2267,28 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 	decl String:fatal_hint[64];
 	
 	// Display death message
-	if (g_iHurtFatal[client] == 1 && !IsFakeClient(client))
+	if (g_fCvar_fatal_chance > 0.0)
 	{
-		Format(fatal_hint, 255,"You were fatally killed for %i damage", g_clientDamageDone[client]);
-		PrintHintText(client, "%s", fatal_hint);
-		PrintToChat(client, "%s", fatal_hint);
+		if (g_iHurtFatal[client] == 1 && !IsFakeClient(client))
+		{
+			Format(fatal_hint, 255,"You were fatally killed for %i damage", g_clientDamageDone[client]);
+			PrintHintText(client, "%s", fatal_hint);
+			PrintToChat(client, "%s", fatal_hint);
+		}
+		else
+		{
+			Format(wound_hint, 255,"You were wounded for %i damage, call a medic for revive!", g_clientDamageDone[client]);
+			PrintHintText(client, "%s", wound_hint);
+			PrintToChat(client, "%s", wound_hint);
+		}
 	}
 	else
 	{
-		Format(wound_hint, 255,"You were wounded for %i damage, call a medic for revive!", g_clientDamageDone[client]);
+		Format(wound_hint, 255,"You were wounded, call a medic for revive!", g_clientDamageDone[client]);
 		PrintHintText(client, "%s", wound_hint);
 		PrintToChat(client, "%s", wound_hint);
 	}
-	
+		
 	// Update remaining life
 	new Handle:hCvar = INVALID_HANDLE;
 	new iRemainingLife = GetRemainingLife();
@@ -2322,7 +2404,7 @@ public CreateCounterRespawnTimer(client)
 // Respawn bot
 public CreateBotRespawnTimer(client)
 {
-	CreateTimer(GetConVarFloat(sm_respawn_delay_team_ins), RespawnBot, client);
+	CreateTimer(g_fCvar_respawn_delay_team_ins, RespawnBot, client);
 }
 
 // Respawn player
@@ -2354,7 +2436,7 @@ public Action:RespawnPlayerRevive(Handle:Timer, any:client)
 	SDKCall(g_hPlayerRespawn, client);
 	
 	// If set 'sm_respawn_enable_track_ammo', restore player's ammo
-	if (playerRevived[client] == true && GetConVarInt(sm_respawn_enable_track_ammo) == 1)
+	if (playerRevived[client] == true && g_iCvar_enable_track_ammo == 1)
 		SetPlayerAmmo(client);
 	
 	// Get player's ragdoll
@@ -2365,7 +2447,9 @@ public Action:RespawnPlayerRevive(Handle:Timer, any:client)
 		RemoveRagdoll(client);
 	
 	//Do the post-spawn stuff like moving to final "spawnpoint" selected
-	CreateTimer(0.0, RespawnPlayerRevivePost, client);
+	//CreateTimer(0.0, RespawnPlayerRevivePost, client);
+	RespawnPlayerRevivePost(INVALID_HANDLE, client);
+	
 }
 
 // Do post revive stuff
@@ -2402,7 +2486,8 @@ public Action:RespawnPlayerCounter(Handle:Timer, any:client)
 		RemoveRagdoll(client);
 	
 	//Do the post-spawn stuff like moving to final "spawnpoint" selected
-	CreateTimer(0.0, RespawnPlayerPost, client);
+	//CreateTimer(0.0, RespawnPlayerPost, client);
+	RespawnPlayerPost(INVALID_HANDLE, client);
 }
 
 // Do the post respawn stuff in counter attack
@@ -2412,7 +2497,7 @@ public Action:RespawnPlayerPost(Handle:timer, any:client)
 	if (!IsClientInGame(client)) return;
 	
 	// If set 'sm_respawn_enable_track_ammo', restore player's ammo
-	if (GetConVarInt(sm_respawn_enable_track_ammo) == 1)
+	if (g_iCvar_enable_track_ammo == 1)
 		SetPlayerAmmo(client);
 	
 	// Teleport to avtive counter attack point
@@ -2455,8 +2540,11 @@ public Action:RespawnBot(Handle:Timer, any:client)
 	SDKCall(g_hPlayerRespawn, client);
 
 	//Do the post-spawn stuff like moving to final "spawnpoint" selected
-	if (GetConVarInt(cvarSpawnMode) == 1)
-		CreateTimer(0.0, RespawnBotPost, client);
+	if (g_iCvar_SpawnMode == 1)
+	{
+		//CreateTimer(0.0, RespawnBotPost, client);
+		RespawnBotPost(INVALID_HANDLE, client);
+	}
 	
 }
 
@@ -2541,7 +2629,8 @@ public Action:Timer_PlayerRespawn(Handle:Timer, any:client)
 				RemoveRagdoll(client);
 			
 			// Do the post-spawn stuff like moving to final "spawnpoint" selected
-			CreateTimer(0.0, RespawnPlayerPost, client);
+			//CreateTimer(0.0, RespawnPlayerPost, client);
+			RespawnPlayerPost(INVALID_HANDLE, client);
 			
 			// Announce respawn
 			PrintToChatAll("\x05%N\x01 is respawned..", client);
@@ -2757,13 +2846,16 @@ public Action:Timer_ReviveMonitor(Handle:timer, any:data)
 	// Search medics
 	for (new iMedic = 1; iMedic <= MaxClients; iMedic++)
 	{
+		if (!IsClientInGame(iMedic) || IsFakeClient(iMedic))
+			continue;
+		
 		// Is valid iMedic?
-		if (IsClientInGame(iMedic) && IsClientConnected(iMedic) && IsPlayerAlive(iMedic)
-			&& (StrContains(g_client_last_classstring[iMedic], "medic") > -1) && !playerFirstJoin[iMedic]
-		)
+		if (IsPlayerAlive(iMedic) && (StrContains(g_client_last_classstring[iMedic], "medic") > -1))
 		{
 			// Check is there nearest body
 			iInjured = g_iNearestBody[iMedic];
+			
+			// Valid nearest body
 			if (iInjured > 0 && IsClientInGame(iInjured) && !IsPlayerAlive(iInjured) && g_iHurtFatal[iInjured] == 0 
 				&& iInjured != iMedic && GetClientTeam(iMedic) == GetClientTeam(iInjured)
 			)
@@ -2875,70 +2967,70 @@ public Action:Timer_MedicMonitor(Handle:timer)
 	// Search medics
 	for(new medic = 1; medic <= MaxClients; medic++)
 	{
-		if (IsClientInGame(medic) && !IsFakeClient(medic))
+		if (!IsClientInGame(medic) || IsFakeClient(medic))
+			continue;
+		
+		// Medic only can inspect health.
+		new iTeam = GetClientTeam(medic);
+		if (iTeam == TEAM_1 && IsPlayerAlive(medic) && StrContains(g_client_last_classstring[medic], "medic") > -1)
 		{
-			// Medic only can inspect health.
-			new iTeam = GetClientTeam(medic);
-			if (iTeam == TEAM_1 && IsPlayerAlive(medic) && StrContains(g_client_last_classstring[medic], "medic") > -1)
+			// Target is teammate and alive.
+			new iTarget = TraceClientViewEntity(medic);
+			if(iTarget > 0 && iTarget <= MaxClients && IsClientInGame(iTarget) && IsPlayerAlive(iTarget) && iTeam == GetClientTeam(iTarget))
 			{
-				// Target is teammate and alive.
-				new iTarget = TraceClientViewEntity(medic);
-				if(iTarget > 0 && iTarget <= MaxClients && IsClientInGame(iTarget) && IsPlayerAlive(iTarget) && iTeam == GetClientTeam(iTarget))
+				// Check distance
+				new bool:bCanHeal = false;
+				new Float:fReviveDistance = 80.0;
+				new Float:vecMedicPos[3];
+				new Float:vecTargetPos[3];
+				new Float:tDistance;
+				GetClientAbsOrigin(medic, Float:vecMedicPos);
+				GetClientAbsOrigin(iTarget, Float:vecTargetPos);
+				tDistance = GetVectorDistance(vecMedicPos,vecTargetPos);
+				
+				if (tDistance < fReviveDistance && ClientCanSeeVector(medic, vecTargetPos, fReviveDistance))
 				{
-					// Check distance
-					new bool:bCanHeal = false;
-					new Float:fReviveDistance = 80.0;
-					new Float:vecMedicPos[3];
-					new Float:vecTargetPos[3];
-					new Float:tDistance;
-					GetClientAbsOrigin(medic, Float:vecMedicPos);
-					GetClientAbsOrigin(iTarget, Float:vecTargetPos);
-					tDistance = GetVectorDistance(vecMedicPos,vecTargetPos);
+					// Check weapon
+					new ActiveWeapon = GetEntPropEnt(medic, Prop_Data, "m_hActiveWeapon");
+					if (ActiveWeapon < 0)
+						continue;
+					decl String:sWeapon[32];
+					GetEdictClassname(ActiveWeapon, sWeapon, sizeof(sWeapon));
 					
-					if (tDistance < fReviveDistance && ClientCanSeeVector(medic, vecTargetPos, fReviveDistance))
+					if ((StrContains(sWeapon, "weapon_defib") > -1) || (StrContains(sWeapon, "weapon_knife") > -1))
 					{
-						// Check weapon
-						new ActiveWeapon = GetEntPropEnt(medic, Prop_Data, "m_hActiveWeapon");
-						if (ActiveWeapon < 0)
-							continue;
-						decl String:sWeapon[32];
-						GetEdictClassname(ActiveWeapon, sWeapon, sizeof(sWeapon));
-						
-						if ((StrContains(sWeapon, "weapon_defib") > -1) || (StrContains(sWeapon, "weapon_knife") > -1))
-						{
-							bCanHeal = true;
-						}
+						bCanHeal = true;
 					}
-					
-					// Check heal
-					new iHealth = GetClientHealth(iTarget);
-					if (bCanHeal && iHealth < 100)
+				}
+				
+				// Check heal
+				new iHealth = GetClientHealth(iTarget);
+				if (bCanHeal && iHealth < 100)
+				{
+					iHealth += g_iHeal_amount;
+					if (iHealth >= 100)
 					{
-						iHealth += g_iHeal_amount;
-						if (iHealth >= 100)
-						{
-							iHealth = 100;
-							
-							new iBonus = GetConVarInt(sm_heal_bonus);
-							new iScore = GetClientFrags(medic) + iBonus;
-							SetEntProp(medic, Prop_Data, "m_iFrags", iScore);
-							
-							//Client_PrintToChatAll(false, "{OG}%N{N} healed {OG}%N", medic, iTarget);
-							PrintToChatAll("\x05%N\x01 healed \x05%N", medic, iTarget);
-							PrintHintText(iTarget, "You are healed by %N (HP: %i%%%)", medic, iHealth);
-						}
-						else
-						{
-							PrintHintText(iTarget, "DON'T MOVE! %N is healing you.(HP: %i%%%)", medic, iHealth);
-						}
+						iHealth = 100;
 						
-						SetEntityHealth(iTarget, iHealth);
-						PrintHintText(medic, "%N\nHP: %i%%%\n\nHealing.", iTarget, iHealth, iTarget);
+						new iBonus = GetConVarInt(sm_heal_bonus);
+						new iScore = GetClientFrags(medic) + iBonus;
+						SetEntProp(medic, Prop_Data, "m_iFrags", iScore);
+						
+						//Client_PrintToChatAll(false, "{OG}%N{N} healed {OG}%N", medic, iTarget);
+						PrintToChatAll("\x05%N\x01 healed \x05%N", medic, iTarget);
+						PrintHintText(iTarget, "You are healed by %N (HP: %i%%%)", medic, iHealth);
 					}
 					else
 					{
-						PrintHintText(medic, "%N\nHP: %i%%%", iTarget, iHealth);
+						PrintHintText(iTarget, "DON'T MOVE! %N is healing you.(HP: %i%%%)", medic, iHealth);
 					}
+					
+					SetEntityHealth(iTarget, iHealth);
+					PrintHintText(medic, "%N\nHP: %i%%%\n\nHealing.", iTarget, iHealth, iTarget);
+				}
+				else
+				{
+					PrintHintText(medic, "%N\nHP: %i%%%", iTarget, iHealth);
 				}
 			}
 		}
@@ -2951,14 +3043,14 @@ public Action:Timer_MedicMonitor(Handle:timer)
 public Action:Timer_NearestBody(Handle:timer, any:data)
 {
 	// Variables to store
-	new Float:clientOrigin[3];
-	new Float:searchOrigin[3];
+	new Float:fMedicPosition[3];
 	new Float:fMedicAngles[3];
-	new Float:near;
-	new Float:distance;
+	new Float:fInjuredPosition[3];
+	new Float:fNearestDistance;
+	new Float:fTempDistance;
 
-	// nearest client
-	new nearest;
+	// iNearestInjured client
+	new iNearestInjured;
 	
 	decl String:sDirection[64];
 	decl String:sDistance[64];
@@ -2966,79 +3058,78 @@ public Action:Timer_NearestBody(Handle:timer, any:data)
 	// Client loop
 	for (new medic = 1; medic <= MaxClients; medic++)
 	{
-		if (IsClientInGame(medic) && !IsFakeClient(medic))
+		if (!IsClientInGame(medic) || IsFakeClient(medic))
+			continue;
+		
+		// Valid medic?
+		if (IsPlayerAlive(medic) && (StrContains(g_client_last_classstring[medic], "medic") > -1))
 		{
-			// Valid medic?
-			if (IsClientConnected(medic) && IsPlayerAlive(medic) && !playerFirstJoin[medic]
-				&& (StrContains(g_client_last_classstring[medic], "medic") > -1)
-			)
+			// Reset variables
+			iNearestInjured = 0;
+			fNearestDistance = 0.0;
+			
+			// Get medic position
+			GetClientAbsOrigin(medic, fMedicPosition);
+
+			////PrintToServer("MEDIC DETECTED ********************");
+			// Search dead body
+			for (new search = 1; search <= MaxClients; search++)
 			{
-				// Reset variables
-				nearest = 0;
-				near = 0.0;
-
-				// Get medic position
-				GetClientAbsOrigin(medic, clientOrigin);
+				if (!IsClientInGame(search) || IsFakeClient(search) || IsPlayerAlive(search))
+					continue;
 				
-				// Get medic angle
-				GetClientAbsAngles(medic, fMedicAngles);
-
-				////PrintToServer("MEDIC DETECTED ********************");
-				// Search dead body
-				for (new search = 1; search <= MaxClients; search++)
+				// Check if valid
+				if (g_iHurtFatal[search] == 0 && search != medic && GetClientTeam(medic) == GetClientTeam(search))
 				{
-					if (IsClientInGame(search) && !IsPlayerAlive(search))
+					// Get found client's ragdoll
+					new clientRagdoll = EntRefToEntIndex(g_iClientRagdolls[search]);
+					if (clientRagdoll > 0 && IsValidEdict(clientRagdoll) && IsValidEntity(clientRagdoll) && clientRagdoll != INVALID_ENT_REFERENCE)
 					{
-						// Check if valid
-						if (g_iHurtFatal[search] == 0 && search != medic && GetClientTeam(medic) == GetClientTeam(search))
-						{
-							// Get found client's ragdoll
-							new clientRagdoll = EntRefToEntIndex(g_iClientRagdolls[search]);
-							if (clientRagdoll > 0 && IsValidEdict(clientRagdoll) && IsValidEntity(clientRagdoll) && clientRagdoll != INVALID_ENT_REFERENCE)
-							{
-								// Get ragdoll's position
-								searchOrigin = g_fRagdollPosition[search];
-								
-								// Get distance from ragdoll
-								distance = GetVectorDistance(clientOrigin, searchOrigin);
+						// Get ragdoll's position
+						fInjuredPosition = g_fRagdollPosition[search];
+						
+						// Get distance from ragdoll
+						fTempDistance = GetVectorDistance(fMedicPosition, fInjuredPosition);
 
-								// Is he more near to the player as the player before?
-								if (near == 0.0)
-								{
-									near = distance;
-									nearest = search;
-								}
-								// Set new distance and new nearest player
-								else if (distance < near)
-								{
-									near = distance;
-									nearest = search;
-								}
-							}
+						// Is he more fNearestDistance to the player as the player before?
+						if (fNearestDistance == 0.0)
+						{
+							fNearestDistance = fTempDistance;
+							iNearestInjured = search;
+						}
+						// Set new distance and new iNearestInjured player
+						else if (fTempDistance < fNearestDistance)
+						{
+							fNearestDistance = fTempDistance;
+							iNearestInjured = search;
 						}
 					}
 				}
+			}
+			
+			// Found a dead body?
+			if (iNearestInjured != 0)
+			{
+				// Set iNearestInjured body
+				g_iNearestBody[medic] = iNearestInjured;
 				
-				// Found a dead body?
-				if (nearest != 0)
-				{
-					// Set nearest body
-					g_iNearestBody[medic] = nearest;
-					
-					// Get direction string (if it cause server lag, remove this)
-					sDirection = GetDirectionString(fMedicAngles, clientOrigin, searchOrigin);
-					
-					// Get distance string
-					sDistance = GetDistanceString(near);
-					
-					// Print nearest dead body's distance and direction text
-					PrintCenterText(medic, "Nearest dead: %N ( %s | %s )", nearest, sDistance, sDirection);
-				}
-				else
-				{
-					// Reset nearest body
-					g_iNearestBody[medic] = -1;
-				}
+				// Get medic angle
+				GetClientAbsAngles(medic, fMedicAngles);
+				
+				// Get direction string (if it cause server lag, remove this)
+				sDirection = GetDirectionString(fMedicAngles, fMedicPosition, fInjuredPosition);
+				
+				// Get distance string
+				sDistance = GetDistanceString(fNearestDistance);
+				
+				// Print iNearestInjured dead body's distance and direction text
+				//PrintCenterText(medic, "Nearest dead: %N (%s)", iNearestInjured, sDistance);
+				PrintCenterText(medic, "iNearestInjured dead: %N ( %s | %s )", iNearestInjured, sDistance, sDirection);
+			}
+			else
+			{
+				// Reset iNearestInjured body
+				g_iNearestBody[medic] = -1;
 			}
 		}
 	}
