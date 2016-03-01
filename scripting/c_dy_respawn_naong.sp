@@ -194,6 +194,9 @@ new
 	Handle:sm_respawn_check_static_enemy = INVALID_HANDLE,
 	Handle:sm_respawn_check_static_enemy_counter = INVALID_HANDLE,
 	
+	// Donor tag
+	Handle:sm_respawn_enable_donor_tag = INVALID_HANDLE,
+	
 	// Related to 'RoundEnd_Protector' plugin
 	Handle:sm_remaininglife = INVALID_HANDLE,
 
@@ -401,6 +404,9 @@ public OnPluginStart()
 	// Control static enemy
 	sm_respawn_check_static_enemy = CreateConVar("sm_respawn_check_static_enemy", "120", "Seconds amount to check if an AI has moved probably stuck");
 	sm_respawn_check_static_enemy_counter = CreateConVar("sm_respawn_check_static_enemy_counter", "10", "Seconds amount to check if an AI has moved during counter");
+	
+	// Donor tag
+	sm_respawn_enable_donor_tag = CreateConVar("sm_respawn_enable_donor_tag", "1", "If player has an access to reserved slot, add [DONOR] tag.");
 	
 	// Related to 'RoundEnd_Protector' plugin
 	sm_remaininglife = CreateConVar("sm_remaininglife", "-1", "Returns total remaining life.");
@@ -1953,30 +1959,42 @@ public Action:Event_PlayerPickSquad( Handle:event, const String:name[], bool:don
 		g_client_last_classstring[client] = class_template;
 		
 		// Get player nickname
-		decl String:sNickname[64];
-		Format(sNickname, sizeof(sNickname), "%N", client);
+		decl String:sOrgNickname[64];
+		decl String:sNewNickname[64];
+		sOrgNickname = g_client_org_nickname[client];
 		
-		// If player selected medic class
+		// Medic class
 		if (StrContains(g_client_last_classstring[client], "medic") > -1)
 		{
-			// If current nickname is default, add [MEDIC] tag
-			if (StrEqual(sNickname, g_client_org_nickname[client]))
-			{
-				// Add [MEDIC] tag
-				decl String:sMedicNickname[64];
-				Format(sMedicNickname, sizeof(sMedicNickname), "[MEDIC] %s", sNickname);
-				SetClientInfo(client, "name", sMedicNickname);
-			}
+			// Admin medic
+			if (GetConVarInt(sm_respawn_enable_donor_tag) == 1 && (GetUserFlagBits(client) & ADMFLAG_ROOT))
+				Format(sNewNickname, sizeof(sNewNickname), "[ADMIN][MEDIC] %s", sOrgNickname);
+			// Donor medic
+			else if (GetConVarInt(sm_respawn_enable_donor_tag) == 1 && (GetUserFlagBits(client) & ADMFLAG_RESERVATION))
+				Format(sNewNickname, sizeof(sNewNickname), "[DONOR][MEDIC] %s", sOrgNickname);
+			// Normal medic
+			else
+				Format(sNewNickname, sizeof(sNewNickname), "[MEDIC] %s", sOrgNickname);
 		}
-		// If player selected normal class
+		// Normal class
 		else
 		{
-			// If player nickname is different with original, revert to original
-			if (!StrEqual(sNickname, g_client_org_nickname[client]))
-			{
-				SetClientInfo(client, "name", g_client_org_nickname[client]);
-			}
+			// Admin
+			if (GetConVarInt(sm_respawn_enable_donor_tag) == 1 && (GetUserFlagBits(client) & ADMFLAG_ROOT))
+				Format(sNewNickname, sizeof(sNewNickname), "[ADMIN] %s", sOrgNickname);
+			// Donor
+			else if (GetConVarInt(sm_respawn_enable_donor_tag) == 1 && (GetUserFlagBits(client) & ADMFLAG_RESERVATION))
+				Format(sNewNickname, sizeof(sNewNickname), "[DONOR] %s", sOrgNickname);
+			// Normal player
+			else
+				SetClientInfo(client, "name", sOrgNickname);
 		}
+		
+		// Set player nickname
+		decl String:sCurNickname[64];
+		Format(sCurNickname, sizeof(sCurNickname), "%N", client);
+		if (!StrEqual(sCurNickname, sNewNickname))
+			SetClientInfo(client, "name", sNewNickname);
 	}
 }
 
