@@ -15,7 +15,7 @@
  *	along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-// #pragma dynamic 32768	// Increase heap size
+//#pragma dynamic 32768	// Increase heap size
 #pragma semicolon 1
 #include <sourcemod>
 #include <sdktools>
@@ -50,7 +50,7 @@
 
 // Navmesh Init
 #define MAX_OBJECTIVES 13
-#define MAX_HIDING_SPOTS 2048
+#define MAX_HIDING_SPOTS 4096
 #define MIN_PLAYER_DISTANCE 128.0
 
 // Handle for revive
@@ -970,6 +970,9 @@ public Action:Timer_PlayerStatus(Handle:Timer)
 // Announce enemies remaining
 public Action:Timer_Enemies_Remaining(Handle:Timer)
 {
+	// Check round state
+	if (g_iRoundStatus == 0) return Plugin_Continue;
+	
 	// Check enemy count
 	new alive_insurgents;
 	for (new i = 1; i <= MaxClients; i++)
@@ -986,11 +989,16 @@ public Action:Timer_Enemies_Remaining(Handle:Timer)
 	Format(textToPrint, sizeof(textToPrint), "Enemies alive: %d | Enemy reinforcements remaining: %d", alive_insurgents ,g_iRemaining_lives_team_ins);
 	PrintHintTextToAll(textToPrint);
 	PrintToChatAll(textToPrintChat);
+	
+	return Plugin_Continue;
 }
 
 // This timer reinforces bot team if you do not capture point
 public Action:Timer_EnemyReinforce(Handle:Timer)
 {
+	// Check round state
+	if (g_iRoundStatus == 0) return Plugin_Continue;
+	
 	// Retrive config
 	new reinforce_time_subsequent = GetConVarInt(sm_respawn_reinforce_time_subsequent);
 	
@@ -1056,12 +1064,17 @@ public Action:Timer_EnemyReinforce(Handle:Timer)
 			}
 		}
 	}
+	
+	return Plugin_Continue;
 }
 
 
 // Check enemy is stuck
 public Action:Timer_CheckEnemyStatic(Handle:Timer)
 {
+	// Check round state
+	if (g_iRoundStatus == 0) return Plugin_Continue;
+	
 	if (Ins_InCounterAttack())
 	{
 		g_checkStaticAmtCntr = g_checkStaticAmtCntr - 1;
@@ -1138,6 +1151,8 @@ public Action:Timer_CheckEnemyStatic(Handle:Timer)
 			g_checkStaticAmt = GetConVarInt(sm_respawn_check_static_enemy); 
 		}
 	}
+	
+	return Plugin_Continue;
 }
 
 void AddLifeForStaticKilling(client)
@@ -1959,35 +1974,33 @@ public Action:Event_PlayerPickSquad( Handle:event, const String:name[], bool:don
 		g_client_last_classstring[client] = class_template;
 		
 		// Get player nickname
-		decl String:sOrgNickname[64];
 		decl String:sNewNickname[64];
-		sOrgNickname = g_client_org_nickname[client];
 		
 		// Medic class
 		if (StrContains(g_client_last_classstring[client], "medic") > -1)
 		{
 			// Admin medic
 			if (GetConVarInt(sm_respawn_enable_donor_tag) == 1 && (GetUserFlagBits(client) & ADMFLAG_ROOT))
-				Format(sNewNickname, sizeof(sNewNickname), "[ADMIN][MEDIC] %s", sOrgNickname);
+				Format(sNewNickname, sizeof(sNewNickname), "[ADMIN][MEDIC] %s", g_client_org_nickname[client]);
 			// Donor medic
 			else if (GetConVarInt(sm_respawn_enable_donor_tag) == 1 && (GetUserFlagBits(client) & ADMFLAG_RESERVATION))
-				Format(sNewNickname, sizeof(sNewNickname), "[DONOR][MEDIC] %s", sOrgNickname);
+				Format(sNewNickname, sizeof(sNewNickname), "[DONOR][MEDIC] %s", g_client_org_nickname[client]);
 			// Normal medic
 			else
-				Format(sNewNickname, sizeof(sNewNickname), "[MEDIC] %s", sOrgNickname);
+				Format(sNewNickname, sizeof(sNewNickname), "[MEDIC] %s", g_client_org_nickname[client]);
 		}
 		// Normal class
 		else
 		{
 			// Admin
 			if (GetConVarInt(sm_respawn_enable_donor_tag) == 1 && (GetUserFlagBits(client) & ADMFLAG_ROOT))
-				Format(sNewNickname, sizeof(sNewNickname), "[ADMIN] %s", sOrgNickname);
+				Format(sNewNickname, sizeof(sNewNickname), "[ADMIN] %s", g_client_org_nickname[client]);
 			// Donor
 			else if (GetConVarInt(sm_respawn_enable_donor_tag) == 1 && (GetUserFlagBits(client) & ADMFLAG_RESERVATION))
-				Format(sNewNickname, sizeof(sNewNickname), "[DONOR] %s", sOrgNickname);
+				Format(sNewNickname, sizeof(sNewNickname), "[DONOR] %s", g_client_org_nickname[client]);
 			// Normal player
 			else
-				SetClientInfo(client, "name", sOrgNickname);
+				sNewNickname = g_client_org_nickname[client];
 		}
 		
 		// Set player nickname
@@ -2851,7 +2864,9 @@ public Action:Timer_RevivePeriod(Handle:Timer, Handle:revivePack)
 // Handles reviving for medics
 public Action:Timer_ReviveMonitor(Handle:timer, any:data)
 {
+	// Check round state
 	if (g_iRoundStatus == 0) return Plugin_Continue;
+	
 	
 	// Init variables
 	new Float:fReviveDistance = 65.0;
@@ -2982,6 +2997,9 @@ public Action:Timer_ReviveMonitor(Handle:timer, any:data)
 // Handles medic functions (Inspecting health, healing)
 public Action:Timer_MedicMonitor(Handle:timer)
 {
+	// Check round state
+	if (g_iRoundStatus == 0) return Plugin_Continue;
+	
 	// Search medics
 	for(new medic = 1; medic <= MaxClients; medic++)
 	{
@@ -3060,6 +3078,9 @@ public Action:Timer_MedicMonitor(Handle:timer)
 // Check for nearest player
 public Action:Timer_NearestBody(Handle:timer, any:data)
 {
+	// Check round state
+	if (g_iRoundStatus == 0) return Plugin_Continue;
+	
 	// Variables to store
 	new Float:fMedicPosition[3];
 	new Float:fMedicAngles[3];
