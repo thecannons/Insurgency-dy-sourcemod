@@ -1666,14 +1666,19 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 	
 	// Set counter attack duration to server
 	new Handle:cvar_ca_dur;
-	cvar_ca_dur = FindConVar("mp_checkpoint_counterattack_duration");
 	
 	// Final counter attack
-	if ((acp+1) == ncp)
+	if ((acp+1) != ncp)
+	{
+		cvar_ca_dur = FindConVar("mp_checkpoint_counterattack_duration_finale");
 		SetConVarInt(cvar_ca_dur, final_ca_dur, true, false);
+	}
 	// Normal counter attack
 	else
+	{
+		cvar_ca_dur = FindConVar("mp_checkpoint_counterattack_duration");
 		SetConVarInt(cvar_ca_dur, fRandomInt, true, false);
+	}
 	
 	// Get counter attack chance
 	new Float:ins_ca_chance = GetConVarFloat(sm_respawn_counter_chance);
