@@ -2000,7 +2000,7 @@ public Action:Event_PlayerPickSquad( Handle:event, const String:name[], bool:don
 				Format(sNewNickname, sizeof(sNewNickname), "[DONOR] %s", g_client_org_nickname[client]);
 			// Normal player
 			else
-				sNewNickname = g_client_org_nickname[client];
+				Format(sNewNickname, sizeof(sNewNickname), "%s", g_client_org_nickname[client]);
 		}
 		
 		// Set player nickname
