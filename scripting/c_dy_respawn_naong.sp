@@ -28,7 +28,7 @@
 #define REQUIRE_EXTENSIONS
 
 #include <navmesh>
-#include <insurgency>
+//#include <insurgency>
 
 // Define grenade index value
 #define Gren_M67 68
@@ -52,6 +52,9 @@
 #define MAX_OBJECTIVES 13
 #define MAX_HIDING_SPOTS 4096
 #define MIN_PLAYER_DISTANCE 128.0
+
+// Counter-Attack Music
+#define COUNTER_ATTACK_MUSIC_DURATION 68.0
 
 // Handle for revive
 new Handle:g_hPlayerRespawn;
@@ -249,6 +252,9 @@ new
 	Float:g_flMaxPlayerDistance,
 	Float:g_flMinCounterattackDistance;
 
+	// Insurgency implements
+	g_iObjResEntity, String:g_iObjResEntityNetClass[32],
+	g_iLogicEntity, String:g_iLogicEntityNetClass[32];
 
 enum SpawnModes
 {
@@ -485,6 +491,10 @@ public OnPluginStart()
 	// Init plugin
 	CreateTimer(2.0, Timer_MapStart);
 	
+	// Init variables
+	g_iLogicEntity = -1;
+	g_iObjResEntity = -1;
+	
 	AutoExecConfig(true, "respawn");
 }
 
@@ -653,6 +663,10 @@ public OnMapStart()
 {	
 	// Wait for navmesh
 	CreateTimer(2.0, Timer_MapStart);
+	
+	// Update entity
+	GetObjResEnt(1);
+	GetLogicEnt(1);
 }
 
 // Initializing
@@ -931,7 +945,7 @@ public Action:Timer_PlayerStatus(Handle:Timer)
 {
 	for (new client = 1; client <= MaxClients; client++)
 	{
-		if (IsClientInGame(client) && IsValidClient(client) && !IsFakeClient(client) && playerPickSquad[client] == 1)
+		if (IsClientInGame(client) && IsClientConnected(client) && !IsFakeClient(client) && playerPickSquad[client] == 1)
 		{
 			new team = GetClientTeam(client);
 			if (!IsPlayerAlive(client) && !IsClientTimingOut(client) && IsClientObserver(client) && team == TEAM_1 && g_iEnableRevive == 1 && g_iRoundStatus == 1 && playerFirstJoin[client] == false) //
@@ -1187,7 +1201,7 @@ public Action:Timer_GearMonitor(Handle:Timer)
 // Update player's gear
 void SetPlayerAmmo(client)
 {
-	if (IsClientInGame(client) && IsValidClient(client) && !IsFakeClient(client))
+	if (IsClientInGame(client) && IsClientConnected(client) && !IsFakeClient(client))
 	{
 		////PrintToServer("SETWEAPON ########");
 		new primaryWeapon = GetPlayerWeaponSlot(client, 0);
@@ -1277,7 +1291,7 @@ void SetPlayerAmmo(client)
 // Retrive player's gear
 void GetPlayerAmmo(client)
 {
-	if (IsClientInGame(client) && IsValidClient(client) && !IsFakeClient(client))
+	if (IsClientInGame(client) && IsClientConnected(client) && !IsFakeClient(client))
 	{
 		//CONSIDER IF PLAYER CHOOSES DIFFERENT CLASS
 		new primaryWeapon = GetPlayerWeaponSlot(client, 0);
@@ -1335,9 +1349,7 @@ int CheckHidingSpotRules(m_nActivePushPointIndex, iCPHIndex, iSpot, client)
 	// Check player's position
 	for (new iTarget = 1; iTarget < MaxClients; iTarget++)
 	{
-		if (!IsValidClient(iTarget))
-			continue;
-		if (!IsClientInGame(iTarget))
+		if (!IsClientInGame(iTarget) || !IsClientConnected(iTarget))
 			continue;
 		
 		// Get distance of current bot position from player
@@ -1370,9 +1382,7 @@ int CheckHidingSpotRules(m_nActivePushPointIndex, iCPHIndex, iSpot, client)
 		// Check players
 		for (new iTarget = 1; iTarget < MaxClients; iTarget++)
 		{
-			if (!IsValidClient(iTarget))
-				continue;
-			if (!IsClientInGame(iTarget))
+			if (!IsClientInGame(iTarget) || !IsClientConnected(iTarget))
 				continue;
 			
 			// Get distance from player
@@ -1476,7 +1486,7 @@ public UpdatePlayerOrigins()
 {
 	for (new i = 1; i < MaxClients; i++)
 	{
-		if (IsValidClient(i))
+		if (IsClientInGame(i) && IsClientConnected(i))
 		{
 			GetClientAbsOrigin(i,g_fPlayerPosition[i]);
 		}
@@ -1617,6 +1627,23 @@ public Action:PreReviveTimer(Handle:Timer)
 // When round ends, intialize variables
 public Action:Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadcast)
 {
+	// Set client command for round end music
+	int iWinner = GetEventInt(event, "winner");
+	decl String:sMusicCommand[128];
+	if (iWinner == TEAM_1)
+		Format(sMusicCommand, sizeof(sMusicCommand), "playgamesound Music.WonGame_Security");
+	else
+		Format(sMusicCommand, sizeof(sMusicCommand), "playgamesound Music.LostGame_Insurgents");
+	
+	// Play round end music
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (IsClientInGame(i) && IsClientConnected(i) && !IsFakeClient(i))
+		{
+			ClientCommand(i, "%s", sMusicCommand);
+		}
+	}
+	
 	// Reset respawn position
 	g_fRespawnPosition[0] = 0.0;
 	g_fRespawnPosition[1] = 0.0;
@@ -1635,6 +1662,9 @@ public Action:Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadca
 	// Reset respawn toke
 	if (g_iCvar_respawn_reset_each_objective)
 		ResetPlayerLives();
+	
+	// Update entity
+	GetObjResEnt();
 }
 
 // Check occouring counter attack when control point captured
@@ -1668,7 +1698,7 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 	new Handle:cvar_ca_dur;
 	
 	// Final counter attack
-	if ((acp+1) != ncp)
+	if ((acp+1) == ncp)
 	{
 		cvar_ca_dur = FindConVar("mp_checkpoint_counterattack_duration_finale");
 		SetConVarInt(cvar_ca_dur, final_ca_dur, true, false);
@@ -1696,6 +1726,9 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 		cvar = FindConVar("mp_checkpoint_counterattack_always");
 		SetConVarInt(cvar, 1, true, false);
 		
+		// Call music timer
+		CreateTimer(COUNTER_ATTACK_MUSIC_DURATION, Timer_CounterAttackSound);
+		
 		// Call counter-attack end timer
 		if (!g_bIsCounterAttackTimerActive)
 		{
@@ -1712,6 +1745,9 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 		SetConVarInt(cvar, 0, true, false);
 		cvar = FindConVar("mp_checkpoint_counterattack_always");
 		SetConVarInt(cvar, 1, true, false);
+		
+		// Call music timer
+		CreateTimer(COUNTER_ATTACK_MUSIC_DURATION, Timer_CounterAttackSound);
 		
 		// Call counter-attack end timer
 		if (!g_bIsCounterAttackTimerActive)
@@ -1731,6 +1767,26 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 	}
 	
 	return Plugin_Continue;
+}
+
+// Play music during counter-attack
+public Action:Timer_CounterAttackSound(Handle:event)
+{
+	if (g_iRoundStatus == 0 || !Ins_InCounterAttack())
+		return;
+	
+	// Play music
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (IsClientInGame(i) && IsClientConnected(i) && !IsFakeClient(i))
+		{
+			//ClientCommand(i, "playgamesound Music.StartCounterAttack");
+			ClientCommand(i, "play *cues/INS_GameMusic_AboutToAttack_A.ogg");
+		}
+	}
+	
+	// Loop
+	CreateTimer(COUNTER_ATTACK_MUSIC_DURATION, Timer_CounterAttackSound);
 }
 
 // When control point captured, reset variables
@@ -1765,7 +1821,7 @@ public Action:Event_ControlPointCaptured_Post(Handle:event, const String:name[],
 	for (new i = 0 ; i < cappersLength; i++)
 	{
 		new clientCapper = cappers[i];
-		if(clientCapper > 0 && IsClientInGame(clientCapper) && IsValidClient(clientCapper) && IsPlayerAlive(clientCapper) && !IsFakeClient(clientCapper))
+		if(clientCapper > 0 && IsClientInGame(clientCapper) && IsClientConnected(clientCapper) && IsPlayerAlive(clientCapper) && !IsFakeClient(clientCapper))
 		{
 			// Get player's position
 			new Float:capperPos[3];
@@ -1783,7 +1839,7 @@ public Action:Event_ControlPointCaptured_Post(Handle:event, const String:name[],
 	{
 		for (new client = 1; client <= MaxClients; client++)
 		{
-			if (IsClientConnected(client) && IsValidClient(client))
+			if (IsClientInGame(client) && IsClientConnected(client))
 			{
 				new team = GetClientTeam(client);
 				if(IsClientInGame(client) && playerPickSquad[client] == 1 && playerFirstJoin[client] == false && !IsPlayerAlive(client) && team == TEAM_1 /*&& !IsClientTimingOut(client) && playerFirstDeath[client] == true*/ )
@@ -1824,7 +1880,7 @@ public Action:Event_ObjectDestroyed(Handle:event, const String:name[], bool:dont
 	{
 		// Update respawn position
 		new attacker = GetEventInt(event, "attacker");
-		if (attacker > 0 && IsValidClient(attacker))
+		if (attacker > 0 && IsClientInGame(attacker) && IsClientConnected(attacker))
 		{
 			new Float:attackerPos[3];
 			GetClientAbsOrigin(attacker, Float:attackerPos);
@@ -1845,7 +1901,7 @@ public Action:Event_ObjectDestroyed(Handle:event, const String:name[], bool:dont
 	{
 		for (new client = 1; client <= MaxClients; client++)
 		{	
-			if (IsClientConnected(client) && !IsFakeClient(client) && IsValidClient(client))
+			if (IsClientConnected(client) && !IsFakeClient(client) && IsClientConnected(client))
 			{
 				new team = GetClientTeam(client);
 				if(IsClientInGame(client) && !IsClientTimingOut(client) && playerFirstDeath[client] == true && playerPickSquad[client] == 1 && playerFirstJoin[client] == false && !IsPlayerAlive(client) && team == TEAM_1)
@@ -1865,43 +1921,56 @@ public Action:Timer_CounterAttackEnd(Handle:Timer)
 	// If round end, exit
 	if (g_iRoundStatus == 0)
 	{
+		// Stop counter-attack music
+		StopCounterAttackMusic();
+		
+		// Reset variable
 		g_bIsCounterAttackTimerActive = false;
 		return Plugin_Stop;
 	}
 	
-	// Checkpoint
-	if (g_isConquer != 1)
+	// Check counter-attack end
+	if (!Ins_InCounterAttack())
 	{
-		// Check counter-attack end
-		if (!Ins_InCounterAttack())
+		// Reset reinforcement time
+		new reinforce_time = GetConVarInt(sm_respawn_reinforce_time);
+		g_iReinforceTime = reinforce_time;
+		
+		// Reset respawn tokens
+		if (g_iCvar_respawn_reset_each_objective)
 		{
-			// Reset reinforcement time
-			new reinforce_time = GetConVarInt(sm_respawn_reinforce_time);
-			g_iReinforceTime = reinforce_time;
-			
-			// Reset respawn tokens
-			if (g_iCvar_respawn_reset_each_objective)
-			{
-				ResetPlayerLives();
-			}
-			
-			g_bIsCounterAttackTimerActive = false;
-			
-			new Handle:cvar = INVALID_HANDLE;
-			cvar = FindConVar("mp_checkpoint_counterattack_always");
-			SetConVarInt(cvar, 0, true, false);
-			
-			PrintToServer("[RESPAWN] Counter-attack is over.");
-			return Plugin_Stop;
+			ResetPlayerLives();
 		}
-	}
-	else
-	{
+		
+		// Stop counter-attack music
+		StopCounterAttackMusic();
+		
+		// Reset variable
 		g_bIsCounterAttackTimerActive = false;
+		
+		new Handle:cvar = INVALID_HANDLE;
+		cvar = FindConVar("mp_checkpoint_counterattack_always");
+		SetConVarInt(cvar, 0, true, false);
+		
+		PrintToServer("[RESPAWN] Counter-attack is over.");
 		return Plugin_Stop;
 	}
 	
 	return Plugin_Continue;
+}
+
+// Stop couter-attack music
+void StopCounterAttackMusic()
+{
+	for (new i = 1; i <= MaxClients; i++)
+	{
+		if (IsClientInGame(i) && IsClientConnected(i) && !IsFakeClient(i))
+		{
+			//ClientCommand(i, "snd_restart");
+			//FakeClientCommand(i, "snd_restart");
+			StopSound(i, SNDCHAN_STATIC, "*cues/INS_GameMusic_AboutToAttack_A.ogg");
+		}
+	}
 }
 
 //Run this to mark a bot as ready to spawn. Add tokens if you want them to be able to spawn.
@@ -2039,7 +2108,7 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 		
 		// Check is team attack
 		new attackerTeam;
-		if (attacker > 0 && IsClientInGame(attacker) && IsValidClient(attacker))
+		if (attacker > 0 && IsClientInGame(attacker) && IsClientConnected(attacker))
 			attackerTeam = GetClientTeam(attacker);
 		
 		// Get fatal chance
@@ -3436,3 +3505,124 @@ void SetPlayerScore(client, iScore)
 	// Set score
 	SetEntData(iPlayerManager, m_iPlayerScore + (4 * client), iScore, _, true);
 }
+
+/*
+bool InCounterAttack()
+{
+	// Get gamemode
+	decl String:sGameMode[32];
+	GetConVarString(FindConVar("mp_gamemode"), sGameMode, sizeof(sGameMode));
+	if (!StrEqual(sGameMode,"checkpoint")) return false;
+	
+	// Get logic entity
+	new iLogicEntity;
+	decl String:sLogicEnt[64];
+	Format (sLogicEnt,sizeof(sLogicEnt),"logic_%s",sGameMode);
+	iLogicEntity = FindEntityByClassname(-1,sLogicEnt);
+	
+	// Check result
+	if (iLogicEntity < 1)
+	{
+		//PrintToServer("[SCORE] Unable to find '%s'", sLogicEnt);
+		return false;
+	}
+	
+	// Get logic class
+	decl String:sLogicEntityNetClass[32];
+	GetEntityNetClass(iLogicEntity, sLogicEntityNetClass, sizeof(sLogicEntityNetClass));
+	
+	// Get InCounterAttack
+	new bool:m_bCounterAttack = bool:GetEntData(iLogicEntity, FindSendPropOffs(sLogicEntityNetClass, "m_bCounterAttack"));
+	
+	return m_bCounterAttack;
+}
+*/
+
+int Ins_ObjectiveResource_GetProp(String:prop[32], size = 0, element = 0)
+{
+	new result = -1;
+	GetObjResEnt();
+	if (g_iObjResEntity > 0)
+	{
+		result = GetEntData(g_iObjResEntity, FindSendPropInfo(g_iObjResEntityNetClass, prop) + (size * element));
+	}
+	return result;
+}
+void Ins_ObjectiveResource_GetPropVector(String:prop[32], Float:array[3], element = 0)
+{
+	new size = 12;
+	GetObjResEnt();
+	if (g_iObjResEntity > 0)
+	{
+		new Float:result[3];
+		GetEntDataVector(g_iObjResEntity, FindSendPropInfo(g_iObjResEntityNetClass, prop) + (size * element), result);
+		array[0] = result[0];
+		array[1] = result[1];
+		array[2] = result[2];
+	}
+}
+bool Ins_InCounterAttack()
+{
+	GetLogicEnt();
+	new bool:result;
+	if (g_iLogicEntity > 0)
+	{
+		result = bool:GetEntData(g_iLogicEntity, FindSendPropInfo(g_iLogicEntityNetClass, "m_bCounterAttack"));
+	}
+	return result;
+}
+int GetLogicEnt(always=0) {
+	if (((g_iLogicEntity < 1) || !IsValidEntity(g_iLogicEntity)) || (always))
+	{
+		new String:sGameMode[32],String:sLogicEnt[64];
+		GetConVarString(FindConVar("mp_gamemode"), sGameMode, sizeof(sGameMode));
+		Format (sLogicEnt,sizeof(sLogicEnt),"logic_%s",sGameMode);
+		if (!StrEqual(sGameMode,"checkpoint")) return -1;
+		g_iLogicEntity = FindEntityByClassname(-1,sLogicEnt);
+		GetEntityNetClass(g_iLogicEntity, g_iLogicEntityNetClass, sizeof(g_iLogicEntityNetClass));
+	}
+	if (g_iLogicEntity)
+		return g_iLogicEntity;
+	return -1;
+}
+int GetObjResEnt(always=0)
+{
+	if (((g_iObjResEntity < 1) || !IsValidEntity(g_iObjResEntity)) || (always))
+	{
+		g_iObjResEntity = FindEntityByClassname(0,"ins_objective_resource");
+		GetEntityNetClass(g_iObjResEntity, g_iObjResEntityNetClass, sizeof(g_iObjResEntityNetClass));
+	}
+	if (g_iObjResEntity)
+		return g_iObjResEntity;
+	return -1;
+}
+bool:ClientCanSeeVector(client, Float:vTargetPosition[3], Float:distance = 0.0, Float:height = 50.0) 
+{ 
+	new Float:vClientPosition[3];
+	 
+	GetEntPropVector(client, Prop_Send, "m_vecOrigin", vClientPosition); 
+	vClientPosition[2] += height; 
+	 
+	if (distance == 0.0 || GetVectorDistance(vClientPosition, vTargetPosition, false) < distance) 
+	{ 
+		new Handle:trace = TR_TraceRayFilterEx(vClientPosition, vTargetPosition, MASK_SOLID_BRUSHONLY, RayType_EndPoint, Base_TraceFilter); 
+
+		if(TR_DidHit(trace)) 
+		{ 
+			CloseHandle(trace); 
+			return (false); 
+		} 
+		 
+		CloseHandle(trace); 
+
+		return (true); 
+	} 
+	return false; 
+}
+public bool:Base_TraceFilter(entity, contentsMask, any:data) 
+{ 
+    if(entity != data) 
+        return (false); 
+
+    return (true); 
+}  
