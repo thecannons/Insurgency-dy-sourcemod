@@ -435,6 +435,7 @@ public OnPluginStart()
 	HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("round_start", Event_RoundStart);
 	HookEvent("round_end", Event_RoundEnd);
+	HookEvent("round_end", Event_RoundEnd_Pre, EventHookMode_Pre);
 	HookEvent("player_pick_squad", Event_PlayerPickSquad);
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	HookEvent("object_destroyed", Event_ObjectDestroyed_Pre, EventHookMode_Pre);
@@ -1625,6 +1626,13 @@ public Action:PreReviveTimer(Handle:Timer)
 }
 
 // When round ends, intialize variables
+public Action:Event_RoundEnd_Pre(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	// Stop counter-attack music
+	StopCounterAttackMusic();
+}
+
+// When round ends, intialize variables
 public Action:Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	// Set client command for round end music
@@ -1952,7 +1960,7 @@ public Action:Timer_CounterAttackEnd(Handle:Timer)
 		cvar = FindConVar("mp_checkpoint_counterattack_always");
 		SetConVarInt(cvar, 0, true, false);
 		
-		PrintToServer("[RESPAWN] Counter-attack is over.");
+		//PrintToServer("[RESPAWN] Counter-attack is over.");
 		return Plugin_Stop;
 	}
 	
