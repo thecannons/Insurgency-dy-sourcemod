@@ -1,3 +1,20 @@
+/**
+ *	[INS] RoundEndBlock Script - Prevent round end.
+ *	
+ *	This program is free software: you can redistribute it and/or modify
+ *	it under the terms of the GNU General Public License as published by
+ *	the Free Software Foundation, either version 3 of the License, or
+ *	(at your option) any later version.
+ *
+ *	This program is distributed in the hope that it will be useful,
+ *	but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *	GNU General Public License for more details.
+ *
+ *	You should have received a copy of the GNU General Public License
+ *	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include <sourcemod>
 #include <sdktools>
 
@@ -13,7 +30,7 @@
 #define TEAM_1		2
 #define TEAM_2		3
 
-new const String:g_sSecBot[] = "RoundEnd Protector";
+new const String:g_sSecBot[] = "[INS] RoundEnd Protector";
 new g_iSecBotID = -1;
 new g_iScore = -100;
 new g_iCollOff;
@@ -89,9 +106,19 @@ new Float:g_fSpawnPoint[3];
 new g_iIsRoundStarted = 0; 	//0 is over, 1 is active
 new g_iIsRoundStartedPost = 0; //0 is over, 1 is active
 new g_iIsGameEnded = 0;		//0 is not ended, 1 is ended
+new g_iRoundStatus = 0;
 new g_iRoundBlockCount;
 new g_iAnnounceActive;
 new g_iReviveCount;
+
+// Cvars for caupture point speed
+new Handle:g_hCvarCPSpeedUp;
+new Handle:g_hCvarCPSpeedUpMax;
+new Handle:g_hCvarCPSpeedUpRate;
+new g_iCPSpeedUp;
+new g_iCPSpeedUpMax;
+new g_iCPSpeedUpRate;
+new g_bIsCounterAttackTimerActive = false;
 
 public void OnPluginStart() {
 	// cvars
@@ -99,7 +126,7 @@ public void OnPluginStart() {
 	sm_roundendblock_times = CreateConVar("sm_roundendblock_times", "2", "How many times block rounds.");
 	sm_roundendblock_revive_delay = CreateConVar("sm_roundendblock_revive_delay", "30", "When blocks RoundEnd, wait for reviving players.");
 	sm_roundendblock_reset_each_round = CreateConVar("sm_roundendblock_reset_each_round", "1", "Reset block counter each round. (1 is reset / 0 is don't reset)");
-	sm_roundendblock_debug = CreateConVar("sm_roundendblock_debug", "1", "Turn on debug mode");
+	sm_roundendblock_debug = CreateConVar("sm_roundendblock_debug", "0", "1: Turn on debug mode, 0: Turn off");
 	
 	// register admin commands
 	RegAdminCmd("sm_addblocker", Command_AddBlcoker, ADMFLAG_SLAY, "sm_addblocker");
@@ -112,10 +139,11 @@ public void OnPluginStart() {
 	// hook events
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
-	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
+	HookEvent("round_end", Event_RoundEnd_Pre, EventHookMode_Pre);
 	HookEvent("game_start", Event_GameStart, EventHookMode_PostNoCopy);
 	HookEvent("game_end", Event_GameEnd, EventHookMode_PostNoCopy);
 	HookEvent("object_destroyed", Event_ObjectDestroyed, EventHookMode_PostNoCopy);
+	HookEvent("controlpoint_captured", Event_ControlPointCaptured_Pre, EventHookMode_Pre);
 	HookEvent("controlpoint_captured", Event_ControlPointCaptured_Post, EventHookMode_PostNoCopy);
 	HookEvent("player_death", Event_PlayerDeathPre, EventHookMode_Pre);
 	
@@ -124,6 +152,7 @@ public void OnPluginStart() {
 	HookConVarChange(sm_roundendblock_times,CvarChange);
 	HookConVarChange(sm_roundendblock_reset_each_round,CvarChange);
 	HookConVarChange(sm_roundendblock_debug,CvarChange);
+	HookConVarChange(sm_roundendblock_revive_delay,CvarChange);
 	
 	// init respawn command
 	g_hGameConfig = LoadGameConfigFile("insurgency.games");
@@ -140,11 +169,26 @@ public void OnPluginStart() {
 	g_iRoundEndBlockReviveDelay = GetConVarInt(sm_roundendblock_revive_delay);
 	g_iRoundEndBlockResetRound = GetConVarInt(sm_roundendblock_reset_each_round);
 	g_iRoundEndBlockDebug = GetConVarInt(sm_roundendblock_debug);
+	
+	// init Cvars
+	g_hCvarCPSpeedUp = FindConVar("mp_checkpoint_counterattack_capture_speedup");
+	g_hCvarCPSpeedUpMax = FindConVar("mp_cp_speedup_max");
+	g_hCvarCPSpeedUpRate = FindConVar("mp_cp_speedup_rate");
+	
+	// Get capture point speed cvar values
+	g_iCPSpeedUp = GetConVarInt(g_hCvarCPSpeedUp);
+	g_iCPSpeedUpMax = GetConVarInt(g_hCvarCPSpeedUpMax);
+	g_iCPSpeedUpRate = GetConVarInt(g_hCvarCPSpeedUpRate);
 }
 
 public OnMapStart()
 {	
 	g_iSecBotID = 0;
+	
+	// Get capture point speed cvar values
+	g_iCPSpeedUp = GetConVarInt(g_hCvarCPSpeedUp);
+	g_iCPSpeedUpMax = GetConVarInt(g_hCvarCPSpeedUpMax);
+	g_iCPSpeedUpRate = GetConVarInt(g_hCvarCPSpeedUpRate);
 }
 public Action:Command_AddBlcoker(client, args) {
 	AddBlcoker();
@@ -178,8 +222,6 @@ public Action:Command_BotCount(client, args) {
 			decl String:target_name[50];
 			GetClientName(i, target_name, sizeof(target_name));
 			
-			PrintToServer("[Debug] Name: %s / Result: %d", target_name, StrContains(target_name, g_sSecBot, false));
-			
 			if (StrContains(target_name, g_sSecBot, false) >= 0)
 			{
 				//KickClient(i);
@@ -208,12 +250,15 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 	
 	g_iIsRoundStarted = 1;
 	g_iIsRoundStartedPost = 0;
+	g_iRoundStatus = 0;
 	g_iRoundBlockCount = g_iRoundEndBlockTimes;
 	
 	KickBlcokerClient();
 	
 	if (g_iRoundEndBlockDebug)
+	{
 		PrintToServer("[RndEndBlock] Round started.");
+	}
 	
 	new iPreRound = GetConVarInt(FindConVar("mp_timer_preround"));
 	CreateTimer(float(iPreRound) , Timer_RoundStartPost);
@@ -221,12 +266,18 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 public Action:Timer_RoundStartPost(Handle:Timer)
 {
 	if (g_iRoundEndBlockDebug)
+	{
 		PrintToServer("[RndEndBlock] Round post started.");
+	}
 	
+	g_iRoundStatus = 1;
 	g_iIsRoundStartedPost = 1;
 }
-public Action:Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadcast)
+public Action:Event_RoundEnd_Pre(Handle:event, const String:name[], bool:dontBroadcast)
 {
+	// Kick blocker client
+	KickBlcokerClient();
+	
 	// Reset respawn position
 	g_fSpawnPoint[0] = 0.0;
 	g_fSpawnPoint[1] = 0.0;
@@ -234,12 +285,13 @@ public Action:Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadca
 	
 	g_iIsRoundStarted = 0;
 	g_iIsRoundStartedPost = 0;
+	g_iRoundStatus = 0;
 	g_iRoundBlockCount = g_iRoundEndBlockTimes;
 	
-	KickBlcokerClient();
-	
 	if (g_iRoundEndBlockDebug)
+	{
 		PrintToServer("[RndEndBlock] Round ended.");
+	}
 }
 public Action:Event_GameStart(Handle:event, const String:name[], bool:dontBroadcast)
 {
@@ -257,10 +309,65 @@ public Action:Event_ObjectDestroyed(Handle:event, const String:name[], bool:dont
 		new Float:attackerPos[3];
 		GetClientAbsOrigin(attacker, Float:attackerPos);
 		g_fSpawnPoint = attackerPos;
-	}
 		
+		if (g_iRoundEndBlockDebug)
+		{
+			PrintToServer("[RndEndBlock] Spawnpoint updated. (Object destroyed)");
+		}
+	}
+	
 	if (g_iRoundEndBlockResetRound == 1)
 		g_iRoundBlockCount = g_iRoundEndBlockTimes;
+	
+	return Plugin_Continue;
+}
+public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	new iTeam = GetEventInt(event, "team");
+	
+	if ((Ins_InCounterAttack()) && iTeam == 3)
+	{	
+		if (g_iRoundEndBlockDebug)
+		{
+			PrintToServer("[RndEndBlock] Counter-attack capturing protected.");
+		}
+		
+		// Call counter-attack end timer
+		if (!g_bIsCounterAttackTimerActive)
+		{
+			g_bIsCounterAttackTimerActive = true;
+			CreateTimer(1.0, Timer_CounterAttackEnd, _, TIMER_REPEAT);
+			//PrintToServer("[RESPAWN] Counter-attack timer started. (Normal counter-attack)");
+		}
+		return Plugin_Stop;
+	}
+	
+	return Plugin_Continue;
+}
+
+// When counter-attack end, reset reinforcement time
+public Action:Timer_CounterAttackEnd(Handle:Timer)
+{
+	// If round end, exit
+	if (g_iRoundStatus == 0)
+	{
+		g_bIsCounterAttackTimerActive = false;
+		return Plugin_Stop;
+	}
+	
+	// Checkpoint
+	// Check counter-attack end
+	if (!Ins_InCounterAttack())
+	{
+		// Reset block count
+		if (g_iRoundEndBlockResetRound == 1)
+			g_iRoundBlockCount = g_iRoundEndBlockTimes;
+		
+		//PrintToServer("[RndEndBlock] Counter-attack is over.");
+		
+		g_bIsCounterAttackTimerActive = false;
+		return Plugin_Stop;
+	}
 	
 	return Plugin_Continue;
 }
@@ -281,7 +388,9 @@ public Action:Event_ControlPointCaptured_Post(Handle:event, const String:name[],
 			g_fSpawnPoint = capperPos;
 			
 			if (g_iRoundEndBlockDebug)
-				PrintToServer("[RndEndBlock] Spawnpoint updated.");
+			{
+				PrintToServer("[RndEndBlock] Spawnpoint updated. (Control point captured)");
+			}
 			
 			break;
 		}
@@ -290,10 +399,10 @@ public Action:Event_ControlPointCaptured_Post(Handle:event, const String:name[],
 	if (g_iRoundEndBlockResetRound == 1)
 		g_iRoundBlockCount = g_iRoundEndBlockTimes;
 }
+
 public Action:Event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
-	//PrintToServer("[Debug] Spawned %N (%d) / Blocker: %d", client, client, g_iSecBotID);
 	
 	if (client > 0 && IsClientConnected(client) && IsClientInGame(client))
 	{
@@ -304,7 +413,10 @@ public Action:Event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroa
 			if (g_fSpawnPoint[0] != 0.0 && g_fSpawnPoint[1] != 0.0 && g_fSpawnPoint[2] != 0.0)
 			{
 				TeleportEntity(g_iSecBotID, g_fSpawnPoint, NULL_VECTOR, NULL_VECTOR);
-				PrintToServer("[RndEndBlock] Blocker bot teleported.");
+				if (g_iRoundEndBlockDebug)
+				{
+					PrintToServer("[RndEndBlock] Blocker bot teleported.");
+				}
 			}
 		}
 		else if (!IsFakeClient(client))
@@ -327,34 +439,35 @@ public Action:Event_PlayerDeathPre(Handle:event, const String:name[], bool:dontB
 			new iAlivePlayers = GetAlivePlayers();
 			if (iRemainingLife > 0 && iAlivePlayers == 1 && g_iRoundBlockCount > 0)
 			{
-				if (!Ins_InCounterAttack()) {
-					AddBlcoker();
-					g_iRoundBlockCount--;
-					
-					decl String:textToPrint[64];
-					decl String:textToHint[64];
-					Format(textToPrint, sizeof(textToPrint), "\x03[Server] RoundEnd is protected. (Remaining: %d)", g_iRoundBlockCount);
-					Format(textToHint, sizeof(textToHint), "RoundEnd is protected. | Remaining: %d", g_iRoundBlockCount);
-					PrintToChatAll(textToPrint);
-					PrintHintTextToAll(textToHint);
-					//ShowPanelAll(textToHint);
-					
-					if (g_iAnnounceActive == 0)
-					{
-						g_iAnnounceActive = 1;
-						g_iReviveCount = g_iRoundEndBlockReviveDelay;
-						CreateTimer(1.0, Timer_Announce, _, TIMER_REPEAT);
-					}
-				}
-				else
+				AddBlcoker();
+				g_iRoundBlockCount--;
+				
+				decl String:textToPrint[64];
+				decl String:textToHint[64];
+				Format(textToPrint, sizeof(textToPrint), "\x03[Server] RoundEnd is protected. (Remaining: %d)", g_iRoundBlockCount);
+				Format(textToHint, sizeof(textToHint), "RoundEnd is protected. | Remaining: %d", g_iRoundBlockCount);
+				PrintToChatAll(textToPrint);
+				PrintHintTextToAll(textToHint);
+				//ShowPanelAll(textToHint);
+				
+				if (g_iAnnounceActive == 0)
 				{
-					decl String:textToPrint[128];
-					decl String:textToHint[128];
-					Format(textToPrint, sizeof(textToPrint), "\x03RoundEnd Protection is not available during counter attack.", g_iRoundBlockCount);
-					Format(textToHint, sizeof(textToHint), "RoundEnd Protection is not available during counter attack.", g_iRoundBlockCount);
-					PrintToChatAll(textToPrint);
-					PrintHintTextToAll(textToHint);
-					ShowPanelAll(textToHint);
+					g_iAnnounceActive = 1;
+					g_iReviveCount = g_iRoundEndBlockReviveDelay;
+					CreateTimer(1.0, Timer_Announce, _, TIMER_REPEAT);
+				}
+				
+				if (Ins_InCounterAttack())
+				{
+					// Get capture point speed cvar values
+					g_iCPSpeedUp = GetConVarInt(g_hCvarCPSpeedUp);
+					g_iCPSpeedUpMax = GetConVarInt(g_hCvarCPSpeedUpMax);
+					g_iCPSpeedUpRate = GetConVarInt(g_hCvarCPSpeedUpRate);
+					
+					// Prevent round end
+					SetConVarInt(g_hCvarCPSpeedUp, -1, true, false);
+					SetConVarInt(g_hCvarCPSpeedUpMax, 0, true, false);
+					SetConVarInt(g_hCvarCPSpeedUpRate, 0, true, false);
 				}
 			}
 			else if (iAlivePlayers == 1 && g_iRoundBlockCount <= 0)
@@ -380,7 +493,7 @@ public Action:Timer_Announce(Handle:Timer)
 		{
 			for (new client = 1; client <= MaxClients; client++)
 			{
-				if (client > 0 && IsClientConnected(client) && !IsFakeClient(client))
+				if (IsClientConnected(client) && !IsFakeClient(client))
 				{
 					new Handle:hPanel = CreatePanel(INVALID_HANDLE);
 					decl String:buffer[128];
@@ -422,14 +535,14 @@ public Action:Timer_Announce(Handle:Timer)
 	return Plugin_Continue;
 }
 
-ShowPanel(iTarget, String:sMessage[], iShowTime = 5)
+void ShowPanel(iTarget, String:sMessage[], iShowTime = 5)
 {
 	new Handle:hPanel = CreatePanel(INVALID_HANDLE);
 	DrawPanelText(hPanel, sMessage);
 	SendPanelToClient(hPanel, iTarget, NullMenuHandler, iShowTime);
 	CloseHandle(hPanel);
 }
-ShowPanelAll(String:sMessage[])
+void ShowPanelAll(String:sMessage[])
 {
 	for (new client = 1; client <= MaxClients; client++)
     {
@@ -441,10 +554,13 @@ ShowPanelAll(String:sMessage[])
 }
 public NullMenuHandler(Handle:menu, MenuAction:action, param1, param2) {}
 
-AddBlcoker() {
+void AddBlcoker() {
 	if (g_iSecBotID > 0)
 	{
-		PrintToServer("[RndEndBlock] Blocker bot already exists.");
+		if (g_iRoundEndBlockDebug)
+		{	
+			PrintToServer("[RndEndBlock] Blocker bot already exists.");
+		}
 		return;
 	}
 	
@@ -457,39 +573,59 @@ AddBlcoker() {
 		SDKCall(g_hPlayerRespawn, g_iSecBotID);
 		SetEntProp(g_iSecBotID, Prop_Data, "m_iFrags", g_iScore);
 		
-		PrintToServer("[RndEndBlock] Added RoundEnd Blocker.");
+		if (g_iRoundEndBlockDebug)
+		{
+			PrintToServer("[RndEndBlock] Added RoundEnd Blocker.");
+		}
 	}
-	else
-		PrintToServer("[RndEndBlock] Failed to adding RoundEnd Blocker.");
+	//else
+	//	PrintToServer("[RndEndBlock] Failed to adding RoundEnd Blocker.");
 	
 	new Handle:hCvar = INVALID_HANDLE;
 	hCvar = FindConVar("mp_forcecamera");
 	SetConVarInt(hCvar, 0, true, false);
+	hCvar = FindConVar("ins_deadcam_modes");
+	SetConVarInt(hCvar, 1, true, false);
+	
+	
 	return;
 }
-KickBlcokerClient() {
+void KickBlcokerClient() {
 	if (g_iSecBotID > 0)
 	{
 		KickClient(g_iSecBotID);
-		PrintToServer("[RndEndBlock] Kicked RoundEnd Blocker. (Name: %N / ID: %d)", g_iSecBotID, g_iSecBotID);
+		if (g_iRoundEndBlockDebug)
+		{
+			PrintToServer("[RndEndBlock] Kicked RoundEnd Blocker. (Name: %N / ID: %d)", g_iSecBotID, g_iSecBotID);
+		}
 		g_iSecBotID = 0;
 	}
 	else
 	{
 		KickBlcoker();
 	}
+	
+	// Restore capture point speed up cvars
+	if (Ins_InCounterAttack())
+	{
+		SetConVarInt(g_hCvarCPSpeedUp, g_iCPSpeedUp, true, false);
+		SetConVarInt(g_hCvarCPSpeedUpMax, g_iCPSpeedUpMax, true, false);
+		SetConVarInt(g_hCvarCPSpeedUpRate, g_iCPSpeedUpRate, true, false);
+	}
 }
-KickBlcoker() {
+void KickBlcoker() {
 	new mc = GetMaxClients();
 	for( new i = 1; i < mc; i++ ){
-		//if( IsClientInGame(i) && IsFakeClient(i)){
 		if(IsClientInGame(i) && IsClientConnected(i) && IsFakeClient(i)){
 			decl String:target_name[50];
 			GetClientName(i, target_name, sizeof(target_name));
 			if (StrContains(target_name, g_sSecBot, false) >= 0)
 			{
 				KickClient(i);
-				PrintToServer("[RndEndBlock] Kicked RoundEnd Blocker. Method_2 (Name: %N / ID: %d)", i, i); // show chat debug 
+				if (g_iRoundEndBlockDebug)
+				{
+					PrintToServer("[RndEndBlock] Kicked RoundEnd Blocker. Method_2 (Name: %N / ID: %d)", i, i); // show chat debug 
+				}
 			}
 		}
 	}
@@ -497,6 +633,8 @@ KickBlcoker() {
 	new Handle:hCvar = INVALID_HANDLE;
 	hCvar = FindConVar("mp_forcecamera");
 	SetConVarInt(hCvar, 1, true, false);
+	hCvar = FindConVar("ins_deadcam_modes");
+	SetConVarInt(hCvar, 0, true, false);
 	g_iSecBotID = 0;
 	
 	/*
@@ -518,7 +656,7 @@ KickBlcoker() {
 	}
 	*/
 }
-RevivePlayers()
+void RevivePlayers()
 {
 	if (GetRealClientCount() <= 0) return;
 	static iIsReviving = 0;
@@ -539,13 +677,16 @@ RevivePlayers()
 		}
 	}
 	iIsReviving = 0;
-	PrintToServer("[RndEndBlock] All players are revived.");
+	if (g_iRoundEndBlockDebug)
+	{
+		PrintToServer("[RndEndBlock] All players are revived.");
+	}
 }
 public Action:CreatBots(Handle:timer){
 	CreateFakeClient(g_sSecBot);
 	botSwitch();
 }
-botSwitch(){
+void botSwitch(){
 	new mc = GetMaxClients();
 	for( new i = 1; i < mc; i++ ){
 		if( IsClientInGame(i) && IsFakeClient(i)){
@@ -621,7 +762,10 @@ public hideBot(any:client){
 	TeleportEntity(client, loc, NULL_VECTOR, NULL_VECTOR);
 	*/
 	
-	PrintToServer("[RndEndBlock] Hided RoundEnd Blocker (Name: %N / ID: %d)", client, client);
+	if (g_iRoundEndBlockDebug)
+	{
+		PrintToServer("[RndEndBlock] Hided RoundEnd Blocker (Name: %N / ID: %d)", client, client);
+	}
 }
 stock set_rendering(index, FX:fx=FxNone, r=255, g=255, b=255, Render:render=Normal, amount=255)
 {

@@ -65,7 +65,6 @@ new Handle:g_hTimeout;
 new g_iTimeout;
 new bool:g_bTimeout = false;
 
-
 public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 {
 	RegPluginLibrary("navmesh");
@@ -1159,6 +1158,13 @@ bool:NavMeshLoad(const String:sMapName[])
 					new iHidingSpotFlags;
 					ReadFileCell(hFile, iHidingSpotFlags, UNSIGNED_CHAR_BYTE_SIZE);
 					
+					// Added by naong
+					if (iNavSubVersion > 3)
+					{
+						new iTrash;
+						ReadFileCell(hFile, iTrash, UNSIGNED_SHORT_BYTE_SIZE);
+					}
+					
 					new iIndex = PushArrayCell(g_hNavMeshAreaHidingSpots, iHidingSpotID);
 					SetArrayCell(g_hNavMeshAreaHidingSpots, iIndex, flHidingSpotX, NavMeshHidingSpot_X);
 					SetArrayCell(g_hNavMeshAreaHidingSpots, iIndex, flHidingSpotY, NavMeshHidingSpot_Y);
@@ -1280,7 +1286,6 @@ bool:NavMeshLoad(const String:sMapName[])
 			//LogMessage("Place ID: %d", iPlaceID);
 			
 			// Get ladder connections.
-			
 			new iLadderConnectionsStartIndex = -1;
 			new iLadderConnectionsEndIndex = -1;
 			
