@@ -1775,6 +1775,13 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 		SetConVarInt(cvar, 1, true, false);
 	}
 	
+	if (StrEqual(sGameMode,"checkpoint") && ((acp+1) == ncp))
+	{
+		cvar = INVALID_HANDLE;
+		cvar = FindConVar("mp_checkpoint_counterattack_disable");
+   		//SetConVarBounds(cvar,ConVarBound_Upper, true, 18.0);
+   		SetConVarInt(cvar, 0, true, false);
+	}
 	return Plugin_Continue;
 }
 
