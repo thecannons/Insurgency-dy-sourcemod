@@ -340,63 +340,63 @@ public OnPluginStart()
 	
 	// Respawn lives
 	sm_respawn_lives_team_sec = CreateConVar("sm_respawn_lives_team_sec", 
-		"-1", "Respawn players this many times (-1: Disables player respawn)");
+		"1", "Respawn players this many times (-1: Disables player respawn)");
 	sm_respawn_lives_team_ins = CreateConVar("sm_respawn_lives_team_ins", 
 		"10", "If 'sm_respawn_type_team_ins' set 1, respawn bots this many times. If 'sm_respawn_type_team_ins' set 2, total bot count (If not set 'sm_respawn_lives_team_ins_player_count_XX' uses this value)");
 	sm_respawn_lives_team_ins_player_count_01 = CreateConVar("sm_respawn_lives_team_ins_player_count_01", 
-		"5", "Total bot count (when player count is 1)(sm_respawn_type_team_ins must be 2)");
+		"10", "Total bot count (when player count is 1)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_02 = CreateConVar("sm_respawn_lives_team_ins_player_count_02", 
-		"10", "Total bot count (when player count is 2)(sm_respawn_type_team_ins must be 2)");
+		"15", "Total bot count (when player count is 2)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_03 = CreateConVar("sm_respawn_lives_team_ins_player_count_03", 
-		"15", "Total bot count (when player count is 3)(sm_respawn_type_team_ins must be 2)");
+		"20", "Total bot count (when player count is 3)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_04 = CreateConVar("sm_respawn_lives_team_ins_player_count_04", 
-		"20", "Total bot count (when player count is 4)(sm_respawn_type_team_ins must be 2)");
+		"25", "Total bot count (when player count is 4)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_05 = CreateConVar("sm_respawn_lives_team_ins_player_count_05", 
-		"25", "Total bot count (when player count is 5)(sm_respawn_type_team_ins must be 2)");
+		"30", "Total bot count (when player count is 5)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_06 = CreateConVar("sm_respawn_lives_team_ins_player_count_06", 
-		"30", "Total bot count (when player count is 6)(sm_respawn_type_team_ins must be 2)");
+		"35", "Total bot count (when player count is 6)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_07 = CreateConVar("sm_respawn_lives_team_ins_player_count_07", 
-		"35", "Total bot count (when player count is 7)(sm_respawn_type_team_ins must be 2)");
+		"40", "Total bot count (when player count is 7)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_08 = CreateConVar("sm_respawn_lives_team_ins_player_count_08", 
-		"40", "Total bot count (when player count is 8)(sm_respawn_type_team_ins must be 2)");
+		"45", "Total bot count (when player count is 8)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_09 = CreateConVar("sm_respawn_lives_team_ins_player_count_09", 
-		"45", "Total bot count (when player count is 9)(sm_respawn_type_team_ins must be 2)");
+		"50", "Total bot count (when player count is 9)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_10 = CreateConVar("sm_respawn_lives_team_ins_player_count_10", 
-		"50", "Total bot count (when player count is 10)(sm_respawn_type_team_ins must be 2)");
+		"60", "Total bot count (when player count is 10)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_11 = CreateConVar("sm_respawn_lives_team_ins_player_count_11", 
-		"55", "Total bot count (when player count is 11)(sm_respawn_type_team_ins must be 2)");
+		"70", "Total bot count (when player count is 11)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_12 = CreateConVar("sm_respawn_lives_team_ins_player_count_12", 
-		"60", "Total bot count (when player count is 12)(sm_respawn_type_team_ins must be 2)");
+		"80", "Total bot count (when player count is 12)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_13 = CreateConVar("sm_respawn_lives_team_ins_player_count_13", 
-		"65", "Total bot count (when player count is 13)(sm_respawn_type_team_ins must be 2)");
+		"90", "Total bot count (when player count is 13)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_14 = CreateConVar("sm_respawn_lives_team_ins_player_count_14", 
-		"70", "Total bot count (when player count is 14)(sm_respawn_type_team_ins must be 2)");
+		"100", "Total bot count (when player count is 14)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_15 = CreateConVar("sm_respawn_lives_team_ins_player_count_15", 
-		"75", "Total bot count (when player count is 15)(sm_respawn_type_team_ins must be 2)");
+		"105", "Total bot count (when player count is 15)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_16 = CreateConVar("sm_respawn_lives_team_ins_player_count_16", 
-		"80", "Total bot count (when player count is 16)(sm_respawn_type_team_ins must be 2)");
+		"110", "Total bot count (when player count is 16)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_17 = CreateConVar("sm_respawn_lives_team_ins_player_count_17", 
-		"85", "Total bot count (when player count is 17)(sm_respawn_type_team_ins must be 2)");
+		"115", "Total bot count (when player count is 17)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_18 = CreateConVar("sm_respawn_lives_team_ins_player_count_18", 
-		"90", "Total bot count (when player count is 18)(sm_respawn_type_team_ins must be 2)");
+		"120", "Total bot count (when player count is 18)(sm_respawn_type_team_ins must be 2)");
 	
 	// Fatally death
-	sm_respawn_fatal_chance = CreateConVar("sm_respawn_fatal_chance", "0.6", "Chance for a kill to be fatal, 0.6 default = 60% chance to be fatal (To disable set 0.0)");
-	sm_respawn_fatal_head_chance = CreateConVar("sm_respawn_fatal_head_chance", "0.7", "Chance for a headshot kill to be fatal, 0.6 default = 60% chance to be fatal");
-	sm_respawn_fatal_limb_dmg = CreateConVar("sm_respawn_fatal_limb_dmg", "80", "Amount of damage to fatally kill player in limb");
-	sm_respawn_fatal_head_dmg = CreateConVar("sm_respawn_fatal_head_dmg", "100", "Amount of damage to fatally kill player in head");
+	sm_respawn_fatal_chance = CreateConVar("sm_respawn_fatal_chance", "0.5", "Chance for a kill to be fatal, 0.6 default = 60% chance to be fatal (To disable set 0.0)");
+	sm_respawn_fatal_head_chance = CreateConVar("sm_respawn_fatal_head_chance", "0.6", "Chance for a headshot kill to be fatal, 0.6 default = 60% chance to be fatal");
+	sm_respawn_fatal_limb_dmg = CreateConVar("sm_respawn_fatal_limb_dmg", "120", "Amount of damage to fatally kill player in limb");
+	sm_respawn_fatal_head_dmg = CreateConVar("sm_respawn_fatal_head_dmg", "120", "Amount of damage to fatally kill player in head");
 	sm_respawn_fatal_burn_dmg = CreateConVar("sm_respawn_fatal_burn_dmg", "50", "Amount of damage to fatally kill player in burn");
-	sm_respawn_fatal_explosive_dmg = CreateConVar("sm_respawn_fatal_explosive_dmg", "200", "Amount of damage to fatally kill player in explosive");
+	sm_respawn_fatal_explosive_dmg = CreateConVar("sm_respawn_fatal_explosive_dmg", "250", "Amount of damage to fatally kill player in explosive");
 	sm_respawn_fatal_chest_stomach = CreateConVar("sm_respawn_fatal_chest_stomach", "100", "Amount of damage to fatally kill player in chest/stomach");
 	
 	// Counter attack
-	sm_respawn_counter_chance = CreateConVar("sm_respawn_counter_chance", "0.5", "Percent chance that a counter attack will happen def: 50%");
+	sm_respawn_counter_chance = CreateConVar("sm_respawn_counter_chance", "0.4", "Percent chance that a counter attack will happen def: 40%");
 	sm_respawn_counterattack_type = CreateConVar("sm_respawn_counterattack_type", "2", "Respawn during counterattack? (0: no, 1: yes, 2: infinite)");
 	sm_respawn_final_counterattack_type = CreateConVar("sm_respawn_final_counterattack_type", "2", "Respawn during final counterattack? (0: no, 1: yes, 2: infinite)");
 	sm_respawn_security_on_counter = CreateConVar("sm_respawn_security_on_counter", "1", "0/1 When a counter attack starts, spawn all dead players and teleport them to point to defend");
 	sm_respawn_min_counter_dur_sec = CreateConVar("sm_respawn_min_counter_dur_sec", "66", "Minimum randomized counter attack duration");
 	sm_respawn_max_counter_dur_sec = CreateConVar("sm_respawn_max_counter_dur_sec", "126", "Maximum randomized counter attack duration");
-	sm_respawn_final_counter_dur_sec = CreateConVar("sm_respawn_final_counter_dur_sec", "180", "Final counter attack duration");
+	sm_respawn_final_counter_dur_sec = CreateConVar("sm_respawn_final_counter_dur_sec", "345", "Final counter attack duration");
 	
 	// Misc
 	sm_respawn_reset_each_round = CreateConVar("sm_respawn_reset_each_round", "1", "Reset player respawn counts each round");
@@ -419,7 +419,7 @@ public OnPluginStart()
 	
 	// Medic Revive
 	sm_revive_seconds = CreateConVar("sm_revive_seconds", "5", "Time in seconds medic needs to stand over body to revive");
-	sm_revive_bonus = CreateConVar("sm_revive_bonus", "1", "Bonus revive score(kill count) for medic");
+	sm_revive_bonus = CreateConVar("sm_revive_bonus", "2", "Bonus revive score(kill count) for medic");
 	sm_revive_distance_metric = CreateConVar("sm_revive_distance_metric", "1", "Distance metric (0: meters / 1: feet)");
 	sm_heal_bonus = CreateConVar("sm_heal_bonus", "1", "Bonus heal score(kill count) for medic");
 	sm_heal_amount = CreateConVar("sm_heal_amount", "5", "Heal amount per 0.5 seconds");
@@ -1492,7 +1492,8 @@ public UpdatePlayerOrigins()
 			GetClientAbsOrigin(i,g_fPlayerPosition[i]);
 		}
 	}
-}
+}
+
 
 /*
 #####################################################################
