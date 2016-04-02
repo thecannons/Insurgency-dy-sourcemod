@@ -192,6 +192,7 @@ new
 	// Reinforcements
 	Handle:sm_respawn_reinforce_time = INVALID_HANDLE,
 	Handle:sm_respawn_reinforce_time_subsequent = INVALID_HANDLE,
+	Handle:sm_reinforce_multiplier = INVALID_HANDLE,
 	
 	// Monitor static enemy
 	Handle:sm_respawn_check_static_enemy = INVALID_HANDLE,
@@ -406,6 +407,7 @@ public OnPluginStart()
 	// Reinforcements
 	sm_respawn_reinforce_time = CreateConVar("sm_respawn_reinforce_time", "200", "When enemy forces are low on lives, how much time til they get reinforcements?");
 	sm_respawn_reinforce_time_subsequent = CreateConVar("sm_respawn_reinforce_time_subsequent", "140", "When enemy forces are low on lives and already reinforced, how much time til they get reinforcements on subsequent reinforcement?");
+	sm_reinforce_multiplier = CreateConVar("sm_reinforce_multiplier", "4", "Division multiplier to determine when to start reinforce timer for bots based on team pool lives left over");
 	
 	// Control static enemy
 	sm_respawn_check_static_enemy = CreateConVar("sm_respawn_check_static_enemy", "120", "Seconds amount to check if an AI has moved probably stuck");
@@ -1011,6 +1013,7 @@ public Action:Timer_Enemies_Remaining(Handle:Timer)
 // This timer reinforces bot team if you do not capture point
 public Action:Timer_EnemyReinforce(Handle:Timer)
 {
+	new reinforce_multiplier = GetConVarInt(sm_reinforce_multiplier);
 	// Check round state
 	if (g_iRoundStatus == 0) return Plugin_Continue;
 	
@@ -1018,7 +1021,7 @@ public Action:Timer_EnemyReinforce(Handle:Timer)
 	new reinforce_time_subsequent = GetConVarInt(sm_respawn_reinforce_time_subsequent);
 	
 	// Check enemy remaining
-	if (g_iRemaining_lives_team_ins <= 0)
+	if (g_iRemaining_lives_team_ins <= (g_iRespawn_lives_team_ins / reinforce_multiplier))
 	{
 		g_iReinforceTime = g_iReinforceTime - 1;
 		

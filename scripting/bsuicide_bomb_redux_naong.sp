@@ -48,6 +48,8 @@ Gear = 8 ?
 // list of specific files that are decent
 new String:DetonateYellSounds[][] = {
 	"allahuakbar/detonate01.ogg",
+	"allahuakbar/allahu_akbar01.ogg",
+	"allahuakbar/allahu_akbar02.ogg",
 	"allahuakbar/detonate02.ogg"
 };
 new String:RoamingSounds[][] = {
@@ -89,7 +91,6 @@ public OnPluginStart()
 	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Pre);
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Pre);
 	HookEvent("player_pick_squad", Event_PlayerPickSquad);
-
 }
 public OnConfigsExecuted()
 {
@@ -111,7 +112,7 @@ public OnConfigsExecuted()
 }
 public OnMapStart()
 {	
-	CreateTimer(2.0, Timer_BomberLoop, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(3.0, Timer_BomberLoop, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 	PrecacheAllahuSound();
 }
 PrecacheAllahuSound()
@@ -142,7 +143,7 @@ public ConVarChanged(Handle:cvar, const String:oldVal[], const String:newVal[])
 public Event_PlayerPickSquad(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	//PrintToServer("[SUICIDE] Running Event_PlayerPickSquad");
-	new client = GetClientOfUserId( GetEventInt( event, "userid" ) );
+	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 
 	decl String:class_template[64];
 	GetEventString(event, "class_template",class_template,sizeof(class_template));
@@ -312,7 +313,6 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 				//PrintToServer("[SUICIDE] incen/molotov DETECTED!");
 				if (fRandom < fIncenDeathChance)
 				{
-					
 					CheckExplodeHurt(victim);
 				}
 			}
@@ -330,7 +330,6 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 				{
 					if (fRandom < fExplosiveDeathChance)
 					{
-						
 						CheckExplodeHurt(victim);
 					}
 				}
@@ -338,7 +337,6 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 				{
 					if (fRandom < 0.10) //10% chance
 					{
-						
 						CheckExplodeHurt(victim);
 					}
 				}
@@ -353,9 +351,9 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 		{
 			if (dmg_taken >= 50.0)
 				{
-					if (fRandom < 0.75) // To compensate for higher caliber rifles that may kill target in 1-2 shots we raise chance o 75%
+					//if (fRandom < 0.75) // To compensate for higher caliber rifles that may kill target in 1-2 shots we raise chance o 75%
+					if (fRandom < fChestStomachDeathChance)
 					{
-						
 						CheckExplodeHurt(victim);
 					}
 				}
@@ -364,7 +362,6 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 					//PrintToServer("[SUICIDE] Chest/Stomach shot");
 					if (fRandom < fChestStomachDeathChance)
 					{
-						
 						CheckExplodeHurt(victim);
 					}
 				}
@@ -373,7 +370,6 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 		{
 			if (fRandom < 0.25) //25% chance if shot in legs/arms to panic detonate
 			{
-				
 				CheckExplodeHurt(victim);
 			}
 		}
