@@ -1706,17 +1706,20 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 	// Set counter attack duration to server
 	new Handle:cvar_ca_dur;
 	
+	SetConVarInt(sm_respawn_check_static_enemy_counter, 10, true, false);
 	// Final counter attack
 	if ((acp+1) == ncp)
 	{
 		cvar_ca_dur = FindConVar("mp_checkpoint_counterattack_duration_finale");
 		SetConVarInt(cvar_ca_dur, final_ca_dur, true, false);
+		SetConVarInt(sm_respawn_check_static_enemy_counter, 5, true, false);
 	}
 	// Normal counter attack
 	else
 	{
 		cvar_ca_dur = FindConVar("mp_checkpoint_counterattack_duration");
 		SetConVarInt(cvar_ca_dur, fRandomInt, true, false);
+		SetConVarInt(sm_respawn_check_static_enemy_counter, 5, true, false);
 	}
 	
 	// Get counter attack chance
@@ -1774,7 +1777,7 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 		cvar = FindConVar("mp_checkpoint_counterattack_disable");
 		SetConVarInt(cvar, 1, true, false);
 	}
-	
+
 	if (StrEqual(sGameMode,"checkpoint") && ((acp+1) == ncp))
 	{
 		cvar = INVALID_HANDLE;
