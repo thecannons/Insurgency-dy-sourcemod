@@ -186,8 +186,7 @@ new
 	
 	// Misc
 	Handle:sm_respawn_reset_each_round = INVALID_HANDLE,
-	Handle:sm_respawn_reset_each_objective_ins = INVALID_HANDLE,
-	Handle:sm_respawn_reset_each_objective_sec = INVALID_HANDLE,
+	Handle:sm_respawn_reset_each_objective = INVALID_HANDLE,
 	Handle:sm_respawn_enable_track_ammo = INVALID_HANDLE,
 	
 	// Reinforcements
@@ -223,9 +222,7 @@ new
 	g_iCvar_respawn_enable,
 	g_iCvar_respawn_type_team_ins,
 	g_iCvar_respawn_type_team_sec,
-	g_iCvar_respawn_reset_each_objective_ins,
-	g_iCvar_respawn_reset_each_objective_sec,
-	g_iCvar_respawn_reset_each_round,
+	g_iCvar_respawn_reset_each_objective,
 	Float:g_fCvar_respawn_delay_team_ins,
 	g_iCvar_enable_track_ammo,
 	g_iCvar_counterattack_type,
@@ -404,8 +401,7 @@ public OnPluginStart()
 	
 	// Misc
 	sm_respawn_reset_each_round = CreateConVar("sm_respawn_reset_each_round", "1", "Reset player respawn counts each round");
-	sm_respawn_reset_each_objective_ins = CreateConVar("sm_respawn_reset_each_objective_ins", "1", "Reset player respawn counts each objective");
-	sm_respawn_reset_each_objective_sec = CreateConVar("sm_respawn_reset_each_objective_sec", "0", "Reset player respawn counts each objective");
+	sm_respawn_reset_each_objective = CreateConVar("sm_respawn_reset_each_objective", "1", "Reset player respawn counts each objective");
 	sm_respawn_enable_track_ammo = CreateConVar("sm_respawn_enable_track_ammo", "1", "0/1 Track ammo on death to revive (may be buggy if using a different theatre that modifies ammo)");
 	
 	// Reinforcements
@@ -469,8 +465,7 @@ public OnPluginStart()
 	HookConVarChange(sm_respawn_lives_team_sec, CvarChange);
 	HookConVarChange(sm_respawn_lives_team_ins, CvarChange);
 	HookConVarChange(sm_respawn_reset_each_round, CvarChange);
-	HookConVarChange(sm_respawn_reset_each_objective_ins, CvarChange);
-	HookConVarChange(sm_respawn_reset_each_objective_sec, CvarChange);
+	HookConVarChange(sm_respawn_reset_each_objective, CvarChange);
 	HookConVarChange(sm_respawn_type_team_sec, CvarChange);
 	HookConVarChange(sm_respawn_type_team_ins, CvarChange);
 	
@@ -556,12 +551,8 @@ void UpdateRespawnCvars()
 	g_iCvar_respawn_type_team_sec = GetConVarInt(sm_respawn_type_team_sec);
 	
 	// Reset respawn tokens each objective
-	g_iCvar_respawn_reset_each_objective_sec = GetConVarInt(sm_respawn_reset_each_objective_sec);
-	g_iCvar_respawn_reset_each_objective_ins = GetConVarInt(sm_respawn_reset_each_objective_ins);
-
-	g_iCvar_respawn_reset_each_round = GetConVarInt(sm_respawn_reset_each_round);
-
-
+	g_iCvar_respawn_reset_each_objective = GetConVarInt(sm_respawn_reset_each_objective);
+	
 	//Revive counts
 	g_iReviveSeconds = GetConVarInt(sm_revive_seconds);
 	
@@ -724,7 +715,6 @@ public Action:Timer_MapStart(Handle:Timer)
 	
 	// Reset respawn token
 	ResetPlayerLives();
-	ResetBotLives();
 	
 	// Ammo tracking timer
 	if (GetConVarInt(sm_respawn_enable_track_ammo) == 1)
@@ -822,7 +812,6 @@ public OnMapEnd()
 	
 	// Reset respawn token
 	ResetPlayerLives();
-	ResetBotLives();
 	g_isMapInit = 0;
 }
 
@@ -831,7 +820,6 @@ public Action:Command_Reload(client, args)
 {
 	ServerCommand("exec sourcemod/respawn.cfg");
 	ResetPlayerLives();
-	ResetBotLives();
 	
 	PrintToServer("[RESPAWN] %N reloaded respawn config.", client);
 	ReplyToCommand(client, "[SM] Reloaded 'sourcemod/respawn.cfg' file.");
@@ -1588,18 +1576,14 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 	g_fRespawnPosition[1] = 0.0;
 	g_fRespawnPosition[2] = 0.0;
 	
-	g_iCvar_respawn_reset_each_round = GetConVarInt(sm_respawn_reset_each_round);
-
 	// Reset remaining life
 	new Handle:hCvar = INVALID_HANDLE;
 	hCvar = FindConVar("sm_remaininglife");
 	SetConVarInt(hCvar, -1);
-
-	if (g_iCvar_respawn_reset_each_round)
-	{
-		ResetBotLives();
+	
+	// Reset respawn token
+	if (g_iCvar_respawn_reset_each_objective)
 		ResetPlayerLives();
-	}
 	
 	// Reset reinforce time
 	new reinforce_time = GetConVarInt(sm_respawn_reinforce_time);
@@ -1687,13 +1671,9 @@ public Action:Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadca
 	g_iEnableRevive = 0;
 	g_iRoundStatus = 0;
 	
-
-	// Reset respawn token
-	if (g_iCvar_respawn_reset_each_objective_sec)
+	// Reset respawn toke
+	if (g_iCvar_respawn_reset_each_objective)
 		ResetPlayerLives();
-
-	if (g_iCvar_respawn_reset_each_objective_ins)
-		ResetBotLives();
 	
 	// Update entity
 	GetObjResEnt();
@@ -1841,13 +1821,9 @@ public Action:Event_ControlPointCaptured(Handle:event, const String:name[], bool
 	new reinforce_time = GetConVarInt(sm_respawn_reinforce_time);
 	g_iReinforceTime = reinforce_time;
 	
-
-	// Reset respawn token
-	if (g_iCvar_respawn_reset_each_objective_sec)
+	// Reset respawn tokens
+	if (g_iCvar_respawn_reset_each_objective)
 		ResetPlayerLives();
-
-	if (g_iCvar_respawn_reset_each_objective_ins)
-		ResetBotLives();
 
 	////PrintToServer("CONTROL POINT CAPTURED");
 	
@@ -1937,12 +1913,9 @@ public Action:Event_ObjectDestroyed(Handle:event, const String:name[], bool:dont
 		new reinforce_time = GetConVarInt(sm_respawn_reinforce_time);
 		g_iReinforceTime = reinforce_time;
 		
-		// Reset respawn token
-		if (g_iCvar_respawn_reset_each_objective_sec)
+		// Reset respawn tokens
+		if (g_iCvar_respawn_reset_each_objective)
 			ResetPlayerLives();
-
-		if (g_iCvar_respawn_reset_each_objective_ins)
-			ResetBotLives();
 	}
 	
 	// Conquer, Respawn all players
@@ -1985,12 +1958,11 @@ public Action:Timer_CounterAttackEnd(Handle:Timer)
 		new reinforce_time = GetConVarInt(sm_respawn_reinforce_time);
 		g_iReinforceTime = reinforce_time;
 		
-		// Reset respawn token
-		if (g_iCvar_respawn_reset_each_objective_sec)
+		// Reset respawn tokens
+		if (g_iCvar_respawn_reset_each_objective)
+		{
 			ResetPlayerLives();
-
-		if (g_iCvar_respawn_reset_each_objective_ins)
-			ResetBotLives();
+		}
 		
 		// Stop counter-attack music
 		StopCounterAttackMusic();
@@ -2024,36 +1996,6 @@ void StopCounterAttackMusic()
 }
 
 //Run this to mark a bot as ready to spawn. Add tokens if you want them to be able to spawn.
-void ResetBotLives()
-{
-	// Disable if counquer
-	if (g_isConquer == 1) return;
-	
-	// Return if respawn is disabled
-	if (!g_iCvar_respawn_enable) return;
-	
-	UpdateRespawnCvars();
-	
-	// Respawn type 1
-	// Reset all player's respawn token
-	for (new client=1; client<=MaxClients; client++)
-	{
-		if (client > 0 && IsClientInGame(client))
-		{
-			new iTeam = GetClientTeam(client);
-			if (g_iCvar_respawn_type_team_ins == 1 && iTeam == TEAM_2)
-				g_iSpawnTokens[client] = g_iRespawnCount[iTeam];
-		}
-	}
-	
-	// Respawn type 2 for bots
-	if (g_iCvar_respawn_type_team_ins == 2)
-	{
-		// Reset remaining lives for bots
-		g_iRemaining_lives_team_ins = g_iRespawn_lives_team_ins;
-	}
-}
-//Run this to mark a bot as ready to spawn. Add tokens if you want them to be able to spawn.
 void ResetPlayerLives()
 {
 	// Disable if counquer
@@ -2071,7 +2013,7 @@ void ResetPlayerLives()
 		if (client > 0 && IsClientInGame(client))
 		{
 			new iTeam = GetClientTeam(client);
-			if (g_iCvar_respawn_type_team_sec == 1 && iTeam == TEAM_1)
+			if ((g_iCvar_respawn_type_team_sec == 1 && iTeam == TEAM_1)|| (g_iCvar_respawn_type_team_ins == 1 && iTeam == TEAM_2))
 				g_iSpawnTokens[client] = g_iRespawnCount[iTeam];
 		}
 	}
@@ -2081,6 +2023,12 @@ void ResetPlayerLives()
 	{
 		// Reset remaining lives for player
 		g_iRemaining_lives_team_sec = g_iRespawn_lives_team_sec;
+	}
+	// Respawn type 2 for bots
+	else if (g_iCvar_respawn_type_team_ins == 2)
+	{
+		// Reset remaining lives for bots
+		g_iRemaining_lives_team_ins = g_iRespawn_lives_team_ins;
 	}
 }
 

@@ -433,7 +433,7 @@ public CheckExplodeHurt(client) {
 
 		if (DispatchSpawn(ent)) {
 			YellDetonateSound(client);
-			PrintToChatAll("\x05Suicide Bomber detonated bomb.");
+			//PrintToChatAll("\x05Suicide Bomber detonated bomb.");
 			
 			DealDamage(ent,304,client,DMG_BLAST,"weapon_c4_ied");
 		}
@@ -523,7 +523,7 @@ public CheckExplodeDeath(client) {
 			//PrintToServer("[SUICIDE] Detonating IED entity");
 			
 			YellDetonateSound(client);
-			PrintToChatAll("\x05Suicide Bomber detonated bomb.");
+			//PrintToChatAll("\x05Suicide Bomber detonated bomb.");
 			
 			DealDamage(ent,304,client,DMG_BLAST,"weapon_c4_ied");
 		}
