@@ -185,12 +185,14 @@ new
 	Handle:sm_respawn_final_counter_dur_sec = INVALID_HANDLE,
 	
 	// Misc
-	Handle:sm_respawn_reset_type = INVALID_HANDLE;
+	Handle:sm_respawn_reset_each_round = INVALID_HANDLE,
+	Handle:sm_respawn_reset_each_objective = INVALID_HANDLE,
 	Handle:sm_respawn_enable_track_ammo = INVALID_HANDLE,
 	
 	// Reinforcements
 	Handle:sm_respawn_reinforce_time = INVALID_HANDLE,
 	Handle:sm_respawn_reinforce_time_subsequent = INVALID_HANDLE,
+	Handle:sm_reinforce_multiplier = INVALID_HANDLE,
 	
 	// Monitor static enemy
 	Handle:sm_respawn_check_static_enemy = INVALID_HANDLE,
@@ -220,7 +222,7 @@ new
 	g_iCvar_respawn_enable,
 	g_iCvar_respawn_type_team_ins,
 	g_iCvar_respawn_type_team_sec,
-	g_iCvar_respawn_reset_type,
+	g_iCvar_respawn_reset_each_objective,
 	Float:g_fCvar_respawn_delay_team_ins,
 	g_iCvar_enable_track_ammo,
 	g_iCvar_counterattack_type,
@@ -261,74 +263,6 @@ enum SpawnModes
 	SpawnMode_HidingSpots,
 	SpawnMode_SpawnPoints,
 };
-
-/////////////////////////////////////
-// Rank System (Based on graczu's Simple CS:S Rank - https://forums.alliedmods.net/showthread.php?p=523601)
-//
-/*
-MySQL Query:
-
-CREATE TABLE `ins_rank`(
-`rank_id` int(64) NOT NULL auto_increment,
-`steamId` varchar(32) NOT NULL default '',
-`nick` varchar(128) NOT NULL default '',
-`score` int(12) NOT NULL default '0',
-`kills` int(12) NOT NULL default '0',
-`deaths` int(12) NOT NULL default '0',
-`headshots` int(12) NOT NULL default '0',
-`sucsides` int(12) NOT NULL default '0',
-`revives` int(12) NOT NULL default '0',
-`heals` int(12) NOT NULL default '0',
-`last_active` int(12) NOT NULL default '0',
-`played_time` int(12) NOT NULL default '0',
-PRIMARY KEY  (`rank_id`)) ENGINE=INNODB  DEFAULT CHARSET=utf8;
-
-database.cfg
-
-	"insrank"
-	{
-		"driver"			"default"
-		"host"				"127.0.0.1"
-		"database"			"database_name"
-		"user"				"database_user"
-		"pass"				"PASSWORD"
-		//"timeout"			"0"
-		"port"			"3306"
-	}
-*/
-
-// KOLOROWE KREDKI
-#define YELLOW 0x01
-#define GREEN 0x04
-
-// DEBUG MODE (1 = ON, 0 = OFF)
-new DEBUG = 0;
-
-// SOME DEFINES
-#define MAX_LINE_WIDTH 60
-#define PLUGIN_VERSION "1.4"
-
-// STATS TIME (SET DAYS AFTER STATS ARE DELETE OF NONACTIVE PLAYERS)
-#define PLAYER_STATSOLD 30
-
-// STATS DEFINATION FOR PLAYERS
-new g_iStatScore[MAXPLAYERS+1];
-new g_iStatKills[MAXPLAYERS+1];
-new g_iStatDeaths[MAXPLAYERS+1];
-new g_iStatHeadShots[MAXPLAYERS+1];
-new g_iStatSuicides[MAXPLAYERS+1];
-new g_iStatRevives[MAXPLAYERS+1];
-new g_iStatHeals[MAXPLAYERS+1];
-new g_iUserInit[MAXPLAYERS+1];
-new g_iUserFlood[MAXPLAYERS+1];
-new g_iUserPtime[MAXPLAYERS+1];
-new String:g_sSteamIdSave[MAXPLAYERS+1][255];
-new g_iRank[MAXPLAYERS+1];
-
-// HANDLE OF DATABASE
-new Handle:g_hDB;
-//
-/////////////////////////////////////
 
 #define PLUGIN_VERSION "1.7.0"
 #define PLUGIN_DESCRIPTION "Respawn dead players via admincommand or by queues"
@@ -407,71 +341,73 @@ public OnPluginStart()
 	
 	// Respawn lives
 	sm_respawn_lives_team_sec = CreateConVar("sm_respawn_lives_team_sec", 
-		"-1", "Respawn players this many times (-1: Disables player respawn)");
+		"1", "Respawn players this many times (-1: Disables player respawn)");
 	sm_respawn_lives_team_ins = CreateConVar("sm_respawn_lives_team_ins", 
 		"10", "If 'sm_respawn_type_team_ins' set 1, respawn bots this many times. If 'sm_respawn_type_team_ins' set 2, total bot count (If not set 'sm_respawn_lives_team_ins_player_count_XX' uses this value)");
 	sm_respawn_lives_team_ins_player_count_01 = CreateConVar("sm_respawn_lives_team_ins_player_count_01", 
-		"5", "Total bot count (when player count is 1)(sm_respawn_type_team_ins must be 2)");
+		"10", "Total bot count (when player count is 1)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_02 = CreateConVar("sm_respawn_lives_team_ins_player_count_02", 
-		"10", "Total bot count (when player count is 2)(sm_respawn_type_team_ins must be 2)");
+		"15", "Total bot count (when player count is 2)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_03 = CreateConVar("sm_respawn_lives_team_ins_player_count_03", 
-		"15", "Total bot count (when player count is 3)(sm_respawn_type_team_ins must be 2)");
+		"20", "Total bot count (when player count is 3)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_04 = CreateConVar("sm_respawn_lives_team_ins_player_count_04", 
-		"20", "Total bot count (when player count is 4)(sm_respawn_type_team_ins must be 2)");
+		"25", "Total bot count (when player count is 4)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_05 = CreateConVar("sm_respawn_lives_team_ins_player_count_05", 
-		"25", "Total bot count (when player count is 5)(sm_respawn_type_team_ins must be 2)");
+		"30", "Total bot count (when player count is 5)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_06 = CreateConVar("sm_respawn_lives_team_ins_player_count_06", 
-		"30", "Total bot count (when player count is 6)(sm_respawn_type_team_ins must be 2)");
+		"35", "Total bot count (when player count is 6)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_07 = CreateConVar("sm_respawn_lives_team_ins_player_count_07", 
-		"35", "Total bot count (when player count is 7)(sm_respawn_type_team_ins must be 2)");
+		"40", "Total bot count (when player count is 7)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_08 = CreateConVar("sm_respawn_lives_team_ins_player_count_08", 
-		"40", "Total bot count (when player count is 8)(sm_respawn_type_team_ins must be 2)");
+		"45", "Total bot count (when player count is 8)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_09 = CreateConVar("sm_respawn_lives_team_ins_player_count_09", 
-		"45", "Total bot count (when player count is 9)(sm_respawn_type_team_ins must be 2)");
+		"50", "Total bot count (when player count is 9)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_10 = CreateConVar("sm_respawn_lives_team_ins_player_count_10", 
-		"50", "Total bot count (when player count is 10)(sm_respawn_type_team_ins must be 2)");
+		"60", "Total bot count (when player count is 10)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_11 = CreateConVar("sm_respawn_lives_team_ins_player_count_11", 
-		"55", "Total bot count (when player count is 11)(sm_respawn_type_team_ins must be 2)");
+		"70", "Total bot count (when player count is 11)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_12 = CreateConVar("sm_respawn_lives_team_ins_player_count_12", 
-		"60", "Total bot count (when player count is 12)(sm_respawn_type_team_ins must be 2)");
+		"80", "Total bot count (when player count is 12)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_13 = CreateConVar("sm_respawn_lives_team_ins_player_count_13", 
-		"65", "Total bot count (when player count is 13)(sm_respawn_type_team_ins must be 2)");
+		"90", "Total bot count (when player count is 13)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_14 = CreateConVar("sm_respawn_lives_team_ins_player_count_14", 
-		"70", "Total bot count (when player count is 14)(sm_respawn_type_team_ins must be 2)");
+		"100", "Total bot count (when player count is 14)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_15 = CreateConVar("sm_respawn_lives_team_ins_player_count_15", 
-		"75", "Total bot count (when player count is 15)(sm_respawn_type_team_ins must be 2)");
+		"105", "Total bot count (when player count is 15)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_16 = CreateConVar("sm_respawn_lives_team_ins_player_count_16", 
-		"80", "Total bot count (when player count is 16)(sm_respawn_type_team_ins must be 2)");
+		"110", "Total bot count (when player count is 16)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_17 = CreateConVar("sm_respawn_lives_team_ins_player_count_17", 
-		"85", "Total bot count (when player count is 17)(sm_respawn_type_team_ins must be 2)");
+		"115", "Total bot count (when player count is 17)(sm_respawn_type_team_ins must be 2)");
 	sm_respawn_lives_team_ins_player_count_18 = CreateConVar("sm_respawn_lives_team_ins_player_count_18", 
-		"90", "Total bot count (when player count is 18)(sm_respawn_type_team_ins must be 2)");
+		"120", "Total bot count (when player count is 18)(sm_respawn_type_team_ins must be 2)");
 	
 	// Fatally death
-	sm_respawn_fatal_chance = CreateConVar("sm_respawn_fatal_chance", "0.6", "Chance for a kill to be fatal, 0.6 default = 60% chance to be fatal (To disable set 0.0)");
-	sm_respawn_fatal_head_chance = CreateConVar("sm_respawn_fatal_head_chance", "0.7", "Chance for a headshot kill to be fatal, 0.6 default = 60% chance to be fatal");
-	sm_respawn_fatal_limb_dmg = CreateConVar("sm_respawn_fatal_limb_dmg", "80", "Amount of damage to fatally kill player in limb");
-	sm_respawn_fatal_head_dmg = CreateConVar("sm_respawn_fatal_head_dmg", "100", "Amount of damage to fatally kill player in head");
+	sm_respawn_fatal_chance = CreateConVar("sm_respawn_fatal_chance", "0.5", "Chance for a kill to be fatal, 0.6 default = 60% chance to be fatal (To disable set 0.0)");
+	sm_respawn_fatal_head_chance = CreateConVar("sm_respawn_fatal_head_chance", "0.6", "Chance for a headshot kill to be fatal, 0.6 default = 60% chance to be fatal");
+	sm_respawn_fatal_limb_dmg = CreateConVar("sm_respawn_fatal_limb_dmg", "120", "Amount of damage to fatally kill player in limb");
+	sm_respawn_fatal_head_dmg = CreateConVar("sm_respawn_fatal_head_dmg", "120", "Amount of damage to fatally kill player in head");
 	sm_respawn_fatal_burn_dmg = CreateConVar("sm_respawn_fatal_burn_dmg", "50", "Amount of damage to fatally kill player in burn");
-	sm_respawn_fatal_explosive_dmg = CreateConVar("sm_respawn_fatal_explosive_dmg", "200", "Amount of damage to fatally kill player in explosive");
+	sm_respawn_fatal_explosive_dmg = CreateConVar("sm_respawn_fatal_explosive_dmg", "250", "Amount of damage to fatally kill player in explosive");
 	sm_respawn_fatal_chest_stomach = CreateConVar("sm_respawn_fatal_chest_stomach", "100", "Amount of damage to fatally kill player in chest/stomach");
 	
 	// Counter attack
-	sm_respawn_counter_chance = CreateConVar("sm_respawn_counter_chance", "0.5", "Percent chance that a counter attack will happen def: 50%");
+	sm_respawn_counter_chance = CreateConVar("sm_respawn_counter_chance", "0.4", "Percent chance that a counter attack will happen def: 40%");
 	sm_respawn_counterattack_type = CreateConVar("sm_respawn_counterattack_type", "2", "Respawn during counterattack? (0: no, 1: yes, 2: infinite)");
 	sm_respawn_final_counterattack_type = CreateConVar("sm_respawn_final_counterattack_type", "2", "Respawn during final counterattack? (0: no, 1: yes, 2: infinite)");
 	sm_respawn_security_on_counter = CreateConVar("sm_respawn_security_on_counter", "1", "0/1 When a counter attack starts, spawn all dead players and teleport them to point to defend");
 	sm_respawn_min_counter_dur_sec = CreateConVar("sm_respawn_min_counter_dur_sec", "66", "Minimum randomized counter attack duration");
 	sm_respawn_max_counter_dur_sec = CreateConVar("sm_respawn_max_counter_dur_sec", "126", "Maximum randomized counter attack duration");
-	sm_respawn_final_counter_dur_sec = CreateConVar("sm_respawn_final_counter_dur_sec", "180", "Final counter attack duration");
+	sm_respawn_final_counter_dur_sec = CreateConVar("sm_respawn_final_counter_dur_sec", "345", "Final counter attack duration");
 	
 	// Misc
-	sm_respawn_reset_type = CreateConVar("sm_respawn_reset_type", "0", "Set type of resetting player respawn counts: each round or each objective (0: each round, 1: each objective)");
+	sm_respawn_reset_each_round = CreateConVar("sm_respawn_reset_each_round", "1", "Reset player respawn counts each round");
+	sm_respawn_reset_each_objective = CreateConVar("sm_respawn_reset_each_objective", "1", "Reset player respawn counts each objective");
 	sm_respawn_enable_track_ammo = CreateConVar("sm_respawn_enable_track_ammo", "1", "0/1 Track ammo on death to revive (may be buggy if using a different theatre that modifies ammo)");
 	
 	// Reinforcements
 	sm_respawn_reinforce_time = CreateConVar("sm_respawn_reinforce_time", "200", "When enemy forces are low on lives, how much time til they get reinforcements?");
 	sm_respawn_reinforce_time_subsequent = CreateConVar("sm_respawn_reinforce_time_subsequent", "140", "When enemy forces are low on lives and already reinforced, how much time til they get reinforcements on subsequent reinforcement?");
+	sm_reinforce_multiplier = CreateConVar("sm_reinforce_multiplier", "4", "Division multiplier to determine when to start reinforce timer for bots based on team pool lives left over");
 	
 	// Control static enemy
 	sm_respawn_check_static_enemy = CreateConVar("sm_respawn_check_static_enemy", "120", "Seconds amount to check if an AI has moved probably stuck");
@@ -485,7 +421,7 @@ public OnPluginStart()
 	
 	// Medic Revive
 	sm_revive_seconds = CreateConVar("sm_revive_seconds", "5", "Time in seconds medic needs to stand over body to revive");
-	sm_revive_bonus = CreateConVar("sm_revive_bonus", "1", "Bonus revive score(kill count) for medic");
+	sm_revive_bonus = CreateConVar("sm_revive_bonus", "2", "Bonus revive score(kill count) for medic");
 	sm_revive_distance_metric = CreateConVar("sm_revive_distance_metric", "1", "Distance metric (0: meters / 1: feet)");
 	sm_heal_bonus = CreateConVar("sm_heal_bonus", "1", "Bonus heal score(kill count) for medic");
 	sm_heal_amount = CreateConVar("sm_heal_amount", "5", "Heal amount per 0.5 seconds");
@@ -528,7 +464,8 @@ public OnPluginStart()
 	HookConVarChange(sm_respawn_delay_team_ins, CvarChange);
 	HookConVarChange(sm_respawn_lives_team_sec, CvarChange);
 	HookConVarChange(sm_respawn_lives_team_ins, CvarChange);
-	HookConVarChange(sm_respawn_reset_type, CvarChange);
+	HookConVarChange(sm_respawn_reset_each_round, CvarChange);
+	HookConVarChange(sm_respawn_reset_each_objective, CvarChange);
 	HookConVarChange(sm_respawn_type_team_sec, CvarChange);
 	HookConVarChange(sm_respawn_type_team_ins, CvarChange);
 	
@@ -560,13 +497,6 @@ public OnPluginStart()
 	// Init variables
 	g_iLogicEntity = -1;
 	g_iObjResEntity = -1;
-	
-	/////////////////////////
-	// Rank System
-	RegConsoleCmd("say", Command_Say);			// Monitor say 
-	SQL_TConnect(LoadMySQLBase, "insrank");		// Connect to DB
-	//
-	/////////////////////////
 	
 	AutoExecConfig(true, "respawn");
 }
@@ -620,8 +550,8 @@ void UpdateRespawnCvars()
 	g_iCvar_respawn_type_team_ins = GetConVarInt(sm_respawn_type_team_ins);
 	g_iCvar_respawn_type_team_sec = GetConVarInt(sm_respawn_type_team_sec);
 	
-	// Type of resetting respawn token
-	g_iCvar_respawn_reset_type = GetConVarInt(sm_respawn_reset_type);
+	// Reset respawn tokens each objective
+	g_iCvar_respawn_reset_each_objective = GetConVarInt(sm_respawn_reset_each_objective);
 	
 	//Revive counts
 	g_iReviveSeconds = GetConVarInt(sm_revive_seconds);
@@ -784,8 +714,7 @@ public Action:Timer_MapStart(Handle:Timer)
 	// BotSpawn Nav Mesh initialize #################### END
 	
 	// Reset respawn token
-	ResetSecurityLives();
-	ResetInsurgencyLives();
+	ResetPlayerLives();
 	
 	// Ammo tracking timer
 	if (GetConVarInt(sm_respawn_enable_track_ammo) == 1)
@@ -867,12 +796,10 @@ public Action:Timer_MapStart(Handle:Timer)
 			}
 		}
 		////PrintToServer("[BOTSPAWNS] Found hiding count: a %d b %d c %d d %d e %d f %d g %d h %d i %d j %d k %d l %d m %d",g_iCPHidingSpotCount[0],g_iCPHidingSpotCount[1],g_iCPHidingSpotCount[2],g_iCPHidingSpotCount[3],g_iCPHidingSpotCount[4],g_iCPHidingSpotCount[5],g_iCPHidingSpotCount[6],g_iCPHidingSpotCount[7],g_iCPHidingSpotCount[8],g_iCPHidingSpotCount[9],g_iCPHidingSpotCount[10],g_iCPHidingSpotCount[11],g_iCPHidingSpotCount[12]);
-		//LogMessage("Found hiding count: a %d b %d c %d d %d e %d f %d g %d h %d i %d j %d k %d l %d m %d",g_iCPHidingSpotCount[0],g_iCPHidingSpotCount[1],g_iCPHidingSpotCount[2],g_iCPHidingSpotCount[3],g_iCPHidingSpotCount[4],g_iCPHidingSpotCount[5],g_iCPHidingSpotCount[6],g_iCPHidingSpotCount[7],g_iCPHidingSpotCount[8],g_iCPHidingSpotCount[9],g_iCPHidingSpotCount[10],g_iCPHidingSpotCount[11],g_iCPHidingSpotCount[12]);
+		LogMessage("Found hiding count: a %d b %d c %d d %d e %d f %d g %d h %d i %d j %d k %d l %d m %d",g_iCPHidingSpotCount[0],g_iCPHidingSpotCount[1],g_iCPHidingSpotCount[2],g_iCPHidingSpotCount[3],g_iCPHidingSpotCount[4],g_iCPHidingSpotCount[5],g_iCPHidingSpotCount[6],g_iCPHidingSpotCount[7],g_iCPHidingSpotCount[8],g_iCPHidingSpotCount[9],g_iCPHidingSpotCount[10],g_iCPHidingSpotCount[11],g_iCPHidingSpotCount[12]);
 	}
 	else
-	{
-		//LogMessage("Hiding spot is not found.");
-	}
+		LogMessage("Hiding spot is not found.");
 		
 	////PrintToServer("[REVIVE_DEBUG] MAP STARTED");	
 	//##########NOTHING BELOW THIS POINT##########
@@ -884,9 +811,7 @@ public OnMapEnd()
 	////PrintToServer("[REVIVE_DEBUG] MAP ENDED");	
 	
 	// Reset respawn token
-	ResetSecurityLives();
-	ResetInsurgencyLives();
-	
+	ResetPlayerLives();
 	g_isMapInit = 0;
 }
 
@@ -894,10 +819,7 @@ public OnMapEnd()
 public Action:Command_Reload(client, args)
 {
 	ServerCommand("exec sourcemod/respawn.cfg");
-	
-	// Reset respawn token
-	ResetSecurityLives();
-	ResetInsurgencyLives();
+	ResetPlayerLives();
 	
 	PrintToServer("[RESPAWN] %N reloaded respawn config.", client);
 	ReplyToCommand(client, "[SM] Reloaded 'sourcemod/respawn.cfg' file.");
@@ -1091,6 +1013,7 @@ public Action:Timer_Enemies_Remaining(Handle:Timer)
 // This timer reinforces bot team if you do not capture point
 public Action:Timer_EnemyReinforce(Handle:Timer)
 {
+	new reinforce_multiplier = GetConVarInt(sm_reinforce_multiplier);
 	// Check round state
 	if (g_iRoundStatus == 0) return Plugin_Continue;
 	
@@ -1098,7 +1021,7 @@ public Action:Timer_EnemyReinforce(Handle:Timer)
 	new reinforce_time_subsequent = GetConVarInt(sm_respawn_reinforce_time_subsequent);
 	
 	// Check enemy remaining
-	if (g_iRemaining_lives_team_ins <= 0)
+	if (g_iRemaining_lives_team_ins <= (g_iRespawn_lives_team_ins / reinforce_multiplier))
 	{
 		g_iReinforceTime = g_iReinforceTime - 1;
 		
@@ -1258,7 +1181,7 @@ void AddLifeForStaticKilling(client)
 	{
 		g_iSpawnTokens[client]++;
 	}
-	else if (g_iCvar_respawn_type_team_ins == 2 && team == TEAM_2 && g_iRespawn_lives_team_ins > 0)
+	else if (team == TEAM_2 && g_iCvar_respawn_type_team_ins == 2 && g_iRespawn_lives_team_ins > 0)
 	{
 		g_iRemaining_lives_team_ins++;
 	}
@@ -1572,7 +1495,8 @@ public UpdatePlayerOrigins()
 			GetClientAbsOrigin(i,g_fPlayerPosition[i]);
 		}
 	}
-}
+}
+
 
 /*
 #####################################################################
@@ -1658,8 +1582,8 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 	SetConVarInt(hCvar, -1);
 	
 	// Reset respawn token
-	ResetInsurgencyLives();
-	ResetSecurityLives();
+	if (g_iCvar_respawn_reset_each_objective)
+		ResetPlayerLives();
 	
 	// Reset reinforce time
 	new reinforce_time = GetConVarInt(sm_respawn_reinforce_time);
@@ -1747,24 +1671,12 @@ public Action:Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadca
 	g_iEnableRevive = 0;
 	g_iRoundStatus = 0;
 	
-	// Reset respawn token
-	ResetInsurgencyLives();
-	ResetSecurityLives();
+	// Reset respawn toke
+	if (g_iCvar_respawn_reset_each_objective)
+		ResetPlayerLives();
 	
 	// Update entity
 	GetObjResEnt();
-	
-	////////////////////////
-	// Rank System
-	for (new client=1; client<=MaxClients; client++)
-	{
-		if (IsClientInGame(client))
-		{
-			saveUser(client);
-			CreateTimer(0.5, Timer_GetMyRank, client);
-		}
-	}
-	////////////////////////
 }
 
 // Check occouring counter attack when control point captured
@@ -1797,17 +1709,20 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 	// Set counter attack duration to server
 	new Handle:cvar_ca_dur;
 	
+	SetConVarInt(sm_respawn_check_static_enemy_counter, 10, true, false);
 	// Final counter attack
 	if ((acp+1) == ncp)
 	{
 		cvar_ca_dur = FindConVar("mp_checkpoint_counterattack_duration_finale");
 		SetConVarInt(cvar_ca_dur, final_ca_dur, true, false);
+		SetConVarInt(sm_respawn_check_static_enemy_counter, 5, true, false);
 	}
 	// Normal counter attack
 	else
 	{
 		cvar_ca_dur = FindConVar("mp_checkpoint_counterattack_duration");
 		SetConVarInt(cvar_ca_dur, fRandomInt, true, false);
+		SetConVarInt(sm_respawn_check_static_enemy_counter, 5, true, false);
 	}
 	
 	// Get counter attack chance
@@ -1865,7 +1780,14 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 		cvar = FindConVar("mp_checkpoint_counterattack_disable");
 		SetConVarInt(cvar, 1, true, false);
 	}
-	
+
+	if (StrEqual(sGameMode,"checkpoint") && ((acp+1) == ncp))
+	{
+		cvar = INVALID_HANDLE;
+		cvar = FindConVar("mp_checkpoint_counterattack_disable");
+   		//SetConVarBounds(cvar,ConVarBound_Upper, true, 18.0);
+   		SetConVarInt(cvar, 0, true, false);
+	}
 	return Plugin_Continue;
 }
 
@@ -1900,9 +1822,8 @@ public Action:Event_ControlPointCaptured(Handle:event, const String:name[], bool
 	g_iReinforceTime = reinforce_time;
 	
 	// Reset respawn tokens
-	ResetInsurgencyLives();
-	if (g_iCvar_respawn_reset_type)
-		ResetSecurityLives();
+	if (g_iCvar_respawn_reset_each_objective)
+		ResetPlayerLives();
 
 	////PrintToServer("CONTROL POINT CAPTURED");
 	
@@ -1992,10 +1913,9 @@ public Action:Event_ObjectDestroyed(Handle:event, const String:name[], bool:dont
 		new reinforce_time = GetConVarInt(sm_respawn_reinforce_time);
 		g_iReinforceTime = reinforce_time;
 		
-		// Reset respawn token
-		ResetInsurgencyLives();
-		if (g_iCvar_respawn_reset_type)
-			ResetSecurityLives();
+		// Reset respawn tokens
+		if (g_iCvar_respawn_reset_each_objective)
+			ResetPlayerLives();
 	}
 	
 	// Conquer, Respawn all players
@@ -2038,10 +1958,11 @@ public Action:Timer_CounterAttackEnd(Handle:Timer)
 		new reinforce_time = GetConVarInt(sm_respawn_reinforce_time);
 		g_iReinforceTime = reinforce_time;
 		
-		// Reset respawn token
-		ResetInsurgencyLives();
-		if (g_iCvar_respawn_reset_type)
-			ResetSecurityLives();
+		// Reset respawn tokens
+		if (g_iCvar_respawn_reset_each_objective)
+		{
+			ResetPlayerLives();
+		}
 		
 		// Stop counter-attack music
 		StopCounterAttackMusic();
@@ -2075,7 +1996,7 @@ void StopCounterAttackMusic()
 }
 
 //Run this to mark a bot as ready to spawn. Add tokens if you want them to be able to spawn.
-void ResetSecurityLives()
+void ResetPlayerLives()
 {
 	// Disable if counquer
 	if (g_isConquer == 1) return;
@@ -2083,69 +2004,28 @@ void ResetSecurityLives()
 	// Return if respawn is disabled
 	if (!g_iCvar_respawn_enable) return;
 	
-	// Update cvars
 	UpdateRespawnCvars();
 	
-	// Individual lives
-	if (g_iCvar_respawn_type_team_sec == 1)
+	// Respawn type 1
+	// Reset all player's respawn token
+	for (new client=1; client<=MaxClients; client++)
 	{
-		for (new client=1; client<=MaxClients; client++)
+		if (client > 0 && IsClientInGame(client))
 		{
-			// Check valid player
-			if (client > 0 && IsClientInGame(client))
-			{
-				// Check Team
-				new iTeam = GetClientTeam(client);
-				if (iTeam != TEAM_1)
-					continue;
-				
-				// Reset individual lives
+			new iTeam = GetClientTeam(client);
+			if ((g_iCvar_respawn_type_team_sec == 1 && iTeam == TEAM_1)|| (g_iCvar_respawn_type_team_ins == 1 && iTeam == TEAM_2))
 				g_iSpawnTokens[client] = g_iRespawnCount[iTeam];
-			}
 		}
 	}
 	
-	// Team lives
+	// Respawn type 2 for players
 	if (g_iCvar_respawn_type_team_sec == 2)
 	{
 		// Reset remaining lives for player
 		g_iRemaining_lives_team_sec = g_iRespawn_lives_team_sec;
 	}
-}
-
-//Run this to mark a bot as ready to spawn. Add tokens if you want them to be able to spawn.
-void ResetInsurgencyLives()
-{
-	// Disable if counquer
-	if (g_isConquer == 1) return;
-	
-	// Return if respawn is disabled
-	if (!g_iCvar_respawn_enable) return;
-	
-	// Update cvars
-	UpdateRespawnCvars();
-	
-	// Individual lives
-	if (g_iCvar_respawn_type_team_ins == 1)
-	{
-		for (new client=1; client<=MaxClients; client++)
-		{
-			// Check valid player
-			if (client > 0 && IsClientInGame(client))
-			{
-				// Check Team
-				new iTeam = GetClientTeam(client);
-				if (iTeam != TEAM_2)
-					continue;
-				
-				// Reset individual lives
-				g_iSpawnTokens[client] = g_iRespawnCount[iTeam];
-			}
-		}
-	}
-	
-	// Team lives
-	if (g_iCvar_respawn_type_team_ins == 2)
+	// Respawn type 2 for bots
+	else if (g_iCvar_respawn_type_team_ins == 2)
 	{
 		// Reset remaining lives for bots
 		g_iRemaining_lives_team_ins = g_iRespawn_lives_team_ins;
@@ -2381,44 +2261,12 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 		// }
 	}
 	
-	////////////////////////
-	// Rank System
-	new attackerId = GetEventInt(event, "attacker");
-	new hitgroup = GetEventInt(event,"hitgroup");
-
-	new attacker = GetClientOfUserId(attackerId);
-
-	if ( hitgroup == 1 )
-	{
-		g_iStatHeadShots[attacker]++;
-	}
-	////////////////////////
-	
 	return Plugin_Continue;
 }
 
 // Trigged when player die
 public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	////////////////////////
-	// Rank System
-	new victimId = GetEventInt(event, "userid");
-	new attackerId = GetEventInt(event, "attacker");
-	
-	new victim = GetClientOfUserId(victimId);
-	new attacker = GetClientOfUserId(attackerId);
-
-	if(victim != attacker){
-		g_iStatKills[attacker]++;
-		g_iStatDeaths[victim]++;
-
-	} else {
-		g_iStatSuicides[victim]++;
-		g_iStatDeaths[victim]++;
-	}
-	//
-	////////////////////////
-	
 	// Get player ID
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	
@@ -3217,12 +3065,6 @@ public Action:Timer_ReviveMonitor(Handle:timer, any:data)
 						new iScore = GetClientFrags(iMedic) + iBonus;
 						SetEntProp(iMedic, Prop_Data, "m_iFrags", iScore);
 						
-						/////////////////////////
-						// Rank System
-						g_iStatRevives[iMedic]++;
-						//
-						/////////////////////////
-						
 						// Add score bonus to iMedic (doesn't work)
 						iScore = GetPlayerScore(iMedic);
 						//PrintToServer("[SCORE] score: %d", iScore + 10);
@@ -3305,12 +3147,6 @@ public Action:Timer_MedicMonitor(Handle:timer)
 						new iBonus = GetConVarInt(sm_heal_bonus);
 						new iScore = GetClientFrags(medic) + iBonus;
 						SetEntProp(medic, Prop_Data, "m_iFrags", iScore);
-						
-						////////////////////////
-						// Rank System
-						g_iStatHeals[medic]++;
-						//
-						////////////////////////
 						
 						//Client_PrintToChatAll(false, "{OG}%N{N} healed {OG}%N", medic, iTarget);
 						PrintToChatAll("\x05%N\x01 healed \x05%N", medic, iTarget);
@@ -3423,7 +3259,7 @@ public Action:Timer_NearestBody(Handle:timer, any:data)
 				
 				// Print iNearestInjured dead body's distance and direction text
 				//PrintCenterText(medic, "Nearest dead: %N (%s)", iNearestInjured, sDistance);
-				PrintCenterText(medic, "Nearest dead: %N ( %s | %s )", iNearestInjured, sDistance, sDirection);
+				PrintCenterText(medic, "iNearestInjured dead: %N ( %s | %s )", iNearestInjured, sDistance, sDirection);
 			}
 			else
 			{
@@ -3811,847 +3647,4 @@ public bool:Base_TraceFilter(entity, contentsMask, any:data)
         return (false); 
 
     return (true); 
-} 
-
-
-// ================================================================================
-// Start Rank System
-// ================================================================================
-// Load data from database
-public LoadMySQLBase(Handle:owner, Handle:hndl, const String:error[], any:data)
-{
-	// Check DB
-	if (hndl == INVALID_HANDLE)
-	{
-		PrintToServer("Failed to connect: %s", error);
-		g_hDB = INVALID_HANDLE;
-		return;
-	} else {
-		PrintToServer("DEBUG: DatabaseInit (CONNECTED)");
-	}
-	
-	
-	g_hDB = hndl;
-	decl String:sQuery[1024];
-	
-	// Set UTF8
-	FormatEx(sQuery, sizeof(sQuery), "SET NAMES \"UTF8\"");
-	SQL_TQuery(g_hDB, SQLErrorCheckCallback, sQuery);
-	
-	// Get 'last_active'
-	FormatEx(sQuery, sizeof(sQuery), "DELETE FROM ins_rank WHERE last_active <= %i", GetTime() - PLAYER_STATSOLD * 12 * 60 * 60);
-	SQL_TQuery(g_hDB, SQLErrorCheckCallback, sQuery);
-}
-
-// Init Client
-public OnClientAuthorized(client, const String:auth[])
-{
-	InitializeClient(client);
-}
-
-// Init Client
-public InitializeClient( client )
-{
-	if ( !IsFakeClient(client) )
-	{
-		// Init stats
-		g_iStatScore[client]=0;
-		g_iStatKills[client]=0;
-		g_iStatDeaths[client]=0;
-		g_iStatHeadShots[client]=0;
-		g_iStatSuicides[client]=0;
-		g_iStatRevives[client]=0;
-		g_iStatHeals[client]=0;
-		g_iUserFlood[client]=0;
-		g_iUserPtime[client]=GetTime();
-		
-		// Get SteamID
-		decl String:steamId[64];
-		//GetClientAuthString(client, steamId, sizeof(steamId));
-		GetClientAuthId(client, AuthId_SteamID64, steamId, sizeof(steamId));
-		g_sSteamIdSave[client] = steamId;
-		
-		// Process Init
-		CreateTimer(1.0, initPlayerBase, client);
-	}
-}
-
-// Init player
-public Action:initPlayerBase(Handle:timer, any:client){
-	if (g_hDB != INVALID_HANDLE)
-	{
-		// Check player's data existance
-		decl String:buffer[200];
-		Format(buffer, sizeof(buffer), "SELECT * FROM ins_rank WHERE steamId = '%s'", g_sSteamIdSave[client]);
-		if(DEBUG == 1){
-			PrintToServer("DEBUG: Action:initPlayerBase (%s)", buffer);
-		}
-		SQL_TQuery(g_hDB, SQLUserLoad, buffer, client);
-	}
-	else
-	{
-		// Join message
-		PrintToChatAll("\x04%N\x01 joined the fight.", client);
-	}
-}
-
-/*
-// Add kills and deaths
-public EventPlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
-{
-
-	new victimId = GetEventInt(event, "userid");
-	new attackerId = GetEventInt(event, "attacker");
-	
-	new victim = GetClientOfUserId(victimId);
-	new attacker = GetClientOfUserId(attackerId);
-
-	if(victim != attacker){
-		g_iStatKills[attacker]++;
-		g_iStatDeaths[victim]++;
-
-	} else {
-		g_iStatSuicides[victim]++;
-		g_iStatDeaths[victim]++;
-	}
-}
-
-// Add headshots
-public EventPlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
-{
-	new attackerId = GetEventInt(event, "attacker");
-	new hitgroup = GetEventInt(event,"hitgroup");
-
-	new attacker = GetClientOfUserId(attackerId);
-
-	if ( hitgroup == 1 )
-	{
-		g_iStatHeadShots[attacker]++;
-	}
-}
-*/
-
-// Save stats when player disconnect
-public OnClientDisconnect (client)
-{
-	if ( !IsFakeClient(client) && g_iUserInit[client] == 1)
-	{		
-		if (g_hDB != INVALID_HANDLE)
-		{
-			saveUser(client);
-			g_iUserInit[client] = 0;
-		}
-	}
-}
-
-// Save stats
-public saveUser(client){
-	if ( !IsFakeClient(client) && g_iUserInit[client] == 1)
-	{		
-		if (g_hDB != INVALID_HANDLE)
-		{
-			new String:buffer[200];
-			Format(buffer, sizeof(buffer), "SELECT * FROM ins_rank WHERE steamId = '%s'", g_sSteamIdSave[client]);
-			if(DEBUG == 1){
-				PrintToServer("DEBUG: saveUser (%s)", buffer);
-			}
-			SQL_TQuery(g_hDB, SQLUserSave, buffer, client);
-		}
-	}
-}
-
-// Monitor say command
-public Action:Command_Say(client, args)
-{
-	// Init variables
-	decl String:text[192], String:command[64];
-	new startidx = 0;
-	
-	// Get cmd string
-	GetCmdArgString(text, sizeof(text));
-	
-	// Check string
-	if (text[strlen(text)-1] == '"')
-	{		
-		text[strlen(text)-1] = '\0';
-		startidx = 1;	
-	} 	
-	if (strcmp(command, "say2", false) == 0)
-	
-	// Set start point
-	startidx += 4;
-	
-	// Check commands for stats
-	// Rank
-	if (strcmp(text[startidx], "/rank", false) == 0 || strcmp(text[startidx], "!rank", false) == 0 || strcmp(text[startidx], "rank", false) == 0)	{
-		if(g_iUserFlood[client] != 1){
-			saveUser(client);
-			//GetMyRank(client);
-			CreateTimer(0.5, Timer_GetMyRank, client);
-			g_iUserFlood[client]=1;
-			CreateTimer(10.0, removeFlood, client);
-		} else {
-			PrintToChat(client,"%cDo not flood the server!", GREEN);
-		}
-	}
-	// Top10
-	else if (strcmp(text[startidx], "/top10", false) == 0 || strcmp(text[startidx], "!top10", false) == 0 || strcmp(text[startidx], "top10", false) == 0)
-	{		
-		if(g_iUserFlood[client] != 1){
-			saveUser(client);
-			showTOP(client);
-			g_iUserFlood[client]=1;
-			CreateTimer(10.0, removeFlood, client);
-		} else {
-			PrintToChat(client,"%cDo not flood the server!", GREEN);
-		}
-	}
-	// Top10
-	else if (strcmp(text[startidx], "/topmedics", false) == 0 || strcmp(text[startidx], "!topmedics", false) == 0 || strcmp(text[startidx], "topmedics", false) == 0)
-	{		
-		if(g_iUserFlood[client] != 1){
-			saveUser(client);
-			showTOPMedics(client);
-			g_iUserFlood[client]=1;
-			CreateTimer(10.0, removeFlood, client);
-		} else {
-			PrintToChat(client,"%cDo not flood the server!", GREEN);
-		}
-	}
-	// Headhunters
-	else if (strcmp(text[startidx], "/headhunters", false) == 0 || strcmp(text[startidx], "!headhunters", false) == 0 || strcmp(text[startidx], "headhunters", false) == 0)
-	{		
-		if(g_iUserFlood[client] != 1){
-			saveUser(client);
-			showTOPHeadHunter(client);
-			g_iUserFlood[client]=1;
-			CreateTimer(10.0, removeFlood, client);
-		} else {
-			PrintToChat(client,"%cDo not flood the server!", GREEN);
-		}
-	}
-	return Plugin_Continue;
-}
-
-// Get My Rank
-public Action:Timer_GetMyRank(Handle:timer, any:client){
-	GetMyRank(client);
-}
-
-// Remove flood flag
-public Action:removeFlood(Handle:timer, any:client){
-	g_iUserFlood[client]=0;
-}
-
-// Get my rank
-public GetMyRank(client){
-	// Check DB
-	if (g_hDB != INVALID_HANDLE)
-	{
-		// Check player init
-		if(g_iUserInit[client] == 1){
-			// Get stat data from DB
-			decl String:buffer[200];
-			Format(buffer, sizeof(buffer), "SELECT `score`, `kills`, `deaths`, `headshots`, `sucsides`, `revives`, `heals` FROM `ins_rank` WHERE `steamId` = '%s' LIMIT 1", g_sSteamIdSave[client]);
-			if(DEBUG == 1){
-				PrintToServer("DEBUG: GetMyRank (%s)", buffer);
-			}
-			SQL_TQuery(g_hDB, SQLGetMyRank, buffer, client);
-		}
-		else
-		{
-			PrintToChat(client,"%cWait for system load you from database", GREEN);
-		}
-	}
-	else
-	{
-		PrintToChat(client, "%cRank System is now not available", GREEN);
-	}
-}
-
-// Get Top10
-public showTOP(client){
-	// Check DB
-	if (g_hDB != INVALID_HANDLE)
-	{
-		// Get Top10
-		decl String:buffer[200];
-		//Format(buffer, sizeof(buffer), "SELECT *, (`deaths`/`kills`) / `played_time` AS rankn FROM `ins_rank` WHERE `kills` > 0 AND `deaths` > 0 ORDER BY rankn ASC LIMIT 10");
-		Format(buffer, sizeof(buffer), "SELECT *, `score` AS rankn FROM `ins_rank` WHERE `score` > 0 ORDER BY rankn DESC LIMIT 10");
-		if(DEBUG == 1){
-			PrintToServer("DEBUG: showTOP (%s)", buffer);
-		}
-		SQL_TQuery(g_hDB, SQLTopShow, buffer, client);
-	} else {
-		PrintToChat(client, "%cRank System is now not avilable", GREEN);
-	}
-}
-
-// Get Top Medics
-public showTOPMedics(client){
-	// Check DB
-	if (g_hDB != INVALID_HANDLE)
-	{
-		// Get HadHunters
-		decl String:buffer[200];
-		Format(buffer, sizeof(buffer), "SELECT * FROM ins_rank ORDER BY revives, heals DESC LIMIT 10");
-		if(DEBUG == 1){
-			PrintToServer("DEBUG: showTOPMedics (%s)", buffer);
-		}
-		SQL_TQuery(g_hDB, SQLTopShowMedic, buffer, client);
-	} else {
-		PrintToChat(client, "%cRank System is now not avilable", GREEN);
-	}
-}
-
-// Get HeadHunters
-public showTOPHeadHunter(client){
-	// Check DB
-	if (g_hDB != INVALID_HANDLE)
-	{
-		// Get HadHunters
-		decl String:buffer[200];
-		Format(buffer, sizeof(buffer), "SELECT * FROM ins_rank ORDER BY headshots DESC LIMIT 10");
-		if(DEBUG == 1){
-			PrintToServer("DEBUG: showTOPHeadHunter (%s)", buffer);
-		}
-		SQL_TQuery(g_hDB, SQLTopShowHS, buffer, client);
-	} else {
-		PrintToChat(client, "%cRank System is now not avilable", GREEN);
-	}
-}
-// Dummy menu
-public TopMenu(Handle:menu, MenuAction:action, param1, param2)
-{
-}
-
-// SQL Callback (Check errors)
-public SQLErrorCheckCallback(Handle:owner, Handle:hndl, const String:error[], any:data)
-{
-	if(!StrEqual("", error))
-	{
-		PrintToServer("Last Connect SQL Error: %s", error);
-	}
-}
-
-// Check existance of player's data. If not add new.
-public SQLUserLoad(Handle:owner, Handle:hndl, const String:error[], any:client){
-	if(SQL_FetchRow(hndl))
-	{
-		// Found player's data
-		decl String:name[MAX_LINE_WIDTH];
-		GetClientName( client, name, sizeof(name) );
-		
-		// Remove special cheracters
-		ReplaceString(name, sizeof(name), "'", "");
-		ReplaceString(name, sizeof(name), "<", "");
-		ReplaceString(name, sizeof(name), "\"", "");
-		
-		// Update last active
-		decl String:buffer[512];
-		Format(buffer, sizeof(buffer), "UPDATE ins_rank SET nick = '%s', last_active = '%i' WHERE steamId = '%s'", name, GetTime(), g_sSteamIdSave[client]);
-		if(DEBUG == 1){
-			PrintToServer("DEBUG: SQLUserLoad (%s)", buffer);
-		}
-		SQL_TQuery(g_hDB, SQLErrorCheckCallback, buffer);
-		
-		// Init completed
-		g_iUserInit[client] = 1;
-	}
-	else
-	{
-		// Add new record
-		decl String:name[MAX_LINE_WIDTH];
-		decl String:buffer[200];
-		
-		// Get nickname
-		GetClientName( client, name, sizeof(name) );
-		
-		// Remove special cheracters
-		ReplaceString(name, sizeof(name), "'", "");
-		ReplaceString(name, sizeof(name), "<", "");
-		ReplaceString(name, sizeof(name), "\"", "");
-		
-		// Add new record
-		Format(buffer, sizeof(buffer), "INSERT INTO ins_rank (steamId, nick, last_active) VALUES('%s', '%s', '%i')", g_sSteamIdSave[client], name, GetTime());
-		if(DEBUG == 1){
-			PrintToServer("DEBUG: SQLUserLoad (%s)", buffer);
-		}
-		SQL_TQuery(g_hDB, SQLErrorCheckCallback, buffer);
-		
-		// Init completed
-		g_iUserInit[client] = 1;
-	}
-	
-	// Join message
-	SQLDisplayJoinMessage(client);
-}
-
-// Display join message - Get score
-void SQLDisplayJoinMessage(client)
-{
-	// Get current score
-	decl String:buffer[512];
-	Format(buffer, sizeof(buffer), "SELECT score FROM ins_rank WHERE steamId = '%s'", g_sSteamIdSave[client]);
-	SQL_TQuery(g_hDB, SQLJoinMsgGetScore, buffer, client);
-}
-
-// Display join message - Get rank
-public SQLJoinMsgGetScore(Handle:owner, Handle:hndl, const String:error[], any:client)
-{
-	// Check DB
-	if(hndl == INVALID_HANDLE)
-	{
-		LogError(error);
-		PrintToServer("Last Connect SQL Error: %s", error);
-		PrintToChatAll("\x04%N\x01 joined the fight.", client);
-		return;
-	}
-	
-	// Get data
-	if(SQL_FetchRow(hndl))
-	{
-		// Get score
-		new iScore = SQL_FetchInt(hndl, 0);
-		
-		// Get player count
-		decl String:buffer[512];
-		Format(buffer, sizeof(buffer),"SELECT COUNT(*) FROM ins_rank WHERE score >= %i", iScore);
-		SQL_TQuery(g_hDB, SQLJoinMsgGetRank, buffer, client);
-	}
-	else
-	{
-		PrintToChatAll("\x04%N\x01 joined the fight.", client);
-	}
-}
-
-// Display join message - Get player count
-public SQLJoinMsgGetRank(Handle:owner, Handle:hndl, const String:error[], any:client)
-{
-	// Check DB
-	if(hndl == INVALID_HANDLE)
-	{
-		LogError(error);
-		PrintToServer("Last Connect SQL Error: %s", error);
-		PrintToChatAll("\x04%N\x01 joined the fight.", client);
-		return;
-	}
-	
-	// Get data
-	if(SQL_FetchRow(hndl))
-	{
-		// Get score
-		new iRank = SQL_FetchInt(hndl, 0);
-		g_iRank[client] = iRank;
-		
-		// Get player count
-		SQL_TQuery(g_hDB, SQLJoinMsgGetPlayerCount, "SELECT COUNT(*) FROM ins_rank", client);
-	}
-	else
-	{
-		PrintToChatAll("\x04%N\x01 joined the fight.", client);
-	}
-}
-// Display join message - Print to chat all
-public SQLJoinMsgGetPlayerCount(Handle:owner, Handle:hndl, const String:error[], any:client)
-{
-	// Check DB
-	if(hndl == INVALID_HANDLE)
-	{
-		LogError(error);
-		PrintToServer("Last Connect SQL Error: %s", error);
-		PrintToChatAll("\x04%N\x01 joined the fight.", client);
-		return;
-	}
-	
-	// Get data
-	if(SQL_FetchRow(hndl))
-	{
-		// Get player count
-		new iPlayerCount = SQL_FetchInt(hndl, 0);
-		
-		// Display join message
-		PrintToChatAll("\x04%N\x01 joined the fight. \x05(Rank: %i of %i)", client, g_iRank[client], iPlayerCount);
-		PrintToServer("%N joined the fight. (Rank: %i of %i)", client, g_iRank[client], iPlayerCount);
-	}
-	else
-	{
-		PrintToChatAll("\x04%N\x01 joined the fight.", client);
-	}
-}
-
-// Save stats
-public SQLUserSave(Handle:owner, Handle:hndl, const String:error[], any:client){
-	// Check DB
-	if(hndl == INVALID_HANDLE)
-	{
-		LogError(error);
-		PrintToServer("Last Connect SQL Error: %s", error);
-		return;
-	}
-	
-	// Declare variables
-	decl QueryReadRow_SCORE;
-	decl QueryReadRow_KILL;
-	decl QueryReadRow_DEATHS;
-	decl QueryReadRow_HEADSHOTS;
-	decl QueryReadRow_SUCSIDES;
-	decl QueryReadRow_REVIVES;
-	decl QueryReadRow_HEALS;
-	decl QueryReadRow_PTIME;
-	
-	// Get record
-	if(SQL_FetchRow(hndl)) 
-	{
-		
-		// Calculate score
-		QueryReadRow_SCORE=GetPlayerScore(client) - g_iStatScore[client];
-		if (QueryReadRow_SCORE < 0) QueryReadRow_SCORE=0;
-		QueryReadRow_SCORE=SQL_FetchInt(hndl,3) + QueryReadRow_SCORE + (g_iStatRevives[client] * 20) + (g_iStatHeals[client] * 10);
-		
-		QueryReadRow_KILL=SQL_FetchInt(hndl,4) + g_iStatKills[client];
-		QueryReadRow_DEATHS=SQL_FetchInt(hndl,5) + g_iStatDeaths[client];
-		QueryReadRow_HEADSHOTS=SQL_FetchInt(hndl,6) + g_iStatHeadShots[client];
-		QueryReadRow_SUCSIDES=SQL_FetchInt(hndl,7) + g_iStatSuicides[client];
-		QueryReadRow_REVIVES=SQL_FetchInt(hndl,8) + g_iStatRevives[client];
-		QueryReadRow_HEALS=SQL_FetchInt(hndl,9) + g_iStatHeals[client];
-		QueryReadRow_PTIME=SQL_FetchInt(hndl,11) + GetTime() - g_iUserPtime[client];
-		
-		// Reset stats
-		g_iStatScore[client] = GetPlayerScore(client);
-		g_iStatKills[client] = 0;
-		g_iStatDeaths[client] = 0;
-		g_iStatHeadShots[client] = 0;
-		g_iStatSuicides[client] = 0;
-		g_iStatRevives[client] = 0;
-		g_iStatHeals[client] = 0;
-		g_iUserPtime[client] = GetTime();
-		
-		// Update database
-		decl String:buffer[512];
-		Format(buffer, sizeof(buffer), "UPDATE ins_rank SET score = '%i', kills = '%i', deaths = '%i', headshots = '%i', sucsides = '%i', revives = '%i', heals = '%i', played_time = '%i' WHERE steamId = '%s'", QueryReadRow_SCORE, QueryReadRow_KILL, QueryReadRow_DEATHS, QueryReadRow_HEADSHOTS, QueryReadRow_SUCSIDES, QueryReadRow_REVIVES, QueryReadRow_HEALS, QueryReadRow_PTIME, g_sSteamIdSave[client]);
-		
-		if(DEBUG == 1){
-			PrintToServer("DEBUG: SQLUserSave (%s)", buffer);
-		}
-		
-		SQL_TQuery(g_hDB, SQLErrorCheckCallback, buffer);
-	}
-}
-
-// Get my rank
-public SQLGetMyRank(Handle:owner, Handle:hndl, const String:error[], any:client){
-	// Check DB
-	if(hndl == INVALID_HANDLE)
-	{
-		LogError(error);
-		PrintToServer("Last Connect SQL Error: %s", error);
-		return;
-	}
-    
-	// Declare variables
-	decl RAscore;
-	decl RAkills;
-	decl RAdeaths;
-	decl RAheadshots;
-	decl RAsucsides;
-	decl RArevives;
-	decl RAheals;
-
-	// Get record
-	if(SQL_FetchRow(hndl)) 
-	{
-		// Get stats
-		RAscore=SQL_FetchInt(hndl, 0);
-		RAkills=SQL_FetchInt(hndl, 1);
-		RAdeaths=SQL_FetchInt(hndl, 2);
-		RAheadshots=SQL_FetchInt(hndl, 3);
-		RAsucsides=SQL_FetchInt(hndl, 4);
-		RArevives=SQL_FetchInt(hndl, 5);
-		RAheals=SQL_FetchInt(hndl, 6);
-		
-		decl String:buffer[512];
-		//test
-		// 0.00027144
-		//STEAM_0:1:13462423
-		//Format(buffer, sizeof(buffer), "SELECT ((`deaths`/`kills`)/`played_time`) AS rankn FROM `ins_rank` WHERE (`kills` > 0 AND `deaths` > 0) AND ((`deaths`/`kills`)/`played_time`) < (SELECT ((`deaths`/`kills`)/`played_time`) FROM `ins_rank` WHERE steamId = '%s' LIMIT 1) AND `steamId` != '%s' ORDER BY rankn ASC", g_sSteamIdSave[client], g_sSteamIdSave[client]);
-		
-		// Get rank
-		Format(buffer, sizeof(buffer), "SELECT COUNT(*) FROM ins_rank WHERE score >= %i", RAscore);
-		SQL_TQuery(g_hDB, SQLGetRank, buffer, client);
-		
-		PrintToChat(client,"%cScore: %i | Kills: %i | Revives: %i | Heals: %i | Deaths: %i | Headshots: %i | Sucsides: %i", GREEN, RAscore, RAkills, RArevives, RAheals, RAdeaths, RAheadshots, RAsucsides);
-	} else {
-		PrintToChat(client, "%cYour rank is not avlilable!", GREEN);
-	}
-}
-
-// Get my rank - Get rank
-public SQLGetRank(Handle:owner, Handle:hndl, const String:error[], any:client){
-	// Check DB
-	if(hndl == INVALID_HANDLE)
-	{
-		LogError(error);
-		PrintToServer("Last Connect SQL Error: %s", error);
-		return;
-	}
-	
-	// Get record
-	if(SQL_FetchRow(hndl)) 
-	{
-		// Get rank
-		new iRank = SQL_FetchInt(hndl, 0);
-		g_iRank[client] = iRank;
-		
-		// Get player count
-		SQL_TQuery(g_hDB, SQLShowRankToChat, "SELECT COUNT(*) FROM ins_rank", client);
-	} else {
-		PrintToChat(client, "%cYour rank is not avlilable!", GREEN);
-	}
-}
-
-// Get my rank - Get player count
-public SQLShowRankToChat(Handle:owner, Handle:hndl, const String:error[], any:client){
-	// Check DB
-	if(hndl == INVALID_HANDLE)
-	{
-		LogError(error);
-		PrintToServer("Last Connect SQL Error: %s", error);
-		return;
-	}
-	
-	// Get record
-	if(SQL_FetchRow(hndl)) 
-	{
-		// Get player count
-		new iPlayerCount = SQL_FetchInt(hndl, 0);
-		
-		// Display rank
-		PrintToChat(client,"%cYour rank is: %i (of %i).", GREEN, g_iRank[client], iPlayerCount);
-	} else {
-		PrintToChat(client, "%cYour rank is not avlilable!", GREEN);
-	}
-}
-
-// Show top 10
-public SQLTopShow(Handle:owner, Handle:hndl, const String:error[], any:client){
-	// Check DB
-	if(hndl == INVALID_HANDLE)
-	{
-		LogError(error);
-		PrintToServer("Last Connect SQL Error: %s", error);
-		return;
-	}
-	
-	// Init panel
-	new Handle:hPanel = CreatePanel(GetMenuStyleHandle(MenuStyle_Radio));
-	new String:text[128];
-	Format(text,127,"Top 10 Players");
-	SetPanelTitle(hPanel,text);
-	
-	// Init variables
-	decl row;
-	decl String:name[64];
-	decl score;
-	decl kills;
-	decl deaths;
-	
-	// Check result
-	if (SQL_HasResultSet(hndl))
-	{
-		// Loop players
-		while (SQL_FetchRow(hndl))
-		{
-			row++;
-			// Nickname
-			SQL_FetchString(hndl, 2, name, sizeof(name));
-			
-			// Stats
-			score=SQL_FetchInt(hndl,3);
-			kills=SQL_FetchInt(hndl,4);
-			deaths=SQL_FetchInt(hndl,5);
-			
-			// Set text
-			Format(text,127,"[%d] %s", row, name);
-			DrawPanelText(hPanel, text);
-			Format(text,127," - Score: %i | Kills: %i | Deaths: %i", score, kills, deaths);
-			DrawPanelText(hPanel, text);
-		}
-	} else {
-			Format(text,127,"TOP 10 is empty!");
-			DrawPanelText(hPanel, text);
-	}
-	
-	// Draw panel
-	DrawPanelItem(hPanel, " ", ITEMDRAW_SPACER|ITEMDRAW_RAWLINE);
-	
-	Format(text,59,"Exit");
-	DrawPanelItem(hPanel, text);
-	
-	SendPanelToClient(hPanel, client, TopMenu, 20);
-
-	CloseHandle(hPanel);
-}
-
-// Show Top medics
-public SQLTopShowMedic(Handle:owner, Handle:hndl, const String:error[], any:client){
-	// Check DB
-	if(hndl == INVALID_HANDLE)
-	{
-		LogError(error);
-		PrintToServer("Last Connect SQL Error: %s", error);
-		return;
-	}
-	
-	// Init panel
-	new Handle:hPanel = CreatePanel(GetMenuStyleHandle(MenuStyle_Radio));
-	new String:text[128];
-	Format(text,127,"Top Medics");
-	SetPanelTitle(hPanel,text);
-	
-	// Init variables
-	decl row;
-	decl String:name[64];
-	decl revives;
-	decl heals;
-	
-	// Check result
-	if (SQL_HasResultSet(hndl))
-	{
-		// Loop players
-		while (SQL_FetchRow(hndl))
-		{
-			row++;
-			// Nickname
-			SQL_FetchString(hndl, 2, name, sizeof(name));
-			
-			// Stats
-			revives=SQL_FetchInt(hndl,8);
-			heals=SQL_FetchInt(hndl,9);
-			
-			// Set text
-			Format(text,127,"[%d] %s", row, name);
-			DrawPanelText(hPanel, text);
-			Format(text,127," - Revives: %i | Heals: %i", revives, heals);
-			DrawPanelText(hPanel, text);
-		}
-	} else {
-			Format(text,127,"TOP Medics is empty!");
-			DrawPanelText(hPanel, text);
-	}
-	
-	// Draw panel
-	DrawPanelItem(hPanel, " ", ITEMDRAW_SPACER|ITEMDRAW_RAWLINE);
-	
-	Format(text,59,"Exit");
-	DrawPanelItem(hPanel, text);
-	
-	SendPanelToClient(hPanel, client, TopMenu, 20);
-
-	CloseHandle(hPanel);
-}
-// Show Headhunters
-public SQLTopShowHS(Handle:owner, Handle:hndl, const String:error[], any:client){
-	// Check DB
-	if(hndl == INVALID_HANDLE)
-	{
-		LogError(error);
-		PrintToServer("Last Connect SQL Error: %s", error);
-		return;
-	}
-	
-	// Init panel
-	new Handle:hPanel = CreatePanel(GetMenuStyleHandle(MenuStyle_Radio));
-	new String:text[128];
-	Format(text,127,"Top 10 Headhunters");
-	SetPanelTitle(hPanel,text);
-	
-	// Init variables
-	decl row;
-	decl String:name[64];
-	decl shoths;
-	decl ptimed;
-	decl String:textime[64];
-	
-	// Check result
-	if (SQL_HasResultSet(hndl))
-	{
-		// Loop players
-		while (SQL_FetchRow(hndl))
-		{
-			row++;
-			// Nickname
-			SQL_FetchString(hndl, 2, name, sizeof(name));
-			
-			// Stats
-			shoths=SQL_FetchInt(hndl,6);
-			ptimed=SQL_FetchInt(hndl,11);
-			
-			// Calc
-			if(ptimed <= 3600){
-				Format(textime,63,"%i m.", ptimed / 60);
-			} else if(ptimed <= 43200){
-				Format(textime,63,"%i h.", ptimed / 60 / 60);
-			} else if(ptimed <= 1339200){
-				Format(textime,63,"%i d.", ptimed / 60 / 60 / 12);
-			} else {
-				Format(textime,63,"%i mo.", ptimed / 60 / 60 / 12 / 31);
-			}
-			
-			// Set text
-			Format(text,127,"[%d] %s", row, name);
-			DrawPanelText(hPanel, text);
-			Format(text,127," - HS: %i - In Time: %s", shoths, textime);
-			DrawPanelText(hPanel, text);
-		}
-	} else {
-		Format(text,127,"TOP Headhunters is empty!");
-		DrawPanelText(hPanel, text);
-	}
-	
-	// Display panel
-	DrawPanelItem(hPanel, " ", ITEMDRAW_SPACER|ITEMDRAW_RAWLINE);
-
-	Format(text,59,"Exit");
-	DrawPanelItem(hPanel, text);
-	
-	SendPanelToClient(hPanel, client, TopMenu, 20);
-
-	CloseHandle(hPanel);
-}
-
-/*
-PrintQueryData(Handle:query)
-{
-	if (!SQL_HasResultSet(query))
-	{
-		PrintToServer("Query Handle %x has no results", query)
-		return
-	}
-	
-	new rows = SQL_GetRowCount(query)
-	new fields = SQL_GetFieldCount(query)
-	
-	decl String:fieldNames[fields][32]
-	PrintToServer("Fields: %d", fields)
-	for (new i=0; i<fields; i++)
-	{
-		SQL_FieldNumToName(query, i, fieldNames[i], 32)
-		PrintToServer("-> Field %d: \"%s\"", i, fieldNames[i])
-	}
-	
-	PrintToServer("Rows: %d", rows)
-	decl String:result[255]
-	new row
-	while (SQL_FetchRow(query))
-	{
-		row++
-		PrintToServer("Row %d:", row)
-		for (new i=0; i<fields; i++)
-		{
-			SQL_FetchString(query, i, result, sizeof(result))
-			PrintToServer(" [%s] %s", fieldNames[i], result)
-		}
-	}
-}
-*/
+}  
