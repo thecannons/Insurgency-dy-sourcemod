@@ -1756,12 +1756,15 @@ public Action:Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadca
 	
 	////////////////////////
 	// Rank System
-	for (new client=1; client<=MaxClients; client++)
+	if (g_hDB != INVALID_HANDLE)
 	{
-		if (IsClientInGame(client))
+		for (new client=1; client<=MaxClients; client++)
 		{
-			saveUser(client);
-			CreateTimer(0.5, Timer_GetMyRank, client);
+			if (IsClientInGame(client))
+			{
+				saveUser(client);
+				CreateTimer(0.5, Timer_GetMyRank, client);
+			}
 		}
 	}
 	////////////////////////
@@ -4035,7 +4038,8 @@ public Action:Command_Say(client, args)
 
 // Get My Rank
 public Action:Timer_GetMyRank(Handle:timer, any:client){
-	GetMyRank(client);
+	if (IsClientInGame(client))
+		GetMyRank(client);
 }
 
 // Remove flood flag
