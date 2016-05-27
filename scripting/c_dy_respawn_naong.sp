@@ -2231,7 +2231,7 @@ public Action:Event_PlayerPickSquad( Handle:event, const String:name[], bool:don
 		decl String:sCurNickname[64];
 		Format(sCurNickname, sizeof(sCurNickname), "%N", client);
 		if (!StrEqual(sCurNickname, sNewNickname))
-			SetClientInfo(client, "name", sNewNickname);
+			SetClientInfo(client, sNewNickname, sNewNickname);
 	}
 }
 
@@ -2476,7 +2476,7 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 			)
 			{
 				// Respawn type 1
-				if ((g_iCvar_respawn_type_team_sec == 1 && team == TEAM_1) || (g_iCvar_respawn_type_team_ins == 1 && team == TEAM_2))
+				if ((g_iCvar_respawn_type_team_ins == 1 && team == TEAM_2))
 				{
 					if ((g_iSpawnTokens[client] < g_iRespawnCount[team]))
 						g_iSpawnTokens[client] = (g_iRespawnCount[team] + 1);
