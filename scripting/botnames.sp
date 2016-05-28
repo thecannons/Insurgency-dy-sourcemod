@@ -221,7 +221,7 @@ public bool:RenameBot(client)
 			next_index = 0;
 		}
 		
-		SetClientInfo(client, newname, newname);
+		SetClientInfo(client, "name", newname);
 		if (GetConVarBool(cvarAnnounce))
 		{
 			PrintToChatAll("[botnames] Bot %s created.", newname);

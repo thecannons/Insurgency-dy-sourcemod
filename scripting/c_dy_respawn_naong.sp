@@ -2231,7 +2231,7 @@ public Action:Event_PlayerPickSquad( Handle:event, const String:name[], bool:don
 		decl String:sCurNickname[64];
 		Format(sCurNickname, sizeof(sCurNickname), "%N", client);
 		if (!StrEqual(sCurNickname, sNewNickname))
-			SetClientInfo(client, sNewNickname, sNewNickname);
+			SetClientInfo(client, "name", sNewNickname);
 	}
 }
 
