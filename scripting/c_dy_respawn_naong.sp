@@ -979,11 +979,15 @@ public Action:Command_Respawn(client, args)
 // Respawn player
 void RespawnPlayer(client, target)
 {
-	// Write a log
-	LogAction(client, target, "\"%L\" respawned \"%L\"", client, target);
-	
-	// Call forcerespawn fucntion
-	SDKCall(g_hPlayerRespawn, target);
+	new team = GetClientTeam(target);
+	if(IsClientInGame(target) && !IsClientTimingOut(target) && playerFirstDeath[target] == true && playerPickSquad[target] == 1 && playerFirstJoin[target] == false && !IsPlayerAlive(target) && team == TEAM_1)
+	{
+		// Write a log
+		LogAction(client, target, "\"%L\" respawned \"%L\"", client, target);
+		
+		// Call forcerespawn fucntion
+		SDKCall(g_hPlayerRespawn, target);
+	}
 }
 
 /*
@@ -2886,7 +2890,7 @@ public Action:Timer_PlayerRespawn(Handle:Timer, any:client)
 			if (!IsFakeClient(client))
 			{
 				decl String:sRemainingTime[256];
-				Format(sRemainingTime, sizeof(sRemainingTime),"[You are WOUNDED]..wait patiently for a medic..do NOT mic/chat spam!\n\n                You will be respawned in %d second%s (left %d lives) ", g_iRespawnTimeRemaining[client], (g_iRespawnTimeRemaining[client] > 1 ? "s" : ""), g_iSpawnTokens[client]);
+				Format(sRemainingTime, sizeof(sRemainingTime),"[You are WOUNDED]..wait patiently for a medic..do NOT mic/chat spam!\n\n                You will be respawned in %d second%s (%d lives left) ", g_iRespawnTimeRemaining[client], (g_iRespawnTimeRemaining[client] > 1 ? "s" : ""), g_iSpawnTokens[client]);
 				PrintCenterText(client, sRemainingTime);
 			}
 			
@@ -2906,7 +2910,7 @@ public Action:Timer_PlayerRespawn(Handle:Timer, any:client)
 			
 			// Print remaining time to center text area
 			if (!IsFakeClient(client))
-				PrintCenterText(client, "You are respawned! (left %d lives)", g_iSpawnTokens[client]);
+				PrintCenterText(client, "You are respawned! (%d lives left)", g_iSpawnTokens[client]);
 			
 			// Get ragdoll position
 			new playerRag = EntRefToEntIndex(g_iClientRagdolls[client]);

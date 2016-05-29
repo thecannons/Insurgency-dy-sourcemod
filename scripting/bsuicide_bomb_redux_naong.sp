@@ -112,7 +112,7 @@ public OnConfigsExecuted()
 }
 public OnMapStart()
 {	
-	CreateTimer(3.0, Timer_BomberLoop, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(2.5, Timer_BomberLoop, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 	PrecacheAllahuSound();
 }
 PrecacheAllahuSound()
@@ -154,7 +154,7 @@ public Event_PlayerPickSquad(Handle:event, const String:name[], bool:dontBroadca
 }
 public Action:Timer_BomberLoop(Handle:timer) //this controls bomber loop to check if distance from player
 {
-	new Float:fBomberDistance = GetRandomFloat(100.0, 300.0);
+	new Float:fBomberDistance = GetRandomFloat(100.0, 600.0);
 	//PrintToServer("[SUICIDE] TIMER: g_isDetonating: %i", g_isDetonating);
 	
 	////PrintToServer("[SUICIDE] TIMER STARTED");
@@ -193,7 +193,7 @@ public Action:Timer_BomberLoop(Handle:timer) //this controls bomber loop to chec
 					////PrintToServer("[SUICIDE] TIMER VICTIM DETECTED");
 					if (tDistance < fBomberDistance)
 					{
-						new Float:fBomberViewThreshold = 0.75; // if negative, bombers back is turned
+						new Float:fBomberViewThreshold = 0.80; // if negative, bombers back is turned
 						new tCanBomberSeeTarget = (ClientViews(bomber, victim, fBomberDistance, fBomberViewThreshold));
 						if (tCanBomberSeeTarget)
 						{
