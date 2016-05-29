@@ -57,6 +57,8 @@ new iDefCredits = 20;
 new iCredits[MAXPLAYERS+1];
 new iPropNo[MAXPLAYERS+1];//Stores the number of props a player has
 new Handle:hCredits = INVALID_HANDLE;
+new Handle:g_param1;
+new Handle:g_param2;
 //Team Only
 // Teams:
 // 0 = No restrictions
@@ -76,15 +78,15 @@ new Handle:hCreditsOnDeath = INVALID_HANDLE;
 new bool:bCreditsOnDeath = false;
 new iDeathCreditNo = 5;
 new Handle:hDeathCreditNo = INVALID_HANDLE;
-
+new Handle:ConstructTimers[MAXPLAYERS+1];
 
 // Status
 new
 	String:g_client_last_classstring[MAXPLAYERS+1][64],
 	Float:g_engineerPos[MAXPLAYERS+1][3],
-	g_param1,
-	g_param2,
 	g_ConstructDeployTime = 5,
+	g_ConstructRemainingTime[MAXPLAYERS+1],
+	g_engInMenu[MAXPLAYERS+1],
 	g_ConstructPackTime = 5,
 	g_LastButtons[MAXPLAYERS+1];
 
@@ -165,7 +167,7 @@ public OnConVarChanged(Handle:convar, const String:oldValue[], const String:newV
 public Action:Command_Credits(client, args)
 {
 	new tempCredits = iCredits[client];
-	PrintToChat(client, "%s You currently have %d credits!", sPrefix, tempCredits);
+	PrintToChat(client, "You currently have %d credits!", tempCredits);
 }
 
 public Event_PlayerSpawn(Handle: event , const String: name[] , bool: dontBroadcast)
@@ -189,7 +191,7 @@ public Event_PlayerDeath(Handle: event , const String: name[] , bool: dontBroadc
 	
 	if(bCreditsOnDeath)
 	{
-		PrintToChat(attacker, "%s You have been given \x03%d\x01 credits for killing someone!", sPrefix, iDeathCreditNo);
+		PrintToChat(attacker, "You have been given \x03%d\x01 credits for killing someone!", iDeathCreditNo);
 		iCredits[attacker] += iDeathCreditNo;
 	}
 	
@@ -288,7 +290,7 @@ public Action:AdminRemovePropAim(client, args)
 	}
 	else
 	{
-		PrintToChat(client, "%s You can't delete this prop! It wasn't created by the plugin!", sPrefix);
+		PrintToChat(client, "You can't delete this prop! It wasn't created by the plugin!");
 	}
 	
 	return Plugin_Handled;
@@ -320,7 +322,7 @@ public Action:AdminCreditControl(client, args)
 	GetCmdArg(2, NewCredits, sizeof(NewCredits));
 	new ModCredits = StringToInt(NewCredits);
 	iCredits[target] += ModCredits;
-	PrintToChat(target, "%s You now have %d credits!", sPrefix, iCredits[target]);
+	PrintToChat(target, "You now have %d credits!", iCredits[target]);
 	LogAction(client, -1, "\"%s\" added %d credits to \"%s\"", SteamID, ModCredits, targetName);
 	
 	return Plugin_Handled;
@@ -363,7 +365,7 @@ public Action:PropCommand(client, args)
 	new Handle:kv = CreateKeyValues("Props");
 	FileToKeyValues(kv, textPath);
 	om_public_prop_menu = CreateMenu(Public_Prop_Menu_Handler);
-	SetMenuTitle(om_public_prop_menu, "Construct | Points: %d", iCredits[client]);
+	SetMenuTitle(om_public_prop_menu, "Construct | Credits: %d", iCredits[client]);
 	PopLoop(kv, client);
 	DisplayMenu(om_public_prop_menu, client, MENU_TIME_FOREVER);
 	
@@ -405,60 +407,77 @@ PopLoop(Handle:kv, client)
 	}
 }
 
-public Action:Timer_Construct(Handle:timer, any:data)
+public Action:Timer_Construct(Handle timer, Handle pack)
 {
+	int client;
+	new target;
+ 
+	/* Set to the beginning and unpack it */
+	ResetPack(pack);
+	client = ReadPackCell(pack);
+	target = ReadPackCell(pack);
+
 	// Get current position
 	decl Float:vecPos[3];
-	GetClientAbsOrigin(g_param1, vecPos);
+	GetClientAbsOrigin(client, vecPos);
 	new Float:vectDist;
 	new Float:EngCurrentPos[3];
 	EngCurrentPos = vecPos;
-	vectDist = GetVectorDistance(EngCurrentPos, g_engineerPos[g_param1]);
-	if (vectDist < 0 || vectDist > 0)
+	vectDist = GetVectorDistance(EngCurrentPos, g_engineerPos[client]);
+	if (vectDist < 0 || vectDist > 0) //|| !IsPlayerAlive(client) || !IsClientInGame(client) || !IsClientTimingOut(client))
 	{
 		decl String:textPrintChat[64];
 		Format(textPrintChat, sizeof(textPrintChat), "You moved and canceled deploy");
-		PrintHintText(g_param1, textPrintChat);
-		PrintToChat(g_param1, textPrintChat);
-		g_ConstructDeployTime = 5;
+		PrintHintText(client, textPrintChat);
+		PrintToChat(client, textPrintChat);
 		return Plugin_Stop;
 	}
-	if (g_ConstructDeployTime <= 0)// && (vectDist == 0) && IsPlayerAlive(g_param1) && IsClientInGame(g_param1) && !IsClientTimingOut(g_param1))
+	if (g_ConstructRemainingTime[client] <= 0)// && (vectDist == 0) && IsPlayerAlive(client) && IsClientInGame(client) && !IsClientTimingOut(client))
 	{
-		PropSpawn(g_param1, g_param2);
-		decl String:textToPrintChat[64];
-		Format(textToPrintChat, 255,"\x05%N\x01 deployed \x03%N", g_param1, g_param2);
-		PrintToChatAll("%s", textToPrintChat);
+		g_ConstructRemainingTime[client] = g_ConstructDeployTime;
+		PropSpawn(client, target);
 		new String:textPath[255];
 		BuildPath(Path_SM, textPath, sizeof(textPath), "configs/om_public_props.txt");
 		new Handle:kv = CreateKeyValues("Props");
 		FileToKeyValues(kv, textPath);
 		om_public_prop_menu = CreateMenu(Public_Prop_Menu_Handler);
-		SetMenuTitle(om_public_prop_menu, "Construct | Points: %d", iCredits[g_param1]);
-		PopLoop(kv, g_param1);
-		DisplayMenu(om_public_prop_menu, g_param1, MENU_TIME_FOREVER);
+		SetMenuTitle(om_public_prop_menu, "Construct | Credits: %d", iCredits[client]);
+		PopLoop(kv, client);
+		DisplayMenu(om_public_prop_menu, client, MENU_TIME_FOREVER);
 		return Plugin_Stop;
 	}
-	g_ConstructDeployTime = g_ConstructDeployTime - 1;
+	g_ConstructRemainingTime[client]--;
 	decl String:textToPrint[64];
-	Format(textToPrint, sizeof(textToPrint), "Deploying in %d seconds\n(Move to cancel deploy)", g_ConstructDeployTime);
-	PrintHintText(g_param1, textToPrint);
+	Format(textToPrint, sizeof(textToPrint), "Deploying in %d seconds\n(Move to cancel deploy)", g_ConstructRemainingTime[client]);
+	PrintHintText(client, textToPrint);
 	return Plugin_Continue;
 }
 
 public Public_Prop_Menu_Handler(Handle:menu, MenuAction:action, param1, param2)
 {
-	g_param1 = param1;
-	g_param2 = param2;
 	// Note to self: param1 is client, param2 is choice.
 	if (action == MenuAction_Select)
 	{
 		// Get current position
 		decl Float:vecPos[3];
-		GetClientAbsOrigin(g_param1, vecPos);
-		g_engineerPos[g_param1] = vecPos;
+		GetClientAbsOrigin(param1, vecPos);
+		g_engineerPos[param1] = vecPos;
+		g_ConstructRemainingTime[param1] = g_ConstructDeployTime;
 		// Initiate the Prop Spawning using Client and Choice as the parameters.
-		CreateTimer(1.0, Timer_Construct, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+		DataPack pack;
+		ConstructTimers[param1] = CreateDataTimer(1.0, Timer_Construct, pack, TIMER_REPEAT);
+		pack.WriteCell(param1);
+		pack.WriteCell(param2);
+		//CreateTimer(1.0, Timer_Construct, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	}
+	if (action == MenuAction_Cancel)
+	{
+		g_engInMenu[param1] = false;
+		if (ConstructTimers[param1] != null)
+		{
+			KillTimer(ConstructTimers[param1]);
+			ConstructTimers[param1] = null;
+		}
 	}
 }
 
@@ -482,33 +501,45 @@ public PropSpawn(client, param2)
 	KvGetString(kv, "model", modelname, sizeof(modelname),"");
 	Price = KvGetNum(kv, "price", 0);
 	new ClientCredits = iCredits[client];
-	
+	decl String:textToPrintChat[64];
+
 	if (Price > 0)
 	{
 		if (ClientCredits >= Price)
 		{
 			if(bAdminOnly)
 			{
-				PrintToChat(client, "%s You have spawned a \x04%s", sPrefix, prop_choice);
+				PrintToChat(client, "You have spawned a \x04%s", prop_choice);
+				PrintHintText(client, "You have spawned a %s", prop_choice);
 				LogAction(client, -1, "\"%s\" spawned a %s", name, prop_choice);
+				PrintToChat(client, "You have spawned a \x04%s for \x03%d credits!", prop_choice, Price);
+				Format(textToPrintChat, 255,"\x05%N\x01 deployed \x04%s", client, prop_choice);
+				PrintToChatAll("%s", textToPrintChat);
 			}
 			else
 			{
+			
 			ClientCredits = ClientCredits - Price;
 			iCredits[client] = ClientCredits;
-			PrintToChat(client, "%s You have spawned a \x04%s for \x03%d credits!", sPrefix, prop_choice, Price);
+			PrintToChat(client, "You have spawned a \x04%s for \x03%d credits!", prop_choice, Price);
+			PrintHintText(client, "You have spawned a %s for %d credits!", prop_choice, Price);
+			Format(textToPrintChat, 255,"\x05%N\x01 deployed \x04%s", client, prop_choice);
+			PrintToChatAll("%s", textToPrintChat);
 			}
 		}
 		else
 		{
-		PrintToChat(client, "%s You do not have enough credits to spawn that! Try waiting until the next round", sPrefix);
+		PrintToChat(client, "You do not have enough credits to spawn that!");
+		PrintHintText(client, "You do not have enough credits to spawn that!");
+
+
 		return;
 		}
 	}
 	
 	else
 	{
-		PrintToChat(client, "%s You have spawned a \x04%s and your credits have not been reduced!", sPrefix, prop_choice);
+		PrintToChat(client, "You have spawned a \x04%s and your credits have not been reduced!", prop_choice);
 	}
 	decl Ent;   
 	PrecacheModel(modelname,true);
@@ -583,13 +614,14 @@ OnButtonPress(client, button, buttons)
     GetClientEyePosition(client, eyepos); // Position of client's eyes.
                       
     //PrintToServer("Client Eye Height %f",eyepos[2]);    
-   if(button == IN_SPRINT && buttons & IN_DUCK && buttons & IN_CANCEL && (StrContains(g_client_last_classstring[client], "engineer") > -1))// && !(buttons & IN_FORWARD) && !(buttons & IN_ATTACK2) && !(buttons & IN_ATTACK))// & !IN_ATTACK2) 
+   if(button == IN_SPRINT && buttons & IN_DUCK && buttons & IN_CANCEL && (StrContains(g_client_last_classstring[client], "engineer") > -1) && g_engInMenu[client] == false)// && !(buttons & IN_FORWARD) && !(buttons & IN_ATTACK2) && !(buttons & IN_ATTACK))// & !IN_ATTACK2) 
    {
       PrintToServer("DEBUG PRESSING BUTTONS");    
     
       if(!Client_IsValid(client))
 		return Plugin_Handled;
-		
+	
+	g_engInMenu[client] = true;
 		// if(iTeam > 0)
 		// {
 		// 	if(GetClientTeam(client) != iTeam+1)
@@ -621,7 +653,7 @@ OnButtonPress(client, button, buttons)
 		new Handle:kv = CreateKeyValues("Props");
 		FileToKeyValues(kv, textPath);
 		om_public_prop_menu = CreateMenu(Public_Prop_Menu_Handler);
-		SetMenuTitle(om_public_prop_menu, "Construct | Points: %d", iCredits[client]);
+		SetMenuTitle(om_public_prop_menu, "Construct | Credits: %d", iCredits[client]);
 		PopLoop(kv, client);
 		DisplayMenu(om_public_prop_menu, client, MENU_TIME_FOREVER);
 		
