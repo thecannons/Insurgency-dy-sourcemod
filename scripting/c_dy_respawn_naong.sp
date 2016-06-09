@@ -508,6 +508,7 @@ public OnPluginStart()
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	HookEvent("object_destroyed", Event_ObjectDestroyed_Pre, EventHookMode_Pre);
 	HookEvent("object_destroyed", Event_ObjectDestroyed);
+	HookEvent("object_destroyed", Event_ObjectDestroyed_Post, EventHookMode_Post);
 	HookEvent("controlpoint_captured", Event_ControlPointCaptured_Pre, EventHookMode_Pre);
 	HookEvent("controlpoint_captured", Event_ControlPointCaptured);
 	HookEvent("controlpoint_captured", Event_ControlPointCaptured_Post, EventHookMode_Post);
@@ -1136,19 +1137,37 @@ public Action:Timer_EnemyReinforce(Handle:Timer)
 			// If enemy reinforcement is not over, add it
 			if (g_iRemaining_lives_team_ins > 0)
 			{
-				// Get bot count
-				new iBotCount = GetTeamInsCount();
-				
-				// Add bots
-				g_iRemaining_lives_team_ins = g_iRemaining_lives_team_ins + iBotCount;
+
 				decl String:textToPrint[64];
-				Format(textToPrint, sizeof(textToPrint), "Enemy Reinforcements Added to Existing Reinforcements!");
-				PrintHintTextToAll(textToPrint);
-				g_iReinforceTime = reinforce_time_subsequent;
+				//Only add more reinforcements if under certain amount so its not endless.
+				if (g_iRemaining_lives_team_ins < (g_iRespawn_lives_team_ins / iReinforce_multiplier))
+				{
+					// Get bot count
+					new iBotCount = GetTeamInsCount();
+					// Add bots	
+					g_iRemaining_lives_team_ins = g_iRemaining_lives_team_ins + iBotCount;
+					Format(textToPrint, sizeof(textToPrint), "Enemy Reinforcements Added to Existing Reinforcements!");
+					PrintHintTextToAll(textToPrint);
+					g_iReinforceTime = reinforce_time_subsequent;
+				}
+				else
+				{
+					Format(textToPrint, sizeof(textToPrint), "Enemy Reinforcements at Maximum Capacity");
+					PrintHintTextToAll(textToPrint);
+
+					// Reset reinforce time
+					new reinforce_time = GetConVarInt(sm_respawn_reinforce_time);
+					g_iReinforceTime = reinforce_time;
+				}
+
 			}
 			// Respawn enemies
 			else
 			{
+				// Get bot count
+				new minBotCount = (g_iRespawn_lives_team_ins / 8);
+				
+				// Add bots
 				for (new client = 1; client <= MaxClients; client++)
 				{
 					if (client > 0 && IsClientInGame(client))
@@ -1156,11 +1175,16 @@ public Action:Timer_EnemyReinforce(Handle:Timer)
 						new m_iTeam = GetClientTeam(client);
 						if (IsFakeClient(client) && !IsPlayerAlive(client) && m_iTeam == TEAM_2)
 						{
+							g_iRemaining_lives_team_ins++;
 							g_iReinforceTime = reinforce_time_subsequent;
 							CreateBotRespawnTimer(client);
 						}
 					}
 				}
+				// Get random duration
+				//new fRandomInt = GetRandomInt(1, 4);
+				g_iRemaining_lives_team_ins = g_iRemaining_lives_team_ins + minBotCount;
+				
 				decl String:textToPrint[64];
 				Format(textToPrint, sizeof(textToPrint), "Enemy Reinforcements Have Arrived!");
 				PrintHintTextToAll(textToPrint);
@@ -1656,6 +1680,8 @@ public Action:Event_PlayerSpawn( Handle:event, const String:name[], bool:dontBro
 // When round starts, intialize variables
 public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
 {
+	g_checkStaticAmt = GetConVarInt(sm_respawn_check_static_enemy);
+	g_checkStaticAmtCntr = GetConVarInt(sm_respawn_check_static_enemy_counter);
 	// Reset respawn position
 	g_fRespawnPosition[0] = 0.0;
 	g_fRespawnPosition[1] = 0.0;
@@ -1782,6 +1808,8 @@ public Action:Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadca
 // Check occouring counter attack when control point captured
 public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], bool:dontBroadcast)
 {
+	g_checkStaticAmt = GetConVarInt(sm_respawn_check_static_enemy);
+	g_checkStaticAmtCntr = GetConVarInt(sm_respawn_check_static_enemy_counter);
 	// Return if conquer
 	if (g_isConquer == 1) return Plugin_Continue;
 
@@ -1980,9 +2008,103 @@ public Action:Event_ControlPointCaptured_Post(Handle:event, const String:name[],
 // When ammo cache destroyed, update respawn position and reset variables
 public Action:Event_ObjectDestroyed_Pre(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	new Handle:cvar = INVALID_HANDLE;
-	cvar = FindConVar("mp_checkpoint_counterattack_always");
-	SetConVarInt(cvar, 0, true, false);
+	g_checkStaticAmt = GetConVarInt(sm_respawn_check_static_enemy);
+	g_checkStaticAmtCntr = GetConVarInt(sm_respawn_check_static_enemy_counter);
+	// Return if conquer
+	if (g_isConquer == 1) return Plugin_Continue;
+
+	// Get gamemode
+	decl String:sGameMode[32];
+	GetConVarString(FindConVar("mp_gamemode"), sGameMode, sizeof(sGameMode));
+
+	// Get the number of control points
+	new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
+	
+	// Get active push point
+	new acp = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
+	
+	// Init variables
+	new Handle:cvar;
+	
+	// Set minimum and maximum counter attack duration tim
+	new min_ca_dur = GetConVarInt(sm_respawn_min_counter_dur_sec);
+	new max_ca_dur = GetConVarInt(sm_respawn_max_counter_dur_sec);
+	new final_ca_dur = GetConVarInt(sm_respawn_final_counter_dur_sec);
+
+	// Get random duration
+	new fRandomInt = GetRandomInt(min_ca_dur, max_ca_dur);
+	
+	// Set counter attack duration to server
+	new Handle:cvar_ca_dur;
+	
+	// Final counter attack
+	if ((acp+1) == ncp)
+	{
+		cvar_ca_dur = FindConVar("mp_checkpoint_counterattack_duration_finale");
+		SetConVarInt(cvar_ca_dur, final_ca_dur, true, false);
+	}
+	// Normal counter attack
+	else
+	{
+		cvar_ca_dur = FindConVar("mp_checkpoint_counterattack_duration");
+		SetConVarInt(cvar_ca_dur, fRandomInt, true, false);
+	}
+	
+	// Get counter attack chance
+	new Float:ins_ca_chance = GetConVarFloat(sm_respawn_counter_chance);
+	
+	// Get ramdom value for occuring counter attack
+	new Float:fRandom = GetRandomFloat(0.0, 1.0);
+
+	// Occurs counter attack
+	if (fRandom < ins_ca_chance && StrEqual(sGameMode, "checkpoint") && ((acp+1) != ncp))
+	{
+		cvar = INVALID_HANDLE;
+		//PrintToServer("COUNTER YES");
+		cvar = FindConVar("mp_checkpoint_counterattack_disable");
+		SetConVarInt(cvar, 0, true, false);
+		cvar = FindConVar("mp_checkpoint_counterattack_always");
+		SetConVarInt(cvar, 1, true, false);
+		
+		// Call music timer
+		CreateTimer(COUNTER_ATTACK_MUSIC_DURATION, Timer_CounterAttackSound);
+		
+		// Call counter-attack end timer
+		if (!g_bIsCounterAttackTimerActive)
+		{
+			g_bIsCounterAttackTimerActive = true;
+			CreateTimer(1.0, Timer_CounterAttackEnd, _, TIMER_REPEAT);
+			//PrintToServer("[RESPAWN] Counter-attack timer started. (Normal counter-attack)");
+		}
+	}
+	// If last capture point
+	else if (StrEqual(sGameMode, "checkpoint") && ((acp+1) == ncp))
+	{
+		cvar = INVALID_HANDLE;
+		cvar = FindConVar("mp_checkpoint_counterattack_disable");
+		SetConVarInt(cvar, 0, true, false);
+		cvar = FindConVar("mp_checkpoint_counterattack_always");
+		SetConVarInt(cvar, 1, true, false);
+		
+		// Call music timer
+		CreateTimer(COUNTER_ATTACK_MUSIC_DURATION, Timer_CounterAttackSound);
+		
+		// Call counter-attack end timer
+		if (!g_bIsCounterAttackTimerActive)
+		{
+			g_bIsCounterAttackTimerActive = true;
+			CreateTimer(1.0, Timer_CounterAttackEnd, _, TIMER_REPEAT);
+			//PrintToServer("[RESPAWN] Counter-attack timer started. (Last counter-attack)");
+		}
+	}
+	// Not occurs counter attack
+	else
+	{
+		cvar = INVALID_HANDLE;
+		//PrintToServer("COUNTER NO");
+		cvar = FindConVar("mp_checkpoint_counterattack_disable");
+		SetConVarInt(cvar, 1, true, false);
+	}
 }
 
 // When ammo cache destroyed, update respawn position and reset variables
@@ -2028,7 +2150,60 @@ public Action:Event_ObjectDestroyed(Handle:event, const String:name[], bool:dont
 	
 	return Plugin_Continue;
 }
-
+// When control point captured, update respawn point and respawn all players
+public Action:Event_ObjectDestroyed_Post(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	// Return if conquer
+	if (g_isConquer == 1) return Plugin_Continue; 
+	
+	// Get client who captured control point.
+	decl String:cappers[256];
+	GetEventString(event, "cappers", cappers, sizeof(cappers));
+	new cappersLength = strlen(cappers);
+	for (new i = 0 ; i < cappersLength; i++)
+	{
+		new clientCapper = cappers[i];
+		if(clientCapper > 0 && IsClientInGame(clientCapper) && IsClientConnected(clientCapper) && IsPlayerAlive(clientCapper) && !IsFakeClient(clientCapper))
+		{
+			// Get player's position
+			new Float:capperPos[3];
+			GetClientAbsOrigin(clientCapper, Float:capperPos);
+			
+			// Update respawn position
+			g_fRespawnPosition = capperPos;
+			
+			break;
+		}
+	}
+	
+	// Respawn all players
+	if (GetConVarInt(sm_respawn_security_on_counter) == 1)
+	{
+		for (new client = 1; client <= MaxClients; client++)
+		{
+			if (IsClientInGame(client) && IsClientConnected(client))
+			{
+				new team = GetClientTeam(client);
+				if(IsClientInGame(client) && playerPickSquad[client] == 1 && playerFirstJoin[client] == false && !IsPlayerAlive(client) && team == TEAM_1 /*&& !IsClientTimingOut(client) && playerFirstDeath[client] == true*/ )
+				{
+					if (!IsFakeClient(client))
+					{
+						if (!IsClientTimingOut(client))
+							CreateCounterRespawnTimer(client);
+					}
+					else
+					{
+						CreateCounterRespawnTimer(client);
+					}
+				}
+			}
+		}
+	}
+	
+	////PrintToServer("CONTROL POINT CAPTURED POST");
+	
+	return Plugin_Continue;
+}
 // When counter-attack end, reset reinforcement time
 public Action:Timer_CounterAttackEnd(Handle:Timer)
 {

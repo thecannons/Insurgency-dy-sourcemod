@@ -1,164 +1,24 @@
 "Props"
 {
-	"Ammunition Crate 1"
+	"Ammo Crate"
 	{
 			"model"			"models/static_props/ammunition_crate_01.mdl"
 			"height"		"5"
 			"price"			"10"
 			"adminonly"     "0" //Means it's admin only if set to 1
 	}
-	"Shield"
-	{
-			"model"			"models/weapons/w_marinebayonet.mdl"
-			"height"		"5"
-			"price"			"10"
-			"adminonly"     "0" //Means it's admin only if set to 1
-	}
-	"Hesco Basket Small"
-	{
-			"model"			"models/static_afghan/prop_fortification_hesco_small.mdl"
-			"height"		"5"
-			"price"			"10"
-			"adminonly"     "0" //Means it's admin only if set to 1
-	}
-        "Hesco Basket Medium"
-	{
-			"model"			"models/iraq/ir_hesco_basket_01.mdl"
-			"height"		"5"
-			"price"			"10"
-			"adminonly"     "0" //Means it's admin only if set to 1
-	}
-	"Sandbag Wall Medium"
-	{
-			"model"			"models/static_fortifications/sandbagwall01.mdl"
-			"height"		"5"
-			"price"			"10"
-			"adminonly"     "0" //Means it's admin only if set to 1
-	}
-	"Sandbag Wall Large"
+	"Sandbag Wall"
 	{
 			"model"			"models/static_fortifications/sandbagwall02.mdl"
 			"height"		"5"
-			"price"			"10"
+			"price"			"5"
 			"adminonly"     "0" //Means it's admin only if set to 1
 	}
-	"Concrete block Pyramid Small"
+	"Sandbag Rounded"
 	{
-			"model"			"models/iraq/ir_concrete_block_01.mdl"
+			"model"			"models/static_fortifications/sandbagwall01.mdl"
 			"height"		"5"
-			"price"			"10"
-			"adminonly"     "0" //Means it's admin only if set to 1
-	}
-	"Mog Metal Wall"
-	{
-			"model"			"models/static_fortifications/mog_metal_wall_01.mdl"
-			"height"		"5"
-			"price"			"10"
-			"adminonly"     "0" //Means it's admin only if set to 1
-	}
-	"Sandbag 1"
-	{
-			"model"			"models/static_fortifications/sandbag01.mdl"
-			"height"		"5"
-			"price"			"10"
-			"adminonly"     "0" //Means it's admin only if set to 1
-	}
-	"Sandbag 2"
-	{
-			"model"			"models/static_fortifications/sandbag02.mdl"
-			"height"		"5"
-			"price"			"10"
-			"adminonly"     "0" //Means it's admin only if set to 1
-	}
-	"Sandbag 3"
-	{
-			"model"			"models/static_fortifications/sandbag03.mdl"
-			"height"		"5"
-			"price"			"10"
-			"adminonly"     "0" //Means it's admin only if set to 1
-	}
-	"Sandbag"
-	{
-			"model"			"models/static_fortifications/sandbag_single.mdl"
-			"height"		"5"
-			"price"			"10"
-			"adminonly"     "0" //Means it's admin only if set to 1
-	}
-	"Brickwall"
-	{
-			"model"			"models/static_fortifications/ir_brickwall.mdl"
-			"height"		"5"
-			"price"			"10"
-			"adminonly"     "0" //Means it's admin only if set to 1
-	}
-	"Concrete Barrier 1"
-	{
-			"model"			"models/static_fortifications/concrete_barrier_01.mdl"
-			"height"		"5"
-			"price"			"10"
-			"adminonly"     "0" //Means it's admin only if set to 1
-	}
-	"Concrete Barrier 2"
-	{
-			"model"			"models/static_fortifications/concrete_barrier_02.mdl"
-			"height"		"5"
-			"price"			"10"
-			"adminonly"     "0" //Means it's admin only if set to 1
-	}
-		"barrel_01_single"
-	{
-			"model"			"models/static_props/barrel_01_single.mdl"
-			"height"		"5"
-			"price"			"10"
-			"adminonly"     "0" //Means it's admin only if set to 1
-	}
-		"barrel_01_multiple"
-	{
-			"model"			"models/static_props/barrel_01_multiple.mdl"
-			"height"		"5"
-			"price"			"10"
-			"adminonly"     "0" //Means it's admin only if set to 1
-	}
-		"ch_brickwall"
-	{
-			"model"			"models/static_props/ch_brickwall.mdl"
-			"height"		"5"
-			"price"			"10"
-			"adminonly"     "0" //Means it's admin only if set to 1
-	}
-		"ch_brickwall_fence_01"
-	{
-			"model"			"models/static_props/ch_brickwall_fence_01.mdl"
-			"height"		"5"
-			"price"			"10"
-			"adminonly"     "0" //Means it's admin only if set to 1
-	}
-		"ch_brickwall_fence_02"
-	{
-			"model"			"models/static_props/ch_brickwall_fence_02.mdl"
-			"height"		"5"
-			"price"			"10"
-			"adminonly"     "0" //Means it's admin only if set to 1
-	}
-		"dumpster_01_closed"
-	{
-			"model"			"models/static_props/dumpster_01_closed.mdl"
-			"height"		"5"
-			"price"			"10"
-			"adminonly"     "0" //Means it's admin only if set to 1
-	}
-		"metal_tablet_01"
-	{
-			"model"			"models/static_props/metal_tablet_01.mdl"
-			"height"		"5"
-			"price"			"10"
-			"adminonly"     "0" //Means it's admin only if set to 1
-	}
-		"metal_tablet_02"
-	{
-			"model"			"models/static_props/metal_tablet_02.mdl"
-			"height"		"5"
-			"price"			"10"
+			"price"			"5"
 			"adminonly"     "0" //Means it's admin only if set to 1
 	}
 		
