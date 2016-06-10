@@ -1166,6 +1166,7 @@ public Action:Timer_EnemyReinforce(Handle:Timer)
 			{
 				// Get bot count
 				new minBotCount = (g_iRespawn_lives_team_ins / 8);
+				g_iRemaining_lives_team_ins = g_iRemaining_lives_team_ins + minBotCount;
 				
 				// Add bots
 				for (new client = 1; client <= MaxClients; client++)
@@ -1183,7 +1184,6 @@ public Action:Timer_EnemyReinforce(Handle:Timer)
 				}
 				// Get random duration
 				//new fRandomInt = GetRandomInt(1, 4);
-				g_iRemaining_lives_team_ins = g_iRemaining_lives_team_ins + minBotCount;
 				
 				decl String:textToPrint[64];
 				Format(textToPrint, sizeof(textToPrint), "Enemy Reinforcements Have Arrived!");
