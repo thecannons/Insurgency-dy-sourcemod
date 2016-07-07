@@ -3501,7 +3501,7 @@ public Action:Timer_MedicMonitor(Handle:timer)
 						
 						//Client_PrintToChatAll(false, "{OG}%N{N} healed {OG}%N", medic, iTarget);
 						PrintToChatAll("\x05%N\x01 healed \x05%N", medic, iTarget);
-						PrintHintText(iTarget, "You are healed by %N (HP: %i%%%)", medic, iHealth);
+						PrintHintText(iTarget, "You were healed by %N (HP: %i%%%)", medic, iHealth);
 					}
 					else
 					{

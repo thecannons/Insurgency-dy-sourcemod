@@ -44,9 +44,16 @@
 #define IN_GRENADE2   (1 << 24) /**< grenade 2 */
 
 
+// This will be used for checking which team the player is on before repsawning them
+#define SPECTATOR_TEAM	0
+#define TEAM_SPEC 	1
+#define TEAM_1		2
+#define TEAM_2		3
+
 #define MAX_BUTTONS 25
 new bool:plug_debug = false;
 
+new bool:isStuck[MAXPLAYERS+1];
 //Version
 new String:sVersion[5] = "3.0.2";
 //Prefix
@@ -84,10 +91,10 @@ new Handle:ConstructTimers[MAXPLAYERS+1];
 new
 	String:g_client_last_classstring[MAXPLAYERS+1][64],
 	Float:g_engineerPos[MAXPLAYERS+1][3],
-	g_ConstructDeployTime = 5,
+	g_ConstructDeployTime = 1,
 	g_ConstructRemainingTime[MAXPLAYERS+1],
 	g_engInMenu[MAXPLAYERS+1],
-	g_ConstructPackTime = 5,
+	g_ConstructPackTime = 1,
 	g_LastButtons[MAXPLAYERS+1];
 
 
@@ -148,6 +155,17 @@ public OnPluginStart()
 	RegConsoleCmd(sPropCommand, PropCommand);
 }
 
+// On map starts, call initalizing function
+public OnMapStart()
+{	
+	
+	CreateTimer(5.0, Timer_MapStart);
+}
+public Action:Timer_MapStart(Handle:Timer)
+{
+	CreateTimer(1.0, Timer_Monitor_Props,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(1.0, Timer_Monitor_Ownership,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+}
 public OnConVarChanged(Handle:convar, const String:oldValue[], const String:newValue[])
 {
 	if(convar == hTeamOnly)
@@ -170,11 +188,194 @@ public Action:Command_Credits(client, args)
 	PrintToChat(client, "You currently have %d credits!", tempCredits);
 }
 
+public Action:Timer_Monitor_Props(Handle:Timer)
+{
+	PrintToServer("DEBUG 1");
+	for (new client = 1; client <= MaxClients; client++)
+	{
+		//ENgineer specific
+		if (IsClientConnected(client) && IsClientInGame(client) && !IsFakeClient(client) && (StrContains(g_client_last_classstring[client], "client") > -1))
+		{
+			PrintToServer("DEBUG 2");
+			for(new i=0; i<=iPropNo[client]; i++)
+			{
+				new String:EntName[MAX_NAME_LENGTH+5];
+				Format(EntName, sizeof(EntName), "OMPropSpawnProp%d_number%d", client, i);
+				new prop = Entity_FindByName(EntName);
+				if(prop != -1)
+				{	
+					new isNearby = Check_NearbyBots(prop);
+					if (isNearby == true)
+					{
+						//PrintToChatAll("Object = NOT SOLID");
+						DispatchKeyValue(prop, "Solid", "0");  
+						PrintToServer("DEBUG 3");
+					}
+					else
+					{
+						//PrintToChatAll("Object = SOLID");
+						DispatchKeyValue(prop, "Solid", "6");  
+						PrintToServer("DEBUG 4");
+					}
+				}
+
+			}
+		}
+		//All units
+		if (IsClientConnected(client) && IsClientInGame(client) && !IsFakeClient(client) && IsPlayerAlive(client))
+		{
+			PrintToServer("DEBUG 5");
+			for(new i=0; i<=iPropNo[client]; i++)
+			{
+				new String:EntName[MAX_NAME_LENGTH+5];
+				Format(EntName, sizeof(EntName), "OMPropSpawnProp%d_number%d", client, i);
+				new prop = Entity_FindByName(EntName);
+
+				if(prop != -1)
+				{	
+					//Get position of bot and prop
+					new Float:plyrOrigin[3];
+					new Float:propOrigin[3];
+					new Float:fDistance;
+			
+					GetClientAbsOrigin(client,plyrOrigin);
+					GetEntPropVector(prop, Prop_Send, "m_vecOrigin", propOrigin);
+					
+					//determine distance from the two
+					fDistance = GetVectorDistance(propOrigin,plyrOrigin);
+					new isNearby = false;
+
+					isStuck[client] = false;
+					isStuck[client] = IsStuckInEnt(client, prop); // Check if player stuck in prop
+					if (fDistance <= 200)
+					{
+						isNearby = true;
+					}
+					if (isNearby == true && isStuck[client] == true)
+					{
+						//PrintToChatAll("Object = NOT SOLID");
+						DispatchKeyValue(prop, "Solid", "0");  
+						PrintToServer("DEBUG 6");
+					}
+
+					// Target is prop
+					new iPropTarget = TraceClientViewEntity(client);
+						Format(sBuf, 255,"%N revived you", iMedic);
+						PrintHintText(iInjured, "%s", sBuf);
+				}
+
+			}
+		}
+
+	}
+
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//									Stuck Detection
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+stock bool:IsStuckInEnt(client, ent){
+    decl Float:vecMin[3], Float:vecMax[3], Float:vecOrigin[3];
+    
+    GetClientMins(client, vecMin);
+    GetClientMaxs(client, vecMax);
+    
+    GetClientAbsOrigin(client, vecOrigin);
+    
+    TR_TraceHullFilter(vecOrigin, vecOrigin, vecMin, vecMax, MASK_ALL, TraceRayHitOnlyEnt, ent);
+    return TR_DidHit();
+}
+
+bool:CheckStuckInEntity(entity) 
+{ 
+    for (new i=1;i<=MaxClients;i++) 
+    { 
+        if (IsClientInGame(i) && IsPlayerAlive(i) && IsPlayerStuckInEntity(i, entity))// && !IsFakeClient(i) 
+            return true; 
+    } 
+    return false; 
+} 
+public bool:TraceRayHitOnlyEnt(entityhit, mask, any:data) {
+    return entityhit==data;
+}
+stock bool:CheckIfPlayerIsStuck(iClient)
+{
+	decl Float:vecMin[3], Float:vecMax[3], Float:vecOrigin[3];
+	
+	GetClientMins(iClient, vecMin);
+	GetClientMaxs(iClient, vecMax);
+	GetClientAbsOrigin(iClient, vecOrigin);
+	
+	TR_TraceHullFilter(vecOrigin, vecOrigin, vecMin, vecMax, MASK_SOLID, TraceEntityFilterSolid);
+	return TR_DidHit();	// head in wall ?
+}
+
+public bool:TraceEntityFilterSolid(entity, contentsMask) 
+{
+	return entity > 1;
+}
+public Check_NearbyBots(builtProp)
+{
+	for (new enemyBot = 1; enemyBot <= MaxClients; enemyBot++)
+	{
+		if (IsClientConnected(enemyBot) && IsClientInGame(enemyBot) 
+		{
+			new team = GetClientTeam(enemyBot); 
+			if (IsFakeClient(enemyBot) && IsPlayerAlive(enemyBot))// && team == TEAM_2)
+			{
+				//Get position of bot and prop
+				new Float:botOrigin[3];
+				new Float:propOrigin[3];
+				new Float:fDistance;
+		
+				GetClientAbsOrigin(enemyBot,botOrigin);
+				GetEntPropVector(builtProp, Prop_Send, "m_vecOrigin", propOrigin);
+				
+				//determine distance from the two
+				fDistance = GetVectorDistance(propOrigin,botOrigin);
+				
+				if (fDistance <= 100)
+				{
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+public Check_NearbyPlayers(builtProp)
+{
+	for (new friendlyPlayer = 1; friendlyPlayer <= MaxClients; friendlyPlayer++)
+	{
+		if (IsClientConnected(friendlyPlayer) && IsClientInGame(friendlyPlayer)
+		{
+			new team = GetClientTeam(friendlyPlayer);
+			if (!IsFakeClient(friendlyPlayer) && IsPlayerAlive(friendlyPlayer) && team == TEAM_2)
+			{
+				//Get position of bot and prop
+				new Float:plyrOrigin[3];
+				new Float:propOrigin[3];
+				new Float:fDistance;
+		
+				GetClientAbsOrigin(friendlyPlayer,plyrOrigin);
+				GetEntPropVector(builtProp, Prop_Send, "m_vecOrigin", propOrigin);
+				
+				//determine distance from the two
+				fDistance = GetVectorDistance(propOrigin,plyrOrigin);
+				
+				if (fDistance <= 200)
+				{
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
 public Event_PlayerSpawn(Handle: event , const String: name[] , bool: dontBroadcast)
 {
-	new userid = GetEventInt(event, "userid");
-	new client = GetClientOfUserId(userid);
-	iCredits[client] = iDefCredits;
 }
 
 public Event_PlayerDeath(Handle: event , const String: name[] , bool: dontBroadcast)
@@ -189,16 +390,16 @@ public Event_PlayerDeath(Handle: event , const String: name[] , bool: dontBroadc
 		return;
 	}
 	
-	if(bCreditsOnDeath)
-	{
-		PrintToChat(attacker, "You have been given \x03%d\x01 credits for killing someone!", iDeathCreditNo);
-		iCredits[attacker] += iDeathCreditNo;
-	}
+	// if(bCreditsOnDeath)
+	// {
+	// 	PrintToChat(attacker, "You have been given \x03%d\x01 credits for killing someone!", iDeathCreditNo);
+	// 	iCredits[attacker] += iDeathCreditNo;
+	// }
 	
-	if(bRemoveProps)
-	{
-		KillProps(victim);
-	}
+	// if(bRemoveProps)
+	// {
+	// 	KillProps(victim);
+	// }
 }
 // When player picked squad, initialize variables
 public Action:Event_PlayerPickSquad( Handle:event, const String:name[], bool:dontBroadcast )
@@ -237,6 +438,10 @@ public Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
 	{
 		iPropNo[i] = 0;
 	}
+
+	new userid = GetEventInt(event, "userid");
+	new client = GetClientOfUserId(userid);
+	iCredits[client] = iDefCredits;
 }
 
 stock KillProps(client)
@@ -430,6 +635,7 @@ public Action:Timer_Construct(Handle timer, Handle pack)
 		Format(textPrintChat, sizeof(textPrintChat), "You moved and canceled deploy");
 		PrintHintText(client, textPrintChat);
 		PrintToChat(client, textPrintChat);
+		g_engInMenu[client] = false;
 		return Plugin_Stop;
 	}
 	if (g_ConstructRemainingTime[client] <= 0)// && (vectDist == 0) && IsPlayerAlive(client) && IsClientInGame(client) && !IsClientTimingOut(client))
@@ -548,40 +754,110 @@ public PropSpawn(client, param2)
 	new String:EntName[256];
 	Format(EntName, sizeof(EntName), "OMPropSpawnProp%d_number%d", client, iPropNo[client]);
 	
-	//DispatchKeyValue(Ent, "physdamagescale", "0.0");
+	DispatchKeyValue(Ent, "physdamagescale", "0.0");
 	DispatchKeyValue(Ent, "model", modelname);
 	DispatchKeyValue(Ent, "targetname", EntName);
 	DispatchKeyValue(Ent, "Solid", "6");  
-	SetEntProp(Ent, Prop_Data, "m_CollisionGroup", 0);  
+	//SetEntProp(Ent, Prop_Data, "m_CollisionGroup", 17);  
+
+	//AcceptEntityInput(Ent, "DisableCollision");
 	DispatchSpawn(Ent);
 	
 	decl Float:FurnitureOrigin[3];
+	//decl Float:FurnitureOriginBackup[3];
 	decl Float:ClientOrigin[3];
 	decl Float:EyeAngles[3];
+	decl FLoat:PropDistGround;
 	GetClientEyeAngles(client, EyeAngles);
 	GetClientAbsOrigin(client, ClientOrigin);
+	//EyeAngles[0] = EyeAngles[0] - 10;
+	//TR_TraceRayFilter(ClientOrigin, EyeAngles, MASK_SOLID, RayType_Infinite, TraceRayDontHitSelf, client);
+
+	//TR_GetEndPosition(FurnitureOrigin, INVALID_HANDLE);
 	
 	FurnitureOrigin[0] = (ClientOrigin[0] + (50 * Cosine(DegToRad(EyeAngles[1]))));
 	FurnitureOrigin[1] = (ClientOrigin[1] + (50 * Sine(DegToRad(EyeAngles[1]))));
 	FurnitureOrigin[2] = (ClientOrigin[2] + KvGetNum(kv, "height", 100));
-	
-	TeleportEntity(Ent, FurnitureOrigin, NULL_VECTOR, NULL_VECTOR);
-	//SetEntityMoveType(Ent, MOVETYPE_NONE);   
+	EyeAngles[0] = 0;
+	//FurnitureOriginBackup = FurnitureOrigin;
+	TeleportEntity(Ent, FurnitureOrigin, EyeAngles, NULL_VECTOR);
+	//Check if ent is stuck in a player prop, kill
+	if (CheckStuckInEntity(Ent))
+	{
+
+		PrintToChat(client, "A person is in the way!");
+		PrintHintText(client, "A player in the way!");
+		if(Ent != -1)
+			AcceptEntityInput(Ent, "kill");
+
+		//Refund
+		ClientCredits = ClientCredits + Price;
+		iCredits[client] = ClientCredits;
+	}
+
+	// PropDistGround = GetPropDistanceToGround(Ent);
+	// if (PropDistGround >= 50)
+	// {
+	// 	FurnitureOrigin[2] = FurnitureOrigin[2] - PropDistGround;
+	// 	TeleportEntity(Ent, FurnitureOrigin, EyeAngles, NULL_VECTOR);
+	// }
     
+	SetEntityMoveType(Ent, MOVETYPE_NONE);   
 	CloseHandle(kv);
 	
 	iPropNo[client] += 1;
 	
 	return;
 }
+public bool:TraceRayDontHitSelf(entityhit, mask, any:client) 
+{ 
+	return (entityhit != client); 
 
+} //is the trace filter so the trace doesn't hit the player's own model
+stock GetPropDistanceToGround(prop)
+{
+    
+    new Float:fOrigin[3], Float:fGround[3];
+    GetEntPropVector(prop, Prop_Send, "m_vecOrigin", fOrigin);
 
+    fOrigin[2] += 10.0;
+    
+    TR_TraceRayFilter(fOrigin, Float:{90.0,0.0,0.0}, MASK_SOLID, RayType_Infinite, TraceFilterNoPlayers, prop);
+    if (TR_DidHit())
+    {
+        TR_GetEndPosition(fGround);
+        fOrigin[2] -= 10.0;
+        return GetVectorDistance(fOrigin, fGround);
+    }
+    return 0.0;
+}
+
+public bool:TraceRayNoPlayers(entity, mask, any:data)
+{
+    if(entity == data || (entity >= 1 && entity <= MaxClients))
+    {
+        return false;
+    }
+    return true;
+}  
+
+public bool:TraceFilterNoPlayers(iEnt, iMask, any:Other)
+{
+    return (iEnt != Other && iEnt > MaxClients);
+}
 public Action:Event_PlayerDisconnect_Post(Handle:event, const String:name[], bool:dontBroadcast)
 {
     new client = GetClientOfUserId(GetEventInt(event, "userid"));
     g_LastButtons[client] = 0;
 }
 
+public bool:Tracer_FilterBlocks(iEntity, contentsMask, any:data)
+{
+	if(iEntity > MaxClients)
+		return true;
+
+	return false;
+}
 
 public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon)
 {
@@ -621,7 +897,11 @@ OnButtonPress(client, button, buttons)
       if(!Client_IsValid(client))
 		return Plugin_Handled;
 	
-	g_engInMenu[client] = true;
+		g_engInMenu[client] = true;
+
+		//GetEntityFlags(client) & FL_DUCKING //This is for checking if player is crouching
+
+
 		// if(iTeam > 0)
 		// {
 		// 	if(GetClientTeam(client) != iTeam+1)
