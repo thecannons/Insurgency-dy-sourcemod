@@ -1,23 +1,16 @@
 "Props"
 {
-	"Ammo Crate"
+	"Sandbag Rounded"
 	{
-			"model"			"models/static_props/ammunition_crate_01.mdl"
-			"height"		"5"
-			"price"			"10"
+			"model"			"models/static_fortifications/sandbagwall02.mdl"
+			"height"		"-1"
+			"price"			"5"
 			"adminonly"     "0" //Means it's admin only if set to 1
 	}
 	"Sandbag Wall"
 	{
-			"model"			"models/static_fortifications/sandbagwall02.mdl"
-			"height"		"5"
-			"price"			"5"
-			"adminonly"     "0" //Means it's admin only if set to 1
-	}
-	"Sandbag Rounded"
-	{
 			"model"			"models/static_fortifications/sandbagwall01.mdl"
-			"height"		"5"
+			"height"		"-1"
 			"price"			"5"
 			"adminonly"     "0" //Means it's admin only if set to 1
 	}

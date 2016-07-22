@@ -86,22 +86,15 @@ new Handle:hCreditsOnDeath = INVALID_HANDLE;
 new bool:bCreditsOnDeath = false;
 new iDeathCreditNo = 5;
 new Handle:hDeathCreditNo = INVALID_HANDLE;
-new Handle:hIntegDegrade = INVALID_HANDLE;
-new Handle:hIntegRepair = INVALID_HANDLE;
 new Handle:ConstructTimers[MAXPLAYERS+1];
-new	g_integrityDegrade = 20;
-new	g_integrityRepair = 10;
-new g_CvarYellChance;
 
 // Status
 new
 	String:g_client_last_classstring[MAXPLAYERS+1][64],
 	Float:g_engineerPos[MAXPLAYERS+1][3],
 	g_ConstructDeployTime = 6,
-	g_engineerParam[MAXPLAYERS+1],
 	g_ConstructRemainingTime[MAXPLAYERS+1],
 	g_engInMenu[MAXPLAYERS+1],
-	g_propIntegrity[MAXPLAYERS+1],
 	bool:g_isSolid[MAXPLAYERS+1],
 	g_ConstructPackTime = 1,
 	g_LastButtons[MAXPLAYERS+1];
@@ -111,7 +104,7 @@ new bool:PlayerCooldown[MAXPLAYERS + 1] = {true, ...};
 new Float:PlayerTimedone[MAXPLAYERS + 1];
 
 // length of time to wait before yelling can occur again (in seconds)
-new Handle:hCvarYellChance;
+new Handle:g_CvarYellChance;
 new Handle:CooldownPeriod;
 // Prop Command String
 new String:sPropCommand[256] = "props";
@@ -163,8 +156,7 @@ public OnPluginStart()
 	// Control ConVars. 1 Team Only, Public Enabled etc.
 	hTeamOnly = CreateConVar("om_prop_teamonly", "0", "0 is no team restrictions, 1 is Terrorist and 2 is CT. Default: 2");
 	hAdminOnly = CreateConVar("om_prop_public", "0", "0 means anyone can use this plugin. 1 means admins only (no credits used)");
-	hIntegDegrade = CreateConVar("om_integrity_degrade", "20", "This is the amount that degrades from the prop when enemy bots are near it per bot, per second");
-	hIntegRepair = CreateConVar("om_integrity_repair", "10", "When a engineer is repairing, this amount repairs per second.");
+
 	// Create the version convar!
 	CreateConVar("om_propspawn_version", sVersion, "OM Prop Spawn Version",FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_UNLOGGED|FCVAR_DONTRECORD|FCVAR_REPLICATED|FCVAR_NOTIFY);
 	// Register the Credits Command
@@ -186,7 +178,7 @@ public OnPluginStart()
 	hRemoveProps = CreateConVar("om_prop_removeondeath", "0", "0 is keep the props on death, 1 is remove them on death. Default: 1");
 	hCreditsOnDeath = CreateConVar("om_prop_addcreditsonkill", "0", "0 is off, 1 is on. Default: 0");
 	hDeathCreditNo = CreateConVar("om_prop_killcredits", "0", "Change this number to change the number of credits a player gets when they kill someone");
-	hCvarYellChance = CreateConVar("fy_chance", "1.0", "Chance of Yelling [0-1]", FCVAR_NOTIFY | FCVAR_PLUGIN, true, 0.0, true, 1.0);
+	g_CvarYellChance = CreateConVar("fy_chance", "1.0", "Chance of Yelling [0-1]", FCVAR_NOTIFY | FCVAR_PLUGIN, true, 0.0, true, 1.0);
 	CooldownPeriod = CreateConVar("fy_cooldown", "6.0", "Cooldown period between yells [>0.0]", FCVAR_NOTIFY | FCVAR_PLUGIN, true, 0.0, false);
 	
 	//Hook all the ConVar changes
@@ -196,9 +188,6 @@ public OnPluginStart()
 	HookConVarChange(hRemoveProps, OnConVarChanged);
 	HookConVarChange(hCreditsOnDeath, OnConVarChanged);
 	HookConVarChange(hDeathCreditNo, OnConVarChanged);
-	HookConVarChange(hIntegDegrade, OnConVarChanged);
-	HookConVarChange(hIntegRepair, OnConVarChanged);
-	HookConVarChange(hCvarYellChance, OnConVarChanged);
 	
 	// Register the admin command to add credits (or remove if a minus number is used)
 	RegAdminCmd("om_admin_credits", AdminCreditControl, ADMFLAG_SLAY, "Admin Credit Control Command for OM PropSpawn");
@@ -237,12 +226,6 @@ public OnConVarChanged(Handle:convar, const String:oldValue[], const String:newV
 		bCreditsOnDeath = GetConVarBool(convar);
 	if(convar == hDeathCreditNo)
 		iDeathCreditNo = GetConVarInt(convar);
-	if(convar == g_integrityRepair)
-		g_integrityRepair = GetConVarInt(convar);
-	if(convar == g_integrityDegrade)
-		g_integrityDegrade = GetConVarInt(convar);
-	if(convar == hCvarYellChance)
-		g_CvarYellChance = GetConVarFloat(convar);
 }
 
 public Action:Command_Credits(client, args)
@@ -276,46 +259,24 @@ public Action:Timer_Monitor_Props(Handle:Timer)
 					new isNearby = Check_NearbyBots(prop);
 					if (isNearby == true)
 					{
-						//PrintToServer("g_integrityDegrade %d", g_integrityDegrade);
-						g_propIntegrity[i] = g_propIntegrity[i] - g_integrityDegrade;
-						if (g_propIntegrity[i] <= 0)
+						//PrintToChatAll("Object = NOT SOLID");
+						if (g_isSolid[iPropNo[client]] == true)
 						{
-
-							if(prop != -1)
-								AcceptEntityInput(prop, "kill");
-
-							//Refund for prop
-							new propParam = g_engineerParam[iPropNo[i]];
-							new String:prop_choice[255];
-							GetMenuItem(om_public_prop_menu, propParam, prop_choice, sizeof(prop_choice));
-							new String:name[255];
-							GetClientName(client, name, sizeof(name));
-
-							decl String:modelname[255];
-							new Price;
-							new String:file[255];
-							BuildPath(Path_SM, file, 255, "configs/om_public_props.txt");
-							new Handle:kv = CreateKeyValues("Props");
-							FileToKeyValues(kv, file);
-							KvJumpToKey(kv, prop_choice);
-							KvGetString(kv, "model", modelname, sizeof(modelname),"");
-							Price = KvGetNum(kv, "price", 0);
-							new ClientCredits = iCredits[client];
-							decl String:textToPrintChat[64];
-
-							if (Price > 0)
-							{
-
-									ClientCredits = ClientCredits + Price;
-									iCredits[client] = ClientCredits;
-									PrintToChat(client, "Your \x04%s has been destroyed. Refuunded \x03%d credits!", prop_choice, Price);
-							}
-
-							g_propIntegrity[i] = 0;
-							i = -1;
+							DispatchKeyValue(prop, "Solid", "0"); 
+							g_isSolid[iPropNo[client]] = false; 
+							//PrintToServer("DEBUG 3");
+						}
+					}
+					else
+					{
+						if (g_isSolid[iPropNo[client]] == false)
+						{
+							DispatchKeyValue(prop, "Solid", "6");
+							g_isSolid[iPropNo[client]] = true;   
 						}
 					}
 				}
+
 			}
 		}
 		//All units
@@ -356,16 +317,14 @@ public Action:Timer_Monitor_Props(Handle:Timer)
 							
 							if (fDistance <= 250 && isStuck[client] == true)
 							{
-								if (g_isSolid[iPropNo[i]] == true)
+								if (g_isSolid[iPropNo[client]] == true)
 								{
 									//PrintToChatAll("Object = NOT SOLID");
-									//DispatchKeyValue(prop, "Solid", "0");  
-									g_isSolid[iPropNo[i]] = false;
+									DispatchKeyValue(prop, "Solid", "0");  
+									g_isSolid[iPropNo[client]] = false;
 									//PrintToServer("DEBUG 8");
 								}
 							}
-
-							new propIntegrity = g_propIntegrity[i];
 
 							// Target is prop
 							new tPropTarget = GetClientAimTarget(client, false);
@@ -375,37 +334,12 @@ public Action:Timer_Monitor_Props(Handle:Timer)
 								new mPropRef = EntIndexToEntRef(prop);
 
 								//PrintToChatAll("EngineerProp: %S, TargetProp: %S", mPropRef, iPropRef);
-								if (iPropRef == mPropRef && fDistance <= 400 && !(StrContains(g_client_last_classstring[engineerCheck], "engineer") > -1))
+								if (iPropRef == mPropRef && fDistance <= 400)
 								{
-
 									decl String:sBuf[255];
-									Format(sBuf, 255,"Deployable Owner: [%N] | Integrity: %d", client, propIntegrity);
+									Format(sBuf, 255,"Deployable Owner[%N]", engineerCheck);
 									PrintHintText(client, "%s", sBuf);	
-										//PrintToServer("DEBUG 9");					
-								}
 
-								new ActiveWeapon = GetEntPropEnt(client, Prop_Data, "m_hActiveWeapon");
-								// Get weapon class name
-								decl String:sWeapon[32];
-								GetEdictClassname(ActiveWeapon, sWeapon, sizeof(sWeapon));
-
-								if (iPropRef == mPropRef && fDistance <= 80 && (StrContains(g_client_last_classstring[client], "engineer") > -1))
-								{
-									if (StrContains(sWeapon, "weapon_knife") > -1)
-									{
-										//PrintToServer("g_integrityRepair: %d | propIntegrity %d", g_integrityRepair, propIntegrity);
-										propIntegrity = propIntegrity + g_integrityRepair;
-										g_propIntegrity[i] = propIntegrity;
-										//PrintToServer("g_propIntegrity[iPropNo[i]]_Repair: %d", g_propIntegrity[i]);
-									}
-									if (propIntegrity > 100)
-									{
-										propIntegrity = 100;
-										g_propIntegrity[i] = 100;
-									}
-									decl String:sBuf[255];
-									Format(sBuf, 255,"Deployable Owner[%N] | Integrity: %d", engineerCheck, propIntegrity);
-									PrintHintText(client, "%s", sBuf);	
 										//PrintToServer("DEBUG 9");					
 								}
 							}
@@ -467,7 +401,7 @@ stock bool:IsStuckInEnt(client, ent){
 
 bool:CheckStuckInEntity(entity) 
 { 
-    for (new i=0;i<=MaxClients;i++) 
+    for (new i=1;i<=MaxClients;i++) 
     { 
         if (IsClientInGame(i) && IsPlayerAlive(i) && IsStuckInEnt(i, entity))// && !IsFakeClient(i) 
             return true; 
@@ -631,7 +565,7 @@ public Event_PlayerDisconnect(Handle:event, const String:name[], bool:dontBroadc
 
 public Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	for(new i=0; i<=MaxClients; i++)
+	for(new i=1; i<=MaxClients; i++)
 	{
 		iPropNo[i] = 0;
 	}
@@ -680,7 +614,6 @@ stock KillProps(client)
 {
 	for(new i=0; i<=iPropNo[client]; i++)
 	{
-		g_propIntegrity[i] = 0;
 		new String:EntName[MAX_NAME_LENGTH+5];
 		Format(EntName, sizeof(EntName), "OMPropSpawnProp%d_number%d", client, i);
 		new prop = Entity_FindByName(EntName);
@@ -904,7 +837,7 @@ public Action:Timer_Construct(Handle timer, Handle pack)
 		{
 			// play sound at the player if RNG passes
 			new Float:rn = GetRandomFloat(0.0, 1.0);
-			if (rn <= g_CvarYellChance) {
+			if (rn <= GetConVarFloat(g_CvarYellChance)) {
 				YellOut(client);
 				SetCooldown(client);
 			}
@@ -987,7 +920,7 @@ public Public_Prop_Menu_Handler(Handle:menu, MenuAction:action, param1, param2)
 				{
 					// play sound at the player if RNG passes
 					new Float:rn = GetRandomFloat(0.0, 1.0);
-					if (rn <= g_CvarYellChance) {
+					if (rn <= GetConVarFloat(g_CvarYellChance)) {
 						YellOut(param1);
 						SetCooldown(param1);
 					}
@@ -1103,7 +1036,9 @@ public PropSpawn(client, param2)
 	DispatchKeyValue(Ent, "model", modelname);
 	DispatchKeyValue(Ent, "targetname", EntName);
 	DispatchKeyValue(Ent, "Solid", "6");  
-	//g_isSolid[iPropNo[client]] = true;
+	g_isSolid[iPropNo[client]] = true;
+	//SetEntProp(Ent, Prop_Data, "m_CollisionGroup", 17);  
+
 	//AcceptEntityInput(Ent, "DisableCollision");
 	DispatchSpawn(Ent);
 	
@@ -1149,10 +1084,6 @@ public PropSpawn(client, param2)
 	SetEntityMoveType(Ent, MOVETYPE_NONE);   
 	CloseHandle(kv);
 	
-	g_propIntegrity[iPropNo[client]] = 50;
-	//PrintToServer("g_propIntegrity[iPropNo[client]]: %d",g_propIntegrity[iPropNo[client]]);
-	//SetEntProp(Ent, Prop_Data, "m_CollisionGroup", 17);  
-	g_engineerParam[iPropNo[client]] = param2;
 	iPropNo[client] += 1;
 	
 	return;
