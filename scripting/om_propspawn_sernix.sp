@@ -385,6 +385,8 @@ public Action:Timer_Monitor_Props(Handle:Timer)
 								}
 
 								new ActiveWeapon = GetEntPropEnt(client, Prop_Data, "m_hActiveWeapon");
+								if (ActiveWeapon < 0)
+									continue;
 								// Get weapon class name
 								decl String:sWeapon[32];
 								GetEdictClassname(ActiveWeapon, sWeapon, sizeof(sWeapon));
@@ -866,7 +868,8 @@ public Action:Timer_Construct(Handle timer, Handle pack)
 	EngCurrentPos = vecPos;
 	vectDist = GetVectorDistance(EngCurrentPos, g_engineerPos[client]);
 	new ActiveWeapon = GetEntPropEnt(client, Prop_Data, "m_hActiveWeapon");
-
+	if (ActiveWeapon < 0)
+		return Plugin_Stop;
 	// Get weapon class name
 	decl String:sWeapon[32];
 	GetEdictClassname(ActiveWeapon, sWeapon, sizeof(sWeapon));
@@ -1283,7 +1286,8 @@ OnButtonPress(client, button, buttons)
     new Float:eyepos[3];
     GetClientEyePosition(client, eyepos); // Position of client's eyes.
   	new ActiveWeapon = GetEntPropEnt(client, Prop_Data, "m_hActiveWeapon");
-	
+	if (ActiveWeapon < 0)
+		return Plugin_Handled;
 	// Get weapon class name
 	decl String:sWeapon[32];
 	GetEdictClassname(ActiveWeapon, sWeapon, sizeof(sWeapon));
