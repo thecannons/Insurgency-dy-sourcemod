@@ -5,6 +5,20 @@
  *	
  *	Sorry this took so long!
  */
+//Potential prop Lists:
+// models\fortifications\barbed_wire_04a.mdl  (barb wire with low center dip in collision mesh)
+// models\fortifications\barbed_wire_04.mdl same as above, slight less dip.
+// models\fortifications\barbed_wire_04.mdl even, slightly less noticeable edge bars.
+// models\props\crate01.mdl if small enough good to climb
+// insurgency_models.vpk\models\static_fittings\overhang_03.mdl  ramp for walls?
+// \insurgency_models.vpk\models\static_military\sandbag_wall_short_b.mdl snow short sandbag
+// insurgency\insurgency_models.vpk\models\fortifications\sandbag_wall_short.mdl  // Same sandbag short
+// models\structures\overhang_01.mdl // slight overhand model ramp
+// models/iraq/ir_hesco_basket_01.mdl Hesco single like large 4
+// \insurgency\insurgency_models.vpk\models\static_afghan\prop_fortification_hesco_large.mdl   Large hesco
+// insurgency2\insurgency\insurgency_models.vpk\models\iraq\ir_hesco_basket_01_row.mdl  Large 4 Hesco (need to engineers 10 points each)
+
+
 
 // Include the neccesary files
 #include <sourcemod>
@@ -97,7 +111,7 @@ new g_CvarYellChance;
 new
 	String:g_client_last_classstring[MAXPLAYERS+1][64],
 	Float:g_engineerPos[MAXPLAYERS+1][3],
-	g_ConstructDeployTime = 6,
+	g_ConstructDeployTime = 4,
 	g_engineerParam[MAXPLAYERS+1],
 	g_ConstructRemainingTime[MAXPLAYERS+1],
 	g_engInMenu[MAXPLAYERS+1],
@@ -130,31 +144,9 @@ public Plugin:myinfo =
 
 // list of specific files that are decent
 new String:BuildSounds[][] = {
-	/*
-	"player/voice/radial/security/leader/suppressed/go3.ogg",
-	"player/voice/radial/security/leader/suppressed/target10.ogg",
-	"player/voice/radial/security/leader/suppressed/target5.ogg",
-	"player/voice/radial/security/leader/suppressed/target8.ogg",
-	"player/voice/radial/security/subordinate/suppressed/target10.ogg",
-	"player/voice/radial/security/subordinate/suppressed/target2.ogg",
-	"player/voice/radial/security/subordinate/suppressed/target3.ogg",
-	"player/voice/radial/security/subordinate/suppressed/target4.ogg",
-	"player/voice/radial/security/subordinate/unsuppressed/enemydown_knifekill3.ogg",
-	"player/voice/radial/security/subordinate/unsuppressed/enemydown_knifekill1.ogg",
-	"player/voice/responses/security/subordinate/suppressed/frag6.ogg",
-	"player/voice/responses/security/subordinate/suppressed/frag7.ogg",
-	"player/voice/responses/security/subordinate/suppressed/target12.ogg",
-	"player/voice/responses/security/subordinate/suppressed/target2.ogg",
-	"player/voice/responses/security/subordinate/suppressed/target3.ogg",
-	"player/voice/responses/security/subordinate/suppressed/target7.ogg",
-	"player/voice/responses/security/subordinate/suppressed/target9.ogg"
-	*/
-	"player/voice/radial/security/subordinate/unsuppressed/backup1.ogg",
-	"player/voice/radial/security/subordinate/unsuppressed/backup2.ogg",
-	"player/voice/radial/security/subordinate/unsuppressed/backup3.ogg",
-	"player/voice/radial/security/subordinate/suppressed/backup1.ogg",
-	"player/voice/radial/security/subordinate/suppressed/backup2.ogg",
-	"player/voice/radial/security/subordinate/suppressed/backup3.ogg"
+	"player/voice/security/command/subordinate/cover1.ogg",
+	"player/voice/security/command/subordinate/cover2.ogg",
+	"player/voice/security/command/subordinate/cover3.ogg"
 
 };
 
@@ -168,7 +160,7 @@ public OnPluginStart()
 	// Create the version convar!
 	CreateConVar("om_propspawn_version", sVersion, "OM Prop Spawn Version",FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_UNLOGGED|FCVAR_DONTRECORD|FCVAR_REPLICATED|FCVAR_NOTIFY);
 	// Register the Credits Command
-	RegConsoleCmd("credits", Command_Credits);
+	//RegConsoleCmd("credits", Command_Credits);
 	// Hook Player Spawn to restore player credits when they spawn
 	HookEvent("player_spawn" , Event_PlayerSpawn);
 	// Hook when the player dies so that props can be removed
@@ -176,6 +168,7 @@ public OnPluginStart()
 	HookEvent("player_disconnect", Event_PlayerDisconnect);
 	HookEvent("round_start", Event_RoundStart);
 	HookEvent("player_pick_squad", Event_PlayerPickSquad);
+	HookEvent("round_end", Event_RoundEnd);
 	
 	new String:tempCredits[5];
 	IntToString(iDefCredits, tempCredits, sizeof(tempCredits));
@@ -187,7 +180,7 @@ public OnPluginStart()
 	hCreditsOnDeath = CreateConVar("om_prop_addcreditsonkill", "0", "0 is off, 1 is on. Default: 0");
 	hDeathCreditNo = CreateConVar("om_prop_killcredits", "0", "Change this number to change the number of credits a player gets when they kill someone");
 	hCvarYellChance = CreateConVar("fy_chance", "1.0", "Chance of Yelling [0-1]", FCVAR_NOTIFY | FCVAR_PLUGIN, true, 0.0, true, 1.0);
-	CooldownPeriod = CreateConVar("fy_cooldown", "6.0", "Cooldown period between yells [>0.0]", FCVAR_NOTIFY | FCVAR_PLUGIN, true, 0.0, false);
+	CooldownPeriod = CreateConVar("fy_cooldown", "3.0", "Cooldown period between yells [>0.0]", FCVAR_NOTIFY | FCVAR_PLUGIN, true, 0.0, false);
 	
 	//Hook all the ConVar changes
 	HookConVarChange(hTeamOnly, OnConVarChanged);
@@ -203,20 +196,19 @@ public OnPluginStart()
 	// Register the admin command to add credits (or remove if a minus number is used)
 	RegAdminCmd("om_admin_credits", AdminCreditControl, ADMFLAG_SLAY, "Admin Credit Control Command for OM PropSpawn");
 	RegAdminCmd("om_remove_prop", AdminRemovePropAim, ADMFLAG_SLAY, "Admin Prop Removal by aim");
-	RegConsoleCmd(sPropCommand, PropCommand);
+	//RegConsoleCmd(sPropCommand, PropCommand);
+
+	AutoExecConfig(true, "sernix_prop_spawn");
 }
 
 // On map starts, call initalizing function
 public OnMapStart()
 {	
-	new noncached = 0;
-	// cache sounds in string array to be used
-	for (new i = 0; i < sizeof(BuildSounds); i++) {
-		if (!IsSoundPrecached(BuildSounds[i])) {
-			PrecacheSound(BuildSounds[i]);
-			noncached++;
-		}
-	}
+	
+	PrecacheSound("player/voice/security/command/subordinate/cover1.ogg");
+	PrecacheSound("player/voice/security/command/subordinate/cover2.ogg");
+	PrecacheSound("player/voice/security/command/subordinate/cover3.ogg");
+
 	CreateTimer(5.0, Timer_MapStart);
 }
 public Action:Timer_MapStart(Handle:Timer)
@@ -257,6 +249,21 @@ public OnClientPutInServer(client) {
 	SDKHook(client, SDKHook_OnTakeDamage, OnTakeDamagePre);
 }
 
+public Action:Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadcast)
+{
+
+	//Clear props
+	for (new engineerCheck = 1; engineerCheck <= MaxClients; engineerCheck++)
+	{
+		if (engineerCheck > 0)
+		{
+			if (IsClientConnected(engineerCheck) && IsClientInGame(engineerCheck) && !IsFakeClient(engineerCheck) && (StrContains(g_client_last_classstring[engineerCheck], "engineer") > -1))
+			{
+				KillProps(engineerCheck);
+			}
+		}
+	}
+}
 public Action:Timer_Monitor_Props(Handle:Timer)
 {
 	//PrintToServer("DEBUG 1");
@@ -391,7 +398,7 @@ public Action:Timer_Monitor_Props(Handle:Timer)
 								decl String:sWeapon[32];
 								GetEdictClassname(ActiveWeapon, sWeapon, sizeof(sWeapon));
 
-								if (iPropRef == mPropRef && fDistance <= 80 && (StrContains(g_client_last_classstring[client], "engineer") > -1))
+								if (iPropRef == mPropRef && fDistance <= 120 && (StrContains(g_client_last_classstring[client], "engineer") > -1))
 								{
 									if (StrContains(sWeapon, "weapon_knife") > -1)
 									{
@@ -471,8 +478,11 @@ bool:CheckStuckInEntity(entity)
 { 
     for (new i=0;i<=MaxClients;i++) 
     { 
-        if (IsClientInGame(i) && IsPlayerAlive(i) && IsStuckInEnt(i, entity))// && !IsFakeClient(i) 
-            return true; 
+    	if (i > 0)
+    	{
+	        if (IsClientInGame(i) && IsPlayerAlive(i) && IsStuckInEnt(i, entity))// && !IsFakeClient(i) 
+	            return true; 
+    	}
     } 
     return false; 
 } 
@@ -515,7 +525,7 @@ public Check_NearbyBots(builtProp)
 				//determine distance from the two
 				fDistance = GetVectorDistance(propOrigin,botOrigin);
 				
-				if (fDistance <= 100)
+				if (fDistance <= 260)
 				{
 					return true;
 				}
@@ -545,7 +555,7 @@ public Check_NearbyPlayers(builtProp)
 				//determine distance from the two
 				fDistance = GetVectorDistance(propOrigin,plyrOrigin);
 				
-				if (fDistance <= 200)
+				if (fDistance <= 210)
 				{
 					return true;
 				}
@@ -560,7 +570,7 @@ public Event_PlayerSpawn(Handle: event , const String: name[] , bool: dontBroadc
 
 	new userid = GetEventInt(event, "userid");
 	new client = GetClientOfUserId(userid);
-	iCredits[client] = iDefCredits;
+	//iCredits[client] = iDefCredits;
 	if ((StrContains(g_client_last_classstring[client], "engineer") > -1))
 	{
 		g_engInMenu[client] = false;
@@ -644,21 +654,12 @@ public Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
 }
 public Action:YellOut(client) {
 
-	// statics
-	static idx_Sound = -1;
-	// static voice = false;
-
-	// decide on voice or sound
-	new idx_Old = idx_Sound;
-	idx_Sound = GetRandomInt(0, sizeof(BuildSounds) - 1);
-
-	// prevent playing the same sound in a row
-	if (idx_Old == idx_Sound) {
-		return YellOut(client);
-	} else {
-		EmitSoundToAll(BuildSounds[idx_Sound], client);
+	switch(GetRandomInt(1, 3))
+	{
+		case 1: EmitSoundToAll("player/voice/security/command/subordinate/cover1.ogg", client, SNDCHAN_VOICE, _, _, 1.0);
+		case 2: EmitSoundToAll("player/voice/security/command/subordinate/cover2.ogg", client, SNDCHAN_VOICE, _, _, 1.0);
+		case 3: EmitSoundToAll("player/voice/security/command/subordinate/cover3.ogg", client, SNDCHAN_VOICE, _, _, 1.0);
 	}
-	
 	return Plugin_Continue;
 }
 
@@ -854,7 +855,7 @@ public Action:Timer_Construct(Handle timer, Handle pack)
 {
 	int client;
 	new target;
- 
+ 	
 	/* Set to the beginning and unpack it */
 	ResetPack(pack);
 	client = ReadPackCell(pack);
@@ -874,7 +875,7 @@ public Action:Timer_Construct(Handle timer, Handle pack)
 	decl String:sWeapon[32];
 	GetEdictClassname(ActiveWeapon, sWeapon, sizeof(sWeapon));
 
-	if (vectDist < 0 || vectDist > 0 || !IsPlayerAlive(client) || IsClientTimingOut(client) || !(StrContains(sWeapon, "weapon_knife") > -1))
+	if (client > 0 && vectDist < 0 || vectDist > 0 || !IsPlayerAlive(client) || IsClientTimingOut(client) || !(StrContains(sWeapon, "weapon_knife") > -1))
 	{
 		decl String:textPrintChat[64];
 		Format(textPrintChat, sizeof(textPrintChat), "(Deploy Canceled) - You moved and or put knife away");
@@ -883,7 +884,7 @@ public Action:Timer_Construct(Handle timer, Handle pack)
 		g_engInMenu[client] = false;
 		return Plugin_Stop;
 	}
-	if (g_ConstructRemainingTime[client] <= 0 && IsPlayerAlive(client) && !IsClientTimingOut(client) && (StrContains(sWeapon, "weapon_knife") > -1))
+	if (client > 0 && g_ConstructRemainingTime[client] <= 0 && IsPlayerAlive(client) && !IsClientTimingOut(client) && (StrContains(sWeapon, "weapon_knife") > -1))
 	{
 		g_ConstructRemainingTime[client] = g_ConstructDeployTime;
 		PropSpawn(client, target);
@@ -906,11 +907,11 @@ public Action:Timer_Construct(Handle timer, Handle pack)
 		else
 		{
 			// play sound at the player if RNG passes
-			new Float:rn = GetRandomFloat(0.0, 1.0);
-			if (rn <= g_CvarYellChance) {
+			//new Float:rn = GetRandomFloat(0.0, 1.0);
+			//if (rn <= g_CvarYellChance) {
 				YellOut(client);
 				SetCooldown(client);
-			}
+			//}
 		}
 		return Plugin_Stop;
 	}
@@ -921,6 +922,7 @@ public Action:Timer_Construct(Handle timer, Handle pack)
 	GetMenuItem(om_public_prop_menu, target, prop_choice, sizeof(prop_choice));
 	Format(textToPrint, sizeof(textToPrint), "Deploying %s in %d seconds\n(Move to cancel deploy)", prop_choice, g_ConstructRemainingTime[client]);
 	PrintHintText(client, textToPrint);
+	//g_engInMenu[client] = false;
 	return Plugin_Continue;
 }
 
@@ -989,11 +991,11 @@ public Public_Prop_Menu_Handler(Handle:menu, MenuAction:action, param1, param2)
 				else
 				{
 					// play sound at the player if RNG passes
-					new Float:rn = GetRandomFloat(0.0, 1.0);
-					if (rn <= g_CvarYellChance) {
+					//new Float:rn = GetRandomFloat(0.0, 1.0);
+					//if (rn <= g_CvarYellChance) {
 						YellOut(param1);
 						SetCooldown(param1);
-					}
+					//}
 				}
 				// Get current position
 				decl Float:vecPos[3];
@@ -1152,7 +1154,7 @@ public PropSpawn(client, param2)
 	SetEntityMoveType(Ent, MOVETYPE_NONE);   
 	CloseHandle(kv);
 	
-	g_propIntegrity[iPropNo[client]] = 50;
+	g_propIntegrity[iPropNo[client]] = 80;
 	//PrintToServer("g_propIntegrity[iPropNo[client]]: %d",g_propIntegrity[iPropNo[client]]);
 	//SetEntProp(Ent, Prop_Data, "m_CollisionGroup", 17);  
 	g_engineerParam[iPropNo[client]] = param2;
@@ -1233,20 +1235,22 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
   }
     return Plugin_Continue;
 }
-
+//(int victim, int &attacker, int &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3])
 public Action:OnTakeDamagePre(victim, &attacker, &inflictor, &Float:damage, &damagetype) {
+
+	new Float:damageReduction = (damage * 0.30); //Reduce damage here so its a blanket reduction
 
 	if (victim > 0 && IsClientConnected(victim) && IsClientInGame(victim) && !IsFakeClient(victim) && IsPlayerAlive(victim))
 	{
 		
 		//PrintToServer("DEBUG 5");
-
 		for (new engineerCheck = 1; engineerCheck <= MaxClients; engineerCheck++)
 		{
 
 			if (IsClientConnected(engineerCheck) && IsClientInGame(engineerCheck) && !IsFakeClient(engineerCheck) && (StrContains(g_client_last_classstring[engineerCheck], "engineer") > -1))
 			{
 
+				new loopCount = 0; // Stack damage reduction up to two.
 				//PrintToServer("DEBUG 6");
 				for(new i=0; i<=iPropNo[engineerCheck]; i++)
 				{
@@ -1260,24 +1264,28 @@ public Action:OnTakeDamagePre(victim, &attacker, &inflictor, &Float:damage, &dam
 						//Get position of player and prop
 						new Float:plyrOrigin[3];
 						new Float:propOrigin[3];
-						new Float:fDistance;
 				
 						GetClientAbsOrigin(victim,plyrOrigin);
 						GetEntPropVector(prop, Prop_Send, "m_vecOrigin", propOrigin);
 						
 						//determine distance from the two
-						fDistance = GetVectorDistance(propOrigin,plyrOrigin);
-						
-						if (fDistance <= 200 && damagetype == DMG_BLAST)
+						new isNearProp = Check_NearbyPlayers(prop);
+						if (isNearProp == true && damagetype == DMG_BLAST)
 						{
-							damage -= damage * 0.35; // Reduce damage by 35%
+							loopCount++;
+							damage -= damageReduction; // Reduce damage by 35%
 							//PrintToChat(victim, "DAMAGE REDUCED by 35%");
-							return Plugin_Changed;
+							if (damage <= 0)
+								damage = 10;
+
+							if (loopCount >= 2)
+								break;
 						}
 					}
 				}
 			}
 		}
+		return Plugin_Changed;
 	}
 }
 

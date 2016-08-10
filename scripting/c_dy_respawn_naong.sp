@@ -71,6 +71,8 @@ new
 	g_iClientRagdolls[MAXPLAYERS+1],
 	g_iNearestBody[MAXPLAYERS+1],
 	g_iRespawnCount[4],
+	g_huntReinforceCacheAdd = 120,
+	bool:g_huntCacheDestroyed = false,
 	Float:g_fPlayerPosition[MAXPLAYERS+1][3],
 	Float:g_fDeadPosition[MAXPLAYERS+1][3],
 	Float:g_fRagdollPosition[MAXPLAYERS+1][3],
@@ -104,8 +106,7 @@ new
 	g_clientDamageDone[MAXPLAYERS+1],
 	playerPickSquad[MAXPLAYERS + 1],
 	bool:playerRevived[MAXPLAYERS + 1],
-	bool:playerFirstJoin[MAXPLAYERS + 1],
-	bool:playerFirstDeath[MAXPLAYERS + 1],
+	bool:g_preRoundInitial = false,
 	String:g_client_last_classstring[MAXPLAYERS+1][64],
 	String:g_client_org_nickname[MAXPLAYERS+1][64],
 	Float:g_enemyTimerPos[MAXPLAYERS+1][3];	// Kill Stray Enemy Bots Globals
@@ -248,6 +249,9 @@ new
 	g_iRespawnSeconds,
 	g_iHeal_amount,
 	g_isConquer,
+	g_isOutpost,
+	g_isCheckpoint,
+	g_isHunt,
 	Float:g_flMinPlayerDistance,
 	Float:g_flMaxPlayerDistance,
 	Float:g_flMinCounterattackDistance;
@@ -504,7 +508,7 @@ public OnPluginStart()
 	HookEvent("round_start", Event_RoundStart);
 	HookEvent("round_end", Event_RoundEnd);
 	HookEvent("round_end", Event_RoundEnd_Pre, EventHookMode_Pre);
-	HookEvent("player_pick_squad", Event_PlayerPickSquad);
+	HookEvent("player_pick_squad", Event_PlayerPickSquad_Post, EventHookMode_Post);
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	HookEvent("object_destroyed", Event_ObjectDestroyed_Pre, EventHookMode_Pre);
 	HookEvent("object_destroyed", Event_ObjectDestroyed);
@@ -723,6 +727,20 @@ void UpdateRespawnCvars()
 	g_flMaxPlayerDistance = GetConVarFloat(cvarMaxPlayerDistance);
 	g_iCvar_counterattack_type = GetConVarInt(sm_respawn_counterattack_type);
 	g_iCvar_final_counterattack_type = GetConVarInt(sm_respawn_final_counterattack_type);
+
+	//Disable on conquer
+	if (g_isConquer || g_isOutpost)
+		g_iCvar_SpawnMode = 0;
+
+	//Hunt specific
+	if (g_isHunt == 1)
+	{
+		
+		new secTeamCount = GetTeamSecCount();
+		g_iCvar_SpawnMode = 0;
+		//Increase reinforcements
+		g_iRespawn_lives_team_ins = ((g_iRespawn_lives_team_ins * secTeamCount) / 4);
+	}
 }
 
 // When tags changed
@@ -739,7 +757,7 @@ public OnMapStart()
 {	
 	// Wait for navmesh
 	CreateTimer(2.0, Timer_MapStart);
-	
+	g_preRoundInitial = true;
 	// Update entity
 	GetObjResEnt(1);
 	GetLogicEnt(1);
@@ -760,7 +778,9 @@ public Action:Timer_MapStart(Handle:Timer)
 	UpdateRespawnCvars();
 	
 	g_isConquer = 0;
-	
+	g_isHunt = 0;
+	g_isCheckpoint = 0;
+	g_isOutpost = 0;
 	// Reset hiding spot
 	new iEmptyArray[MAX_OBJECTIVES];
 	g_iCPHidingSpotCount = iEmptyArray;
@@ -768,15 +788,30 @@ public Action:Timer_MapStart(Handle:Timer)
 	// Check gamemode
 	decl String:sGameMode[32];
 	GetConVarString(FindConVar("mp_gamemode"), sGameMode, sizeof(sGameMode));
-	if (StrEqual(sGameMode,"conquer")) // if Hunt?
+	if (StrEqual(sGameMode,"hunt")) // if Hunt?
+	{
+		g_isHunt = 1;
+		g_iCvar_SpawnMode = 0;
+	   	SetConVarFloat(sm_respawn_fatal_chance, 0.4, true, false);
+	   	SetConVarFloat(sm_respawn_fatal_head_chance, 0.4, true, false);
+	}
+	if (StrEqual(sGameMode,"conquer")) // if conquer?
 	{
 		g_isConquer = 1;
-	   	SetConVarFloat(sm_respawn_fatal_chance, 0.3, true, false);
+		g_iCvar_SpawnMode = 0;
+	   	SetConVarFloat(sm_respawn_fatal_chance, 0.4, true, false);
+	   	SetConVarFloat(sm_respawn_fatal_head_chance, 0.4, true, false);
+	}
+	if (StrEqual(sGameMode,"outpost")) // if conquer?
+	{
+		g_isOutpost = 1;
+		g_iCvar_SpawnMode = 0;
+	   	SetConVarFloat(sm_respawn_fatal_chance, 0.4, true, false);
 	   	SetConVarFloat(sm_respawn_fatal_head_chance, 0.4, true, false);
 	}
 	if (StrEqual(sGameMode,"checkpoint")) // if Hunt?
 	{
-		//g_isConquer = 1;
+		g_isCheckpoint = 1;
 	}
 	
 	// Init respawn count
@@ -795,11 +830,11 @@ public Action:Timer_MapStart(Handle:Timer)
 		CreateTimer(1.0, Timer_GearMonitor,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 	
 	// Enemy reinforcement announce timer
-	if (g_isConquer != 1) 
+	if (g_isConquer != 1 && g_isOutpost != 1) 
 		CreateTimer(1.0, Timer_EnemyReinforce,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 	
 	// Enemy remaining announce timer
-	if (g_isConquer != 1) 
+	if (g_isConquer != 1 && g_isOutpost != 1) 
 		CreateTimer(30.0, Timer_Enemies_Remaining,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 
 	// Player status check timer
@@ -981,7 +1016,7 @@ public Action:Command_Respawn(client, args)
 void RespawnPlayer(client, target)
 {
 	new team = GetClientTeam(target);
-	if(IsClientInGame(target) && !IsClientTimingOut(target) && playerFirstDeath[target] == true && playerPickSquad[target] == 1 && playerFirstJoin[target] == false && !IsPlayerAlive(target) && team == TEAM_1)
+	if(IsClientInGame(target) && !IsClientTimingOut(target) && g_client_last_classstring[target][0] && playerPickSquad[target] == 1 && !IsPlayerAlive(target) && team == TEAM_1)
 	{
 		// Write a log
 		LogAction(client, target, "\"%L\" respawned \"%L\"", client, target);
@@ -1036,7 +1071,7 @@ public Action:Timer_PlayerStatus(Handle:Timer)
 		if (IsClientInGame(client) && IsClientConnected(client) && !IsFakeClient(client) && playerPickSquad[client] == 1)
 		{
 			new team = GetClientTeam(client);
-			if (!IsPlayerAlive(client) && !IsClientTimingOut(client) && IsClientObserver(client) && team == TEAM_1 && g_iEnableRevive == 1 && g_iRoundStatus == 1 && playerFirstJoin[client] == false) //
+			if (!IsPlayerAlive(client) && !IsClientTimingOut(client) && IsClientObserver(client) && team == TEAM_1 && g_iEnableRevive == 1 && g_iRoundStatus == 1) //
 			{
 				// Player connected or changed squad
 				if (g_iHurtFatal[client] == -1)
@@ -1117,7 +1152,11 @@ public Action:Timer_EnemyReinforce(Handle:Timer)
 			decl String:textToPrintChat[64];
 			decl String:textToPrint[64];
 			Format(textToPrintChat, sizeof(textToPrintChat), "Friendlies spawn on Counter-Attacks, Capture the Point!");
-			Format(textToPrint, sizeof(textToPrint), "Enemies reinforce in %d seconds | Capture the point soon!", g_iReinforceTime);
+			if (g_isHunt == 1)
+				Format(textToPrint, sizeof(textToPrint), "Enemies reinforce in %d seconds | Kill all enemies/destroy cache!", g_iReinforceTime);
+			else
+				Format(textToPrint, sizeof(textToPrint), "Enemies reinforce in %d seconds | Capture the point soon!", g_iReinforceTime);
+
 			PrintHintTextToAll(textToPrint);
 			//PrintToChatAll(textToPrintChat);
 		}
@@ -1127,7 +1166,11 @@ public Action:Timer_EnemyReinforce(Handle:Timer)
 			decl String:textToPrintChat[64];
 			decl String:textToPrint[64];
 			Format(textToPrintChat, sizeof(textToPrintChat), "Friendlies spawn on Counter-Attacks, Capture the Point!");
-			Format(textToPrint, sizeof(textToPrint), "Enemies reinforce in %d seconds | Capture the point soon!", g_iReinforceTime);
+			if (g_isHunt == 1)
+				Format(textToPrint, sizeof(textToPrint), "Enemies reinforce in %d seconds | Kill remaining enemies and destroy cache!", g_iReinforceTime);
+			else
+				Format(textToPrint, sizeof(textToPrint), "Enemies reinforce in %d seconds | Capture the point soon!", g_iReinforceTime);
+
 			PrintHintTextToAll(textToPrint);
 			//PrintToChatAll(textToPrintChat);
 		}
@@ -1149,6 +1192,11 @@ public Action:Timer_EnemyReinforce(Handle:Timer)
 					Format(textToPrint, sizeof(textToPrint), "Enemy Reinforcements Added to Existing Reinforcements!");
 					PrintHintTextToAll(textToPrint);
 					g_iReinforceTime = reinforce_time_subsequent;
+					if (g_isHunt == 1)
+						 g_iReinforceTime = reinforce_time_subsequent * iReinforce_multiplier;
+					//if (g_huntCacheDestroyed == true && g_isHunt == 1)
+					//	 g_iReinforceTime = g_iReinforceTime + g_huntReinforceCacheAdd;
+
 				}
 				else
 				{
@@ -1158,6 +1206,10 @@ public Action:Timer_EnemyReinforce(Handle:Timer)
 					// Reset reinforce time
 					new reinforce_time = GetConVarInt(sm_respawn_reinforce_time);
 					g_iReinforceTime = reinforce_time;
+					if (g_isHunt == 1)
+						 g_iReinforceTime = reinforce_time * iReinforce_multiplier;
+					//if (g_huntCacheDestroyed == true && g_isHunt == 1)
+					//	g_iReinforceTime = g_iReinforceTime + g_huntReinforceCacheAdd;
 				}
 
 			}
@@ -1617,8 +1669,6 @@ public UpdatePlayerOrigins()
 // When player connected server, intialize variable
 public OnClientPutInServer(client)
 {
-	playerFirstJoin[client] = true;
-	playerFirstDeath[client] = false;
 	playerPickSquad[client] = 0;
 	g_iHurtFatal[client] = -1;
 	
@@ -1631,8 +1681,6 @@ public OnClientPutInServer(client)
 public Action:Event_PlayerConnect(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
-	playerFirstJoin[client] = true;
-	playerFirstDeath[client] = false;
 	playerPickSquad[client] = 0;
 	g_iHurtFatal[client] = -1;
 }
@@ -1644,8 +1692,7 @@ public Action:Event_PlayerDisconnect(Handle:event, const String:name[], bool:don
 	if (client > 0 && IsClientInGame(client))
 	{
 		// Reset player status
-		playerFirstJoin[client] = true;	
-		
+		g_client_last_classstring[client] = ""; //reset his class model
 		// Remove network ragdoll associated with player
 		new playerRag = EntRefToEntIndex(g_iClientRagdolls[client]);
 		if (playerRag > 0 && IsValidEdict(playerRag) && IsValidEntity(playerRag))
@@ -1665,7 +1712,6 @@ public Action:Event_PlayerSpawn( Handle:event, const String:name[], bool:dontBro
 	if (client > 0 && IsClientInGame(client))
 	{
 		g_iPlayerRespawnTimerActive[client] = 0;
-		playerFirstJoin[client] = false;
 		
 		//remove network ragdoll associated with player
 		new playerRag = EntRefToEntIndex(g_iClientRagdolls[client]);
@@ -1700,6 +1746,13 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 	new reinforce_time = GetConVarInt(sm_respawn_reinforce_time);
 	g_iReinforceTime = reinforce_time;
 	
+	//Hunt specific
+	if (g_isHunt == 1)
+	{
+		new iReinforce_multiplier = GetConVarInt(sm_respawn_reinforce_multiplier); 
+		g_iReinforceTime = reinforce_time * iReinforce_multiplier;
+	}
+
 	// Check gamemode
 	decl String:sGameMode[32];
 	GetConVarString(FindConVar("mp_gamemode"), sGameMode, sizeof(sGameMode));
@@ -1719,8 +1772,18 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 	
 	// Warming up revive
 	g_iEnableRevive = 0;
+	new iPreRoundFirst = GetConVarInt(FindConVar("mp_timer_preround_first"));
 	new iPreRound = GetConVarInt(FindConVar("mp_timer_preround"));
-	CreateTimer(float(iPreRound), PreReviveTimer);
+	if (g_preRoundInitial == true)
+	{
+		CreateTimer(float(iPreRoundFirst), PreReviveTimer);
+		g_preRoundInitial = false;
+	}
+	else
+	{
+		CreateTimer(float(iPreRound), PreReviveTimer);
+	}
+
 
 	return Plugin_Continue;
 }
@@ -1811,7 +1874,7 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 	g_checkStaticAmt = GetConVarInt(sm_respawn_check_static_enemy);
 	g_checkStaticAmtCntr = GetConVarInt(sm_respawn_check_static_enemy_counter);
 	// Return if conquer
-	if (g_isConquer == 1) return Plugin_Continue;
+	if (g_isConquer == 1 || g_isHunt == 1 || g_isOutpost) return Plugin_Continue;
 
 	// Get gamemode
 	decl String:sGameMode[32];
@@ -1933,7 +1996,7 @@ public Action:Timer_CounterAttackSound(Handle:event)
 public Action:Event_ControlPointCaptured(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	// Return if conquer
-	if (g_isConquer == 1) return Plugin_Continue;
+	if (g_isConquer == 1 || g_isHunt == 1 || g_isOutpost == 1) return Plugin_Continue;
 	
 	// Reset reinforcement time
 	new reinforce_time = GetConVarInt(sm_respawn_reinforce_time);
@@ -1953,7 +2016,7 @@ public Action:Event_ControlPointCaptured(Handle:event, const String:name[], bool
 public Action:Event_ControlPointCaptured_Post(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	// Return if conquer
-	if (g_isConquer == 1) return Plugin_Continue; 
+	if (g_isConquer == 1 || g_isHunt == 1 || g_isOutpost == 1) return Plugin_Continue; 
 	
 	// Get client who captured control point.
 	decl String:cappers[256];
@@ -1983,7 +2046,7 @@ public Action:Event_ControlPointCaptured_Post(Handle:event, const String:name[],
 			if (IsClientInGame(client) && IsClientConnected(client))
 			{
 				new team = GetClientTeam(client);
-				if(IsClientInGame(client) && playerPickSquad[client] == 1 && playerFirstJoin[client] == false && !IsPlayerAlive(client) && team == TEAM_1 /*&& !IsClientTimingOut(client) && playerFirstDeath[client] == true*/ )
+				if(IsClientInGame(client) && playerPickSquad[client] == 1 && !IsPlayerAlive(client) && team == TEAM_1 /*&& !IsClientTimingOut(client) && playerFirstDeath[client] == true*/ )
 				{
 					if (!IsFakeClient(client))
 					{
@@ -2011,7 +2074,7 @@ public Action:Event_ObjectDestroyed_Pre(Handle:event, const String:name[], bool:
 	g_checkStaticAmt = GetConVarInt(sm_respawn_check_static_enemy);
 	g_checkStaticAmtCntr = GetConVarInt(sm_respawn_check_static_enemy_counter);
 	// Return if conquer
-	if (g_isConquer == 1) return Plugin_Continue;
+	if (g_isConquer == 1 || g_isHunt == 1 || g_isOutpost == 1) return Plugin_Continue;
 
 	// Get gamemode
 	decl String:sGameMode[32];
@@ -2110,8 +2173,16 @@ public Action:Event_ObjectDestroyed_Pre(Handle:event, const String:name[], bool:
 // When ammo cache destroyed, update respawn position and reset variables
 public Action:Event_ObjectDestroyed(Handle:event, const String:name[], bool:dontBroadcast)
 {
+	if (g_isHunt == 1)
+	{
+		g_huntCacheDestroyed = true;
+		//g_iReinforceTime = g_iReinforceTime + g_huntReinforceCacheAdd;
+		PrintHintTextToAll("Cache destroyed! Kill all enemies and reinforcements to win!");
+		PrintToChatAll("Cache destroyed! Kill all enemies and reinforcements to win!");
+		
+	}
 	// Checkpoint
-	if (g_isConquer != 1)
+	if (g_isCheckpoint == 1)
 	{
 		// Update respawn position
 		new attacker = GetEventInt(event, "attacker");
@@ -2133,14 +2204,14 @@ public Action:Event_ObjectDestroyed(Handle:event, const String:name[], bool:dont
 	}
 	
 	// Conquer, Respawn all players
-	else if (g_isConquer == 1)
+	else if (g_isConquer == 1 || g_isHunt == 1)
 	{
 		for (new client = 1; client <= MaxClients; client++)
 		{	
 			if (IsClientConnected(client) && !IsFakeClient(client) && IsClientConnected(client))
 			{
 				new team = GetClientTeam(client);
-				if(IsClientInGame(client) && !IsClientTimingOut(client) && playerFirstDeath[client] == true && playerPickSquad[client] == 1 && playerFirstJoin[client] == false && !IsPlayerAlive(client) && team == TEAM_1)
+				if(IsClientInGame(client) && !IsClientTimingOut(client) && playerPickSquad[client] == 1 && !IsPlayerAlive(client) && team == TEAM_1)
 				{
 					CreateCounterRespawnTimer(client);
 				}
@@ -2154,7 +2225,7 @@ public Action:Event_ObjectDestroyed(Handle:event, const String:name[], bool:dont
 public Action:Event_ObjectDestroyed_Post(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	// Return if conquer
-	if (g_isConquer == 1) return Plugin_Continue; 
+	if (g_isConquer == 1 || g_isHunt == 1 || g_isOutpost == 1) return Plugin_Continue; 
 	
 	// Get client who captured control point.
 	decl String:cappers[256];
@@ -2184,7 +2255,7 @@ public Action:Event_ObjectDestroyed_Post(Handle:event, const String:name[], bool
 			if (IsClientInGame(client) && IsClientConnected(client))
 			{
 				new team = GetClientTeam(client);
-				if(IsClientInGame(client) && playerPickSquad[client] == 1 && playerFirstJoin[client] == false && !IsPlayerAlive(client) && team == TEAM_1 /*&& !IsClientTimingOut(client) && playerFirstDeath[client] == true*/ )
+				if(IsClientInGame(client) && playerPickSquad[client] == 1 && !IsPlayerAlive(client) && team == TEAM_1 /*&& !IsClientTimingOut(client) && playerFirstDeath[client] == true*/ )
 				{
 					if (!IsFakeClient(client))
 					{
@@ -2265,7 +2336,7 @@ void StopCounterAttackMusic()
 void ResetSecurityLives()
 {
 	// Disable if counquer
-	if (g_isConquer == 1) return;
+	if (g_isConquer == 1 || g_isOutpost == 1) return;
 	
 	// Return if respawn is disabled
 	if (!g_iCvar_respawn_enable) return;
@@ -2304,7 +2375,7 @@ void ResetSecurityLives()
 void ResetInsurgencyLives()
 {
 	// Disable if counquer
-	if (g_isConquer == 1) return;
+	if (g_isConquer == 1 || g_isOutpost == 1) return;
 	
 	// Return if respawn is disabled
 	if (!g_iCvar_respawn_enable) return;
@@ -2340,7 +2411,7 @@ void ResetInsurgencyLives()
 }
 
 // When player picked squad, initialize variables
-public Action:Event_PlayerPickSquad( Handle:event, const String:name[], bool:dontBroadcast )
+public Action:Event_PlayerPickSquad_Post( Handle:event, const String:name[], bool:dontBroadcast )
 {
 	//"squad_slot" "byte"
 	//"squad" "byte"
@@ -2613,7 +2684,6 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 	if (!IsClientInGame(client)) return Plugin_Continue;
 	
 	// Set variable
-	playerFirstDeath[client] = true;
 	//new dmg_taken = GetEventInt(event, "damagebits");
 	
 	////PrintToServer("[PLAYERDEATH] Client %N has %d lives remaining", client, g_iSpawnTokens[client]);
@@ -3022,7 +3092,7 @@ public Action:RespawnBotPost(Handle:timer, any:client)
 	
 	////PrintToServer("[BOTSPAWNS] called RespawnBotPost for client %N (%d)",client,client);
 	//g_iSpawning[client] = 0;
-	if ((g_iHidingSpotCount) && !Ins_InCounterAttack() && (g_isConquer != 1) )
+	if ((g_iHidingSpotCount) && !Ins_InCounterAttack())
 	{	
 		////PrintToServer("[BOTSPAWNS] HAS g_iHidingSpotCount COUNT");
 		
@@ -3055,7 +3125,7 @@ public Action:RespawnBotPost(Handle:timer, any:client)
 public Action:Timer_PlayerRespawn(Handle:Timer, any:client)
 {
 	// Exit if client is not in game
-	if (!IsClientInGame(client)) return Plugin_Stop;
+	if (!IsClientInGame(client)) return Plugin_Stop; // empty class name
 	
 	if (!IsPlayerAlive(client) && g_iRoundStatus == 1)
 	{
@@ -3081,7 +3151,7 @@ public Action:Timer_PlayerRespawn(Handle:Timer, any:client)
 				g_iRemaining_lives_team_sec--;
 			
 			// Call forcerespawn function
-			SDKCall(g_hPlayerRespawn, client);
+				SDKCall(g_hPlayerRespawn, client);
 			
 			// Print remaining time to center text area
 			if (!IsFakeClient(client))
@@ -3737,7 +3807,7 @@ stock GetTeamSecCount() {
 		if (IsClientInGame(i) && IsClientConnected(i))
 		{
 			iTeam = GetClientTeam(i);
-			if(iTeam == TEAM_1 && !playerFirstJoin[i])
+			if(iTeam == TEAM_1)
 				clients++;
 		}
 	}

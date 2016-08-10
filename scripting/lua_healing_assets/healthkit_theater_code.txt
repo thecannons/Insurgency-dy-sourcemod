@@ -1,0 +1,70 @@
+
+	"weapons"
+	{
+		"weapon_healthkit"
+		{
+			"import"				"weapon_base"
+			"weapon_class"				"other_explosive"
+			"weapon_type"				"grenade"
+			"print_name"				"Health kit"
+			"print_desc"				"Healing around players for a while"
+			"single_use"				"1"
+			"view_model"				"models/items/healthkit.mdl"
+			"world_model"				"models/items/healthkit.mdl"
+			"weapon_slot"				"explosive"
+			"weapon_max_subslot"			"0"
+			"act_table"				"grenade"
+			"weapon_weight"				"32"
+			"weapon_cost"				"0"
+			"class_restricted"			"1"
+			"explosives"
+			{
+				"entity"				"healthkit"
+				"GrenadeRollSpeed"			"0"
+				"GrenadeThrowSpeed"			"320"
+			}
+			"ammo_clip"
+			{
+				"ammo_type"				"healthkit"
+				"clip_max_rounds"			"-1"	// no clips
+				"clip_default"				"1"
+			}
+			"use_hands"					"0"
+			"viewmodel_offsets"
+			{
+				"VMOffsetStand"				"-22.0 0.0 13.0"
+				"VMOffsetStandSprint"			"-22.0 0.0 13.0"
+				"VMOffsetCrouch"			"-20.0 0.0 11.0"
+				"VMOffsetCrouchMove"			"-5.0 0.0 11.0"
+				"VMOffsetProne"				"-19.0 0.0 9.0"
+				"VMOffsetProneMove"			"-4.0 0.0 9.0"
+			}
+			"team_access"				"security"
+		}
+	}
+	
+	"ammo"
+	{
+		"healthkit"
+		{
+			"carry"					"1"
+		}
+	}
+	
+	"explosives"
+	{
+		"healthkit"
+		{
+			"import"				"baseGrenade"
+			"entity_class"				"remote"
+			"Model"					"models/items/healthkit.mdl"
+			
+			"DetonateDamage"			"0"
+			"DetonateDamageRadius"			"0"
+			"DetonatePenetrationRadius"		"0"
+			
+			"Health"				"50"
+			"ReactExplosions"			"1"
+			"ReactBullets"				"0"
+		}
+	}

@@ -173,9 +173,9 @@
 			 */
 			"SetUserCvar"
 			{
-				"windows"	"21"
-				"linux"		"68"
-				"mac"		"68"
+				"windows"	"22"
+				"linux"		"69"
+				"mac"		"69"
 			}
 			/**
 			 * CBaseClient::SetName(char  const*);
@@ -184,9 +184,9 @@
 			 */
 			"SetClientName"
 			{
-				"windows"	"20"
-				"linux"		"67"
-				"mac"		"67"
+				"windows"	"21"
+				"linux"		"68"
+				"mac"		"68"
 			}
 			/**
 			 * Offset into CBaseClient - Used by CBaseServer::UpdateUserSettings to determine when changes have been made.
@@ -211,87 +211,87 @@
 		{
 			"GiveNamedItem"
 			{
-				"windows"	"439"
-				"linux"		"440"
-				"mac"		"440"
+				"windows"	"438"
+				"linux"		"439"
+				"mac"		"439"
 			}
 			"RemovePlayerItem"
-			{
-				"windows"	"289"
-				"linux"		"290"
-				"mac"		"290"
-			}
-			"Weapon_GetSlot"
 			{
 				"windows"	"287"
 				"linux"		"288"
 				"mac"		"288"
 			}
+			"Weapon_GetSlot"
+			{
+				"windows"	"285"
+				"linux"		"286"
+				"mac"		"286"
+			}
 			"Ignite"
 			{
-				"windows"	"223"
-				"linux"		"224"
-				"mac"		"224"
+				"windows"	"221"
+				"linux"		"222"
+				"mac"		"222"
 			}
 			"Extinguish"
 			{
-				"windows"	"226"
-				"linux"		"227"
-				"mac"		"227"
+				"windows"	"224"
+				"linux"		"225"
+				"mac"		"225"
 			}
 			"Teleport"
 			{
-				"windows"	"115"
-				"linux"		"116"
-				"mac"		"116"
+				"windows"	"114"
+				"linux"		"115"
+				"mac"		"115"
 			}
 			"CommitSuicide"
 			{
-				"windows"	"488"
-				"linux"		"488"
-				"mac"		"488"
+				"windows"	"487"
+				"linux"		"487"
+				"mac"		"487"
 			}
 			"GetVelocity"
 			{
-				"windows"	"140"
-				"linux"		"141"
-				"mac"		"141"
+				"windows"	"139"
+				"linux"		"140"
+				"mac"		"140"
 			}
 			"EyeAngles"
 			{
-				"windows"	"131"
-				"linux"		"132"
-				"mac"		"132"
+				"windows"	"130"
+				"linux"		"131"
+				"mac"		"131"
 			}
 			"AcceptInput"
 			{
-				"windows"	"40"
-				"linux"		"41"
-				"mac"		"41"
+				"windows"	"39"
+				"linux"		"40"
+				"mac"		"40"
 			}
 			"SetEntityModel"
 			{
-				"windows"	"26"
-				"linux"		"27"
-				"mac"		"27"
+				"windows"	"24"
+				"linux"		"25"
+				"mac"		"25"
 			}
 			"WeaponEquip"
 			{
-				"windows"	"280"
-				"linux"		"281"
-				"mac"		"281"
+				"windows"	"278"
+				"linux"		"279"
+				"mac"		"279"
 			}
 			"Activate"
 			{
-				"windows"	"36"
-				"linux"		"37"
-				"mac"		"37"
+				"windows"	"35"
+				"linux"		"36"
+				"mac"		"36"
 			}
 			"PlayerRunCmd"
 			{
-				"windows"	"458"
-				"linux"		"459"
-				"mac"		"459"
+				"windows"	"457"
+				"linux"		"458"
+				"mac"		"458"
 			}
 		}
 	}

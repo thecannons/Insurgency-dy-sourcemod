@@ -1,0 +1,142 @@
+"Games"
+{			
+	"#default"
+	{
+		"Offsets"
+		{
+			"Blocked"
+			{
+				"windows"	"109"
+				"linux"		"110"
+				"mac"		"110"
+			}
+			"EndTouch"
+			{
+				"windows"	"107"
+				"linux"		"108"
+				"mac"		"108"
+			}
+			"FireBullets"
+			{
+				"windows"	"120"
+				"linux"		"121"
+				"mac"		"121"
+			}
+			"OnTakeDamage"
+			{
+				"windows"	"66"
+				"linux"		"67"
+				"mac"		"67"
+			}
+			"OnTakeDamage_Alive"
+			{
+				"windows"	"290"
+				"linux"		"291"
+				"mac"		"291"
+			}
+			"PreThink"
+			{
+				"windows"	"352"
+				"linux"		"353"
+				"mac"		"353"
+			}
+			"PostThink"
+			{
+				"windows"	"353"
+				"linux"		"354"
+				"mac"		"354"
+			}
+			"SetTransmit"
+			{
+				"windows"	"20"
+				"linux"		"21"
+				"mac"		"21"
+			}
+			"ShouldCollide"
+			{
+				"windows"	"16"
+				"linux"		"17"
+				"mac"		"17"
+			}
+			"Spawn"
+			{
+				"windows"	"22"
+				"linux"		"23"
+				"mac"		"23"
+			}
+			"StartTouch"
+			{
+				"windows"	"105"
+				"linux"		"106"
+				"mac"		"106"
+			}
+			"Think"
+			{
+				"windows"	"48"
+				"linux"		"49"
+				"mac"		"49"
+			}
+			"Touch"
+			{
+				"windows"	"106"
+				"linux"		"107"
+				"mac"		"107"
+			}
+			"TraceAttack"
+			{
+				"windows"	"64"
+				"linux"		"65"
+				"mac"		"65"
+			}
+			"VPhysicsUpdate"
+			{
+				"windows"	"166"
+				"linux"		"167"
+				"mac"		"167"
+			}
+			"Weapon_CanSwitchTo"
+			{
+				"windows"	"284"
+				"linux"		"285"
+				"mac"		"285"
+			}
+			"Weapon_CanUse"
+			{
+				"windows"	"278"
+				"linux"		"279"
+				"mac"		"279"
+			}
+			"Weapon_Drop"
+			{
+				"windows"	"281"
+				"linux"		"282"
+				"mac"		"282"
+			}
+			"Weapon_Equip"
+			{
+				"windows"	"279"
+				"linux"		"280"
+				"mac"		"280"
+			}
+			"Weapon_Switch"
+			{
+				"windows"	"282"
+				"linux"		"283"
+				"mac"		"283"
+			}
+		}
+	}
+	
+	"#default"
+	{
+		"Offsets"
+		{
+			"EntityListeners"
+			{
+				"windows"		"131108"
+				"linux"			"131108"
+				"mac"			"131108"
+			}
+		}
+	}
+}
