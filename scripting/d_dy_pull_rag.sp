@@ -24,7 +24,7 @@
 #define IN_FORWARD  (1 << 4)
 #define IN_USE      (1 << 5)
 #define IN_CANCEL   (1 << 6)
-#define IN_RUN      (1 << 12)
+#define IN_RUN      (1 << 12) 
 #define IN_SPEED    (1 << 17) /**< Player is holding the speed key */
 #define IN_SPRINT     (1 << 15) // sprint key in insurgency
 #define IN_ATTACK2 (1 << 18)
@@ -167,7 +167,20 @@ OnButtonPress(client, button, buttons)
               destination[2] = ragPos[2];//origin[2] - 35;// * Sine(radians[0]);
               
               g_playerCurrentRag[client] = EntIndexToEntRef(clientTargetRagdoll);
-              TeleportEntity(clientTargetRagdoll, destination, NULL_VECTOR, NULL_VECTOR);
+
+              
+              if (destination[2] < vecPos[2])
+                destination[2] = (destination[2] + (vecPos[2] - destination[2]));
+
+
+
+              decl Float:_fForce[3];
+              _fForce[0] = 1;
+              _fForce[1] = 1;
+              _fForce[2] = 1;
+              //SetEntProp(clientTargetRagdoll, Prop_Data, "m_CollisionGroup", 17);  
+              TeleportEntity(clientTargetRagdoll, destination, NULL_VECTOR, _fForce);
+
               //return Plugin_Stop;
           }
         }
@@ -177,9 +190,9 @@ OnButtonPress(client, button, buttons)
 
 OnButtonRelease(client, button)
 {
-  //PrintToServer("BUTTON RELEASE");
-  
-    // do stuff
+
+
+
 }
 
 RemoveRagdoll(clientRagdoll)
@@ -190,4 +203,48 @@ RemoveRagdoll(clientRagdoll)
     AcceptEntityInput(clientRagdoll, "Kill");
     clientRagdoll = INVALID_ENT_REFERENCE;
   } 
+}
+
+stock bool:CheckIfBodyIsStuck(ent)
+{
+  decl Float:flOrigin[3];
+  decl Float:flMins[3];
+  decl Float:flMaxs[3];
+  GetEntPropVector(ent, Prop_Send, "m_vecOrigin", flOrigin);
+  GetEntPropVector(ent, Prop_Send, "m_vecMins", flMins);
+  GetEntPropVector(ent, Prop_Send, "m_vecMaxs", flMaxs);
+
+  TR_TraceHullFilter(flOrigin, flOrigin, flMins, flMaxs, MASK_SOLID_BRUSHONLY, TraceEntityFilterSolid, ent);
+  return TR_DidHit();
+}
+
+public bool:TraceEntityFilterSolid(entity, contentsMask) 
+{
+  return entity > 1;
+}
+
+
+stock GetPropDistanceToGround(prop)
+{
+    
+    new Float:fOrigin[3], Float:fGround[3];
+    GetEntPropVector(prop, Prop_Send, "m_vecOrigin", fOrigin);
+
+    fOrigin[2] += 10.0;
+    
+    TR_TraceRayFilter(fOrigin, Float:{90.0,0.0,0.0}, MASK_SOLID, RayType_Infinite, TraceFilterNoPlayers, prop);
+    if (TR_DidHit())
+    {
+        TR_GetEndPosition(fGround);
+        fOrigin[2] -= 10.0;
+        return GetVectorDistance(fOrigin, fGround);
+    }
+    return 0.0;
+}
+
+
+
+public bool:TraceFilterNoPlayers(iEnt, iMask, any:Other)
+{
+    return (iEnt != Other && iEnt > MaxClients);
 }

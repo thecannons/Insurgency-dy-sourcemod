@@ -2,24 +2,12 @@
   #endinput
 #endif
 #define _insurgency_included
-//#define UPDATE_URL_FORMAT "https://raw.github.com/jaredballou/insurgency-sourcemod/master/updater-data/update-%s.txt"
-#define UPDATE_URL_FORMAT "http://ins.jballou.com/sourcemod/update-%s.txt"
 
-#if defined REQUIRE_PLUGIN
-#undef REQUIRE_PLUGIN
-#include <updater>
-#include <smlib>
-#define REQUIRE_PLUGIN
-#else
-#include <updater>
-#include <smlib>
-#endif
-#define MAX_DEFINABLE_WEAPONS 128
-#define MAX_DEFINABLE_GEAR 32
-#define MAX_DEFINABLE_AMMO 128
-#define MAX_DEFINABLE_EXPLOSIVES 16
-#define MAX_DEFINABLE_WEAPON_UPGRADES 256
+//#include <sourcemod>
+//#include <sdktools>
+//#include <loghelper>
 
+#define MAX_DEFINABLE_WEAPONS 100
 #define MAX_WEAPON_LEN 32
 #define MAX_SQUAD_LEN 32
 #define MAX_CLASS_LEN 64
@@ -27,14 +15,9 @@
 #define PREFIX_LEN 7
 #define MAX_SQUADS 8
 #define SQUAD_SIZE 8
-#define MAX_MAPS 256
-#define MAX_GAMEMODES 16
 
 native Ins_ObjectiveResource_GetProp(const String:prop[], size=4, element=0);
-native Ins_Log(ELOG_LEVEL:level,const String:format[], any:...);
-native Ins_GetMaxClip1(weapon);
 native Ins_GetWeaponGetMaxClip1(weapon);
-native Ins_GetDefaultClip1(weapon);
 native Float:Ins_ObjectiveResource_GetPropFloat(const String:prop[], size=4, element=0);
 native Ins_ObjectiveResource_GetPropEnt(const String:prop[], element=0);
 native bool:Ins_ObjectiveResource_GetPropBool(const String:prop[], element=0);
@@ -51,8 +34,6 @@ native Ins_GetClassName(squad,squad_slot);
 native Ins_GetWeaponName(weaponid, String:buffer[], maxlen);
 native Ins_GetWeaponId(String:weapon_name[]);
 
-// Team numbers. This is Insurgency specific right now
-// TODO: Add support for DoI style factions, or make it load from a cfg file
 enum Teams
 {
 	TEAM_NONE = 0,
@@ -60,8 +41,6 @@ enum Teams
 	TEAM_SECURITY,
 	TEAM_INSURGENTS,
 }
-
-// Round stats for players
 enum RoundStatFields
 {
 	STAT_KILLS = 0,
@@ -78,8 +57,6 @@ enum RoundStatFields
 	STAT_SUPPRESSIONS,
 	STAT_ACCURACY,
 }
-
-// Damage hitgroups
 enum Hitgroups
 {
 	HITGROUP_GENERIC = 0,
@@ -91,8 +68,7 @@ enum Hitgroups
 	HITGROUP_LEFTLEG,
 	HITGROUP_RIGHTLEG,
 }
-
-// Weapon stat fields
+#define LOG_HIT_OFFSET     7 
 enum WeaponStatFields
 {
 	LOG_HIT_SHOTS = 0,
@@ -112,51 +88,7 @@ enum WeaponStatFields
 	LOG_HIT_RIGHTLEG,
 }
 
-// Offset of end of weaponstats/beginning of weaponstats2
-#define LOG_HIT_OFFSET 7
 
-// Log levels
-enum LOG_LEVEL {
-	DEFAULT = 0,
-	TRACE,
-	DEBUG,
-	INFO,
-	WARN,
-	ERROR
-}
-
-// Log level names
-new String:g_sLogLevel[6][32] = {
-	"default",
-	"trace",
-	"debug",
-	"info",
-	"warn",
-	"error"
-};
-
-// Global log level variable
-new LOG_LEVEL:g_iLogLevel;// = sizeof(g_sLogLevel);
-
-/**
- * Log events to console, based upon level
- *
- * @param level
- */
-stock InsLog(LOG_LEVEL:level,const String:format[], any:...) {
-	if ((level) && (level > g_iLogLevel))
-		return;
-	decl String:buffer[512],String:sLevel[32];
-	String_ToUpper(g_sLogLevel[level],sLevel,sizeof(sLevel));
-	VFormat(buffer, sizeof(buffer), format, 3);
-	PrintToServer("[%s] [%s] %s",PLUGIN_LOG_PREFIX,sLevel,buffer);
-}
-
-/**
- * 
- *
- * @param 
- */
 stock AddFolderToDownloadTable(const String:Directory[], bool:recursive=false)
 {
 	decl String:FileName[64], String:Path[512];
@@ -244,23 +176,14 @@ stock Client_IsValid(client, bool:checkConnected)
 }
 */
 
-/**
- * 
- *
- * @param 
- */
-stock bool:ClientCanSeeClient(client, target, Float:distance = 0.0, Float:height = 50.0) {
+stock bool:ClientCanSeeClient(client, target, Float:distance = 0.0, Float:height = 50.0) 
+{
 	new Float:vTargetPosition[3];
 	GetEntPropVector(target, Prop_Send, "m_vecOrigin", vTargetPosition);
 	return ClientCanSeeVector(client,targetpos,distance,height);
 }
-
-/**
- * 
- *
- * @param 
- */
-stock bool:ClientCanSeeVector(client, Float:vTargetPosition[3], Float:distance = 0.0, Float:height = 50.0) { 
+stock bool:ClientCanSeeVector(client, Float:vTargetPosition[3], Float:distance = 0.0, Float:height = 50.0) 
+{ 
 
         new Float:vClientPosition[3];
          
@@ -284,37 +207,27 @@ stock bool:ClientCanSeeVector(client, Float:vTargetPosition[3], Float:distance =
         return false; 
 } 
 
-/**
- * 
- *
- * @param 
- */
-public bool:Base_TraceFilter(entity, contentsMask, any:data) { 
+public bool:Base_TraceFilter(entity, contentsMask, any:data) 
+{ 
     if(entity != data) 
         return (false); 
 
     return (true); 
 }  
 
-/**
- * 
- *
- * @param 
- */
-stock bool:IsClientInSightRange(client, target, Float:angle=90.0, Float:distance=0.0, bool:heightcheck=true, bool:negativeangle=false) {
+
+
+
+stock bool:IsClientInSightRange(client, target, Float:angle=90.0, Float:distance=0.0, bool:heightcheck=true, bool:negativeangle=false)
+{
 	new Float:targetpos[3];
 //	if(!isClientConnectedIngameAlive(target))
 //		ThrowError("Target is not Alive.");
 	GetClientAbsOrigin(target, targetpos);
 	return IsVectorInSightRange(client,targetpos,angle,distance,heightcheck,negativeangle);
 }
-
-/**
- * 
- *
- * @param 
- */
-stock bool:IsVectorInSightRange(client, Float:targetpos[3], Float:angle=90.0, Float:distance=0.0, bool:heightcheck=true, bool:negativeangle=false) {
+stock bool:IsVectorInSightRange(client, Float:targetpos[3], Float:angle=90.0, Float:distance=0.0, bool:heightcheck=true, bool:negativeangle=false)
+{
 	if(angle > 360.0 || angle < 0.0)
 		ThrowError("Angle Max : 360 & Min : 0. %d isn't proper angle.", angle);
 //	if(!isClientConnectedIngameAlive(client))
@@ -354,38 +267,4 @@ stock bool:IsVectorInSightRange(client, Float:targetpos[3], Float:angle=90.0, Fl
 	}
 	else
 		return false;
-}
-
-/**
- * 
- *
- * @param 
- */
-stock bool:HookUpdater() {
-	if (LibraryExists("updater")) {
-		new String:myFile[PLATFORM_MAX_PATH];
-		new String:myURL[PLATFORM_MAX_PATH];
-		GetPluginFilename(INVALID_HANDLE, myFile, sizeof(myFile));
-		File_GetFileName(myFile, myFile, sizeof(myFile));
-		Format(myURL,sizeof(myURL),UPDATE_URL_FORMAT,myFile);
-		//Updater_AddPlugin(GetMyHandle(), myURL);
-		Updater_AddPlugin(myURL);
-		return true;
-	}
-	return false;
-}
-
-/**
- * 
- *
- * @param 
- */
-stock GetSendProp(const String:sNetClass[], const String:sPropName[], iFail=1) {
-	int m_iProp = FindSendPropInfo(sNetClass, sPropName);
-	if (iFail) {
-	       	if (m_iProp == -1) {
-        	       	LogError("Can't find %s::%s", sNetClass, sPropName);
-	        }
-        }
-	return m_iProp;
 }

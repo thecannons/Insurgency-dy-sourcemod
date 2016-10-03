@@ -1,0 +1,29 @@
+Heal 5 health per second with paddles.  
+Heal 10 health per second with healthpack out.
+
+//2 variable set g_iHeal_amount_paddles, g_iHeal_amount_medPack
+
+Non-medics get medpack, can revive minor wounded soldiers to 10 health or heal others for 3 hp up to 25 hp
+
+//3 variables g_nonMedicRevive_hp, g_minorWound_hp, g_moderateWound_hp(anything above this is critical), g_nonMedicHeal_amount
+
+Non-medics can heal others/themselves up to 25 HP with a medpack, 3 HP per second, knifes out
+
+//2 variable g_nonMedicHealSelf_max g_nonMedicHeal_amount, g_nonMedic_maxHeal
+
+Medics can heal themselves with medpacks up to 75 HP at 5 HP a second.
+
+//1 variable g_medicHealSelf_max
+
+If soldier near deployed medpack without medic, he could heal up to 25 @ 3 health per second, knife out
+If medic is near medpack, medic heals himself at 5 HP a second and others at 5 HP a second.
+
+//1 variable g_healthPackHeal_radius
+
+Medpacks have a max of 300 HP when deployed. (280 radius)
+
+//1 variable g_healthPack_Amount
+
+Time to revive:  Minor, Moderate, Critical, NonMedic Minor.
+
+//4 Variables g_minorRevive_time, g_modRevive_time, g_critRevive_time, g_nonMedRevive_time

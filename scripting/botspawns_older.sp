@@ -1,20 +1,5 @@
 //(C) 2014 Jared Ballou <sourcemod@jballou.com>
 //Released under GPLv3
-#define PLUGIN_DESCRIPTION "Adds a number of options and ways to handle bot spawns"
-#define PLUGIN_NAME "Bot Spawns"
-#define PLUGIN_VERSION "1.0.0"
-#define PLUGIN_WORKING "0"
-#define PLUGIN_LOG_PREFIX "BOTSPAWNS"
-#define PLUGIN_AUTHOR "Jared Ballou (jballou)"
-#define PLUGIN_URL "http://jballou.com/insurgency"
-
-public Plugin:myinfo = {
-        name            = PLUGIN_NAME,
-        author          = PLUGIN_AUTHOR,
-        description     = PLUGIN_DESCRIPTION,
-        version         = PLUGIN_VERSION,
-        url             = PLUGIN_URL
-};
 #pragma semicolon 1
 #pragma unused cvarVersion
 #include <sourcemod>
@@ -28,6 +13,23 @@ public Plugin:myinfo = {
 #define AUTOLOAD_EXTENSIONS
 #define REQUIRE_EXTENSIONS
 
+#define PLUGIN_AUTHOR "Jared Ballou (jballou)"
+#define PLUGIN_DESCRIPTION "Adds a number of options and ways to handle bot spawns"
+#define PLUGIN_NAME "[INS] Bot Spawns"
+#define PLUGIN_URL "http://jballou.com/"
+#define PLUGIN_VERSION "0.4.0"
+#define PLUGIN_WORKING "0"
+
+public Plugin:myinfo = {
+	name		= PLUGIN_NAME,
+	author		= PLUGIN_AUTHOR,
+	description	= PLUGIN_DESCRIPTION,
+	version		= PLUGIN_VERSION,
+	url		= PLUGIN_URL
+};
+
+
+#define UPDATE_URL    "http://ins.jballou.com/sourcemod/update-botspawns.txt"
 
 new Handle:cvarVersion = INVALID_HANDLE; // version cvar!
 new Handle:cvarEnabled = INVALID_HANDLE; // are we enabled?
@@ -56,23 +58,20 @@ new bool:g_bEnabled, g_iSpawnMode, g_iCounterattackMode, g_iCounterattackFinaleI
 //Until I add functionality
 
 
-/*
 new Handle:g_hHidingSpots = INVALID_HANDLE;
-new g_iCPHidingSpots[MAX_OBJECTIVES][MAX_HIDING_SPOTS];
-new g_iCPHidingSpotCount[MAX_OBJECTIVES];
-new g_iCPLastHidingSpot[MAX_OBJECTIVES];
-new g_iHidingSpotCount;
-int m_iNumControlPoints;
-*/
 #define MAX_OBJECTIVES 13
 #define MAX_HIDING_SPOTS 2048
 // Minimum space between players, so we don't telefrag
 #define MIN_PLAYER_DISTANCE 128.0
-float m_vCPPositions[MAX_OBJECTIVES][3];
+new g_iCPHidingSpots[MAX_OBJECTIVES][MAX_HIDING_SPOTS];
+new g_iCPHidingSpotCount[MAX_OBJECTIVES];
+new g_iCPLastHidingSpot[MAX_OBJECTIVES];
+new Float:m_vCPPositions[MAX_OBJECTIVES][3],m_iNumControlPoints;
 
 new Handle:g_hForceRespawn;
 new Handle:g_hGameConfig;
 new Handle:g_hSpawnTimer[MAXPLAYERS+1];
+new g_iHidingSpotCount;
 new g_iBotsToSpawn, g_iSpawnTokens[MAXPLAYERS+1], g_iNumReady, g_iBotsAlive,g_iBotsTotal,g_iInQueue[MAXPLAYERS+1],g_iNeedSpawn[MAXPLAYERS+1],Float:g_vecOrigin[MAXPLAYERS+1][3];
 new bot_team = 3;
 
@@ -99,39 +98,39 @@ new m_hMyWeapons, m_flNextPrimaryAttack, m_flNextSecondaryAttack;
 public OnPluginStart()
 {
 	InsLog(DEBUG, "Starting up");
-	cvarVersion = CreateConVar("sm_botspawns_version", PLUGIN_VERSION, PLUGIN_DESCRIPTION, FCVAR_NOTIFY | FCVAR_DONTRECORD);
-	cvarEnabled = CreateConVar("sm_botspawns_enabled", PLUGIN_WORKING, "Enable enhanced bot spawning features", FCVAR_NOTIFY);
+	cvarVersion = CreateConVar("sm_botspawns_version", PLUGIN_VERSION, PLUGIN_DESCRIPTION, FCVAR_NOTIFY | FCVAR_PLUGIN | FCVAR_DONTRECORD);
+	cvarEnabled = CreateConVar("sm_botspawns_enabled", PLUGIN_WORKING, "Enable enhanced bot spawning features", FCVAR_NOTIFY | FCVAR_PLUGIN);
 
-	cvarSpawnMode = CreateConVar("sm_botspawns_spawn_mode", "0", "Only normal spawnpoints at the objective, the old way (0), spawn in hiding spots following rules (1), spawnpoints that meet rules (2)", FCVAR_NOTIFY);
+	cvarSpawnMode = CreateConVar("sm_botspawns_spawn_mode", "0", "Only normal spawnpoints at the objective, the old way (0), spawn in hiding spots following rules (1), spawnpoints that meet rules (2)", FCVAR_NOTIFY | FCVAR_PLUGIN);
 
-	cvarCounterattackMode = CreateConVar("sm_botspawns_counterattack_mode", "0", "Do not alter default game spawning during counterattacks (0), Respawn using new rules during counterattack by following sm_botspawns_respawn_mode (1)", FCVAR_NOTIFY);
-	cvarCounterattackFinaleInfinite = CreateConVar("sm_botspawns_counterattack_finale_infinite", "0", "Obey sm_botspawns_counterattack_respawn_mode (0), use rules and do infinite respawns (1)", FCVAR_NOTIFY);
-	cvarCounterattackFrac = CreateConVar("sm_botspawns_counterattack_frac", "0.5", "Multiplier to total bots for spawning in counterattack wave", FCVAR_NOTIFY);
+	cvarCounterattackMode = CreateConVar("sm_botspawns_counterattack_mode", "0", "Do not alter default game spawning during counterattacks (0), Respawn using new rules during counterattack by following sm_botspawns_respawn_mode (1)", FCVAR_NOTIFY | FCVAR_PLUGIN);
+	cvarCounterattackFinaleInfinite = CreateConVar("sm_botspawns_counterattack_finale_infinite", "0", "Obey sm_botspawns_counterattack_respawn_mode (0), use rules and do infinite respawns (1)", FCVAR_NOTIFY | FCVAR_PLUGIN);
+	cvarCounterattackFrac = CreateConVar("sm_botspawns_counterattack_frac", "0.5", "Multiplier to total bots for spawning in counterattack wave", FCVAR_NOTIFY | FCVAR_PLUGIN);
 
-	cvarMinCounterattackDistance = CreateConVar("sm_botspawns_min_counterattack_distance", "3600", "Min distance from counterattack objective to spawn", FCVAR_NOTIFY);
+	cvarMinCounterattackDistance = CreateConVar("sm_botspawns_min_counterattack_distance", "3600", "Min distance from counterattack objective to spawn", FCVAR_NOTIFY | FCVAR_PLUGIN);
 
-	cvarSpawnAttackDelay = CreateConVar("sm_botspawns_spawn_attack_delay", "10", "Delay in seconds for spawning bots to wait before firing.", FCVAR_NOTIFY);
+	cvarSpawnAttackDelay = CreateConVar("sm_botspawns_spawn_attack_delay", "10", "Delay in seconds for spawning bots to wait before firing.", FCVAR_NOTIFY | FCVAR_PLUGIN);
 
-	cvarMinSpawnDelay = CreateConVar("sm_botspawns_min_spawn_delay", "1", "Min delay in seconds for spawning. Set to 0 for instant.", FCVAR_NOTIFY);
-	cvarMaxSpawnDelay = CreateConVar("sm_botspawns_max_spawn_delay", "30", "Max delay in seconds for spawning. Set to 0 for instant.", FCVAR_NOTIFY);
+	cvarMinSpawnDelay = CreateConVar("sm_botspawns_min_spawn_delay", "1", "Min delay in seconds for spawning. Set to 0 for instant.", FCVAR_NOTIFY | FCVAR_PLUGIN);
+	cvarMaxSpawnDelay = CreateConVar("sm_botspawns_max_spawn_delay", "30", "Max delay in seconds for spawning. Set to 0 for instant.", FCVAR_NOTIFY | FCVAR_PLUGIN);
 
-	cvarMinPlayerDistance = CreateConVar("sm_botspawns_min_player_distance", "1200", "Min distance from players to spawn", FCVAR_NOTIFY);
-	cvarMaxPlayerDistance = CreateConVar("sm_botspawns_max_player_distance", "16000", "Max distance from players to spawn", FCVAR_NOTIFY);
+	cvarMinPlayerDistance = CreateConVar("sm_botspawns_min_player_distance", "1200", "Min distance from players to spawn", FCVAR_NOTIFY | FCVAR_PLUGIN);
+	cvarMaxPlayerDistance = CreateConVar("sm_botspawns_max_player_distance", "16000", "Max distance from players to spawn", FCVAR_NOTIFY | FCVAR_PLUGIN);
 
-	cvarMinObjectiveDistance = CreateConVar("sm_botspawns_min_objective_distance", "1", "Min distance from next objective to spawn", FCVAR_NOTIFY);
-	cvarMaxObjectiveDistance = CreateConVar("sm_botspawns_max_objective_distance", "12000", "Max distance from next objective to spawn", FCVAR_NOTIFY);
+	cvarMinObjectiveDistance = CreateConVar("sm_botspawns_min_objective_distance", "1", "Min distance from next objective to spawn", FCVAR_NOTIFY | FCVAR_PLUGIN);
+	cvarMaxObjectiveDistance = CreateConVar("sm_botspawns_max_objective_distance", "12000", "Max distance from next objective to spawn", FCVAR_NOTIFY | FCVAR_PLUGIN);
 
-	cvarMinFracInGame = CreateConVar("sm_botspawns_min_frac_in_game", "0.75", "Min multiplier of bot quota to have alive at any time. Set to 1 to emulate standard spawning.", FCVAR_NOTIFY);
-	cvarMaxFracInGame = CreateConVar("sm_botspawns_max_frac_in_game", "1", "Max multiplier of bot quota to have alive at any time. Set to 1 to emulate standard spawning.", FCVAR_NOTIFY);
-	cvarTotalSpawnFrac = CreateConVar("sm_botspawns_total_spawn_frac", "1.75", "Total number of bots to spawn as multiple of number of bots in game to simulate larger numbers. 1 is standard, values less than 1 are not supported.", FCVAR_NOTIFY);
+	cvarMinFracInGame = CreateConVar("sm_botspawns_min_frac_in_game", "0.75", "Min multiplier of bot quota to have alive at any time. Set to 1 to emulate standard spawning.", FCVAR_NOTIFY | FCVAR_PLUGIN);
+	cvarMaxFracInGame = CreateConVar("sm_botspawns_max_frac_in_game", "1", "Max multiplier of bot quota to have alive at any time. Set to 1 to emulate standard spawning.", FCVAR_NOTIFY | FCVAR_PLUGIN);
+	cvarTotalSpawnFrac = CreateConVar("sm_botspawns_total_spawn_frac", "1.75", "Total number of bots to spawn as multiple of number of bots in game to simulate larger numbers. 1 is standard, values less than 1 are not supported.", FCVAR_NOTIFY | FCVAR_PLUGIN);
 
-	cvarMinFireteamSize = CreateConVar("sm_botspawns_min_fireteam_size", "3", "Min number of bots to spawn per fireteam. Default 3", FCVAR_NOTIFY);
-	cvarMaxFireteamSize = CreateConVar("sm_botspawns_max_fireteam_size", "5", "Max number of bots to spawn per fireteam. Default 5", FCVAR_NOTIFY);
+	cvarMinFireteamSize = CreateConVar("sm_botspawns_min_fireteam_size", "3", "Min number of bots to spawn per fireteam. Default 3", FCVAR_NOTIFY | FCVAR_PLUGIN);
+	cvarMaxFireteamSize = CreateConVar("sm_botspawns_max_fireteam_size", "5", "Max number of bots to spawn per fireteam. Default 5", FCVAR_NOTIFY | FCVAR_PLUGIN);
 
-	cvarStopSpawningAtObjective = CreateConVar("sm_botspawns_stop_spawning_at_objective", "1", "Stop spawning new bots when near next objective (1, default)", FCVAR_NOTIFY);
-	cvarRemoveUnseenWhenCapping = CreateConVar("sm_botspawns_remove_unseen_when_capping", "1", "Silently kill off all unseen bots when capping next point (1, default)", FCVAR_NOTIFY);
+	cvarStopSpawningAtObjective = CreateConVar("sm_botspawns_stop_spawning_at_objective", "1", "Stop spawning new bots when near next objective (1, default)", FCVAR_NOTIFY | FCVAR_PLUGIN);
+	cvarRemoveUnseenWhenCapping = CreateConVar("sm_botspawns_remove_unseen_when_capping", "1", "Silently kill off all unseen bots when capping next point (1, default)", FCVAR_NOTIFY | FCVAR_PLUGIN);
 
-	cvarSpawnSnipersAlone = CreateConVar("sm_botspawns_spawn_snipers_alone", "1", "Spawn snipers alone, can be 50% further from the objective than normal bots if this is enabled?", FCVAR_NOTIFY);
+	cvarSpawnSnipersAlone = CreateConVar("sm_botspawns_spawn_snipers_alone", "1", "Spawn snipers alone, can be 50% further from the objective than normal bots if this is enabled?", FCVAR_NOTIFY | FCVAR_PLUGIN);
 
 	HookConVarChange(cvarVersion,CvarChange);
 	HookConVarChange(cvarEnabled,CvarChange);
@@ -156,33 +155,26 @@ public OnPluginStart()
 	UpdateCvars();
 
 	g_hGameConfig = LoadGameConfigFile("insurgency.games");
-	if (g_hGameConfig == INVALID_HANDLE) {
+	if (g_hGameConfig == INVALID_HANDLE)
+	{
 		SetFailState("Fatal Error: Missing File \"insurgency.games\"!");
 	}
 	StartPrepSDKCall(SDKCall_Player);
-	decl String:game[40];
-	GetGameFolderName(game, sizeof(game));
-	if (StrEqual(game, "insurgency")) {
-		PrintToServer("[RESPAWN] ForceRespawn for Insurgency");
-		PrepSDKCall_SetFromConf(g_hGameConfig, SDKConf_Signature, "ForceRespawn");
-	}
-	if (StrEqual(game, "doi")) {
-		PrintToServer("[RESPAWN] ForceRespawn for DoI");
-		PrepSDKCall_SetFromConf(g_hGameConfig, SDKConf_Virtual, "ForceRespawn");
-	}
+	PrepSDKCall_SetFromConf(g_hGameConfig, SDKConf_Signature, "ForceRespawn");
 	g_hForceRespawn = EndPrepSDKCall();
-	if (g_hForceRespawn == INVALID_HANDLE) {
-		SetFailState("Fatal Error: Unable to find signature for \"ForceRespawn\"!");
+	if (g_hForceRespawn == INVALID_HANDLE)
+	{
+		SetFailState("Fatal Error: Unable to find signature for \"Respawn\"!");
 	}
-	if ((m_hMyWeapons = FindSendPropInfo("CBasePlayer", "m_hMyWeapons")) == -1) {
+	if ((m_hMyWeapons = FindSendPropOffs("CBasePlayer", "m_hMyWeapons")) == -1) {
 		SetFailState("Fatal Error: Unable to find property offset \"CBasePlayer::m_hMyWeapons\" !");
 	}
 
-	if ((m_flNextPrimaryAttack = FindSendPropInfo("CBaseCombatWeapon", "m_flNextPrimaryAttack")) == -1) {
+	if ((m_flNextPrimaryAttack = FindSendPropOffs("CBaseCombatWeapon", "m_flNextPrimaryAttack")) == -1) {
 		SetFailState("Fatal Error: Unable to find property offset \"CBaseCombatWeapon::m_flNextPrimaryAttack\" !");
 	}
 
-	if ((m_flNextSecondaryAttack = FindSendPropInfo("CBaseCombatWeapon", "m_flNextSecondaryAttack")) == -1) {
+	if ((m_flNextSecondaryAttack = FindSendPropOffs("CBaseCombatWeapon", "m_flNextSecondaryAttack")) == -1) {
 		SetFailState("Fatal Error: Unable to find property offset \"CBaseCombatWeapon::m_flNextSecondaryAttack\" !");
 	}
 
@@ -192,15 +184,15 @@ public OnPluginStart()
 	//HookEvent("round_begin", Event_RoundBeginPre, EventHookMode_Pre);
 	HookEvent("round_begin", Event_RoundBegin);
 	//HookEvent("round_begin", Event_RoundBeginPost, EventHookMode_Post);
+	if (LibraryExists("updater"))
+	{
+		Updater_AddPlugin(UPDATE_URL);
+	}
 	HookEvent("player_death", Event_PlayerDeathPre, EventHookMode_Pre);
 	HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("controlpoint_captured", Event_ControlPointCaptured);
 	HookEvent("controlpoint_starttouch", Event_ControlPointStartTouch);
 	CreateTimer(1.0, Timer_ProcessQueue, _, TIMER_REPEAT);
-	HookUpdater();
-}
-public OnLibraryAdded(const String:name[]) {
-	HookUpdater();
 }
 
 public CvarChange(Handle:cvar, const String:oldvalue[], const String:newvalue[])
@@ -233,6 +225,13 @@ public UpdateCvars()
 	g_bSpawnSnipersAlone = GetConVarBool(cvarSpawnSnipersAlone);
 }
 
+public OnLibraryAdded(const String:name[])
+{
+	if (StrEqual(name, "updater"))
+	{
+		Updater_AddPlugin(UPDATE_URL);
+	}
+}
 public OnMapStart()
 {
 	UpdateCvars();
@@ -246,9 +245,9 @@ public OnMapStart()
 	RestartBotQueue();
 	return;
 }
-/*
+
 public GetHidingSpots() {
-	if (!LibraryExists("navmesh")) return;
+	if (!NavMesh_Exists()) return;
 	if (g_hHidingSpots == INVALID_HANDLE) g_hHidingSpots = NavMesh_GetHidingSpots();
 	g_iHidingSpotCount = GetArraySize(g_hHidingSpots);
 	new Float:flHidingSpot[3];//, iHidingSpotFlags;
@@ -293,7 +292,7 @@ Float:GetHidingSpotVector(iSpot) {
 	flHidingSpot[2] = GetArrayCell(g_hHidingSpots, iSpot, NavMeshHidingSpot_Z);
 	return flHidingSpot;
 }
-*/
+
 CheckSpawnPoint(Float:vecSpawn[3],client) {
 //Ins_InCounterAttack
 	new m_iTeam = GetClientTeam(client);
@@ -341,6 +340,36 @@ CheckSpawnPoint(Float:vecSpawn[3],client) {
 	}
 	return 1;
 }
+
+float GetSpawnPoint_HidingSpot(client,iteration=0) {
+	float vecSpawn[3];
+	float vecOrigin[3];
+	GetClientAbsOrigin(client,vecOrigin);
+
+	UpdatePlayerOrigins();
+	new m_nActivePushPointIndex = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
+
+	new minidx = (iteration) ? 0 : g_iCPLastHidingSpot[m_nActivePushPointIndex];
+	new maxidx = (iteration) ? g_iCPLastHidingSpot[m_nActivePushPointIndex] : g_iCPHidingSpotCount[m_nActivePushPointIndex];
+	new iSpot;
+	for (new iCPHIndex = minidx; iCPHIndex < maxidx; iCPHIndex++) {
+		iSpot = g_iCPHidingSpots[m_nActivePushPointIndex][iCPHIndex];
+		vecSpawn = GetHidingSpotVector(iSpot);
+
+		if (CheckSpawnPoint(vecSpawn,client)) {
+			g_iCPLastHidingSpot[m_nActivePushPointIndex] = iCPHIndex;
+			InsLog(DEBUG,"FOUND! %N (%d) hiding spot %d at (%f, %f, %f)", client, client, iSpot, vecSpawn[0], vecSpawn[1], vecSpawn[2]);
+			return vecSpawn;
+		}
+	}
+	if (iteration) {
+		InsLog(DEBUG,"Unable to find hiding spot for %N (%d)", client, client);
+		return vecOrigin;
+	}
+	InsLog(DEBUG,"Running second iteration for hiding spot %N (%d)", client, client);
+	return GetSpawnPoint_HidingSpot(client,1);
+}
+
 float GetSpawnPoint_SpawnPoint(client) {
 	int m_iTeam = GetClientTeam(client);
 	int m_iTeamNum;
@@ -484,13 +513,11 @@ public TeleportClient(client) {
 
 float GetSpawnPoint(client) {
 	new Float:vecSpawn[3];
-/*
 	if ((g_iHidingSpotCount) && (g_iSpawnMode == _:SpawnMode_HidingSpots)) {
 		vecSpawn = GetSpawnPoint_HidingSpot(client);
 	} else {
-*/
-	vecSpawn = GetSpawnPoint_SpawnPoint(client);
-//	}
+		vecSpawn = GetSpawnPoint_SpawnPoint(client);
+	}
 	InsLog(DEBUG, "Could not find spawn point for %N (%d)", client, client);
 	return vecSpawn;
 }
@@ -526,13 +553,13 @@ public Action:Event_Spawn(Handle:event, const String:name[], bool:dontBroadcast)
 public Action:Event_SpawnPost(Handle:event, const String:name[], bool:dontBroadcast) {
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	//InsLog(DEBUG, "Event_Spawn called");
+	if (!g_bEnabled) {
+		return Plugin_Continue;
+	}
 	if (!IsFakeClient(client)) {
 		return Plugin_Continue;
 	}
 	SetNextAttack(client);
-	if (!g_bEnabled) {
-		return Plugin_Continue;
-	}
 	return Plugin_Continue;
 }
 
@@ -544,7 +571,7 @@ SetNextAttack(client) {
 	new weapons = GetEntDataEnt2(activator, m_hMyWeapons + (1 * 4));
 	SetEntDataFloat(weapons, m_flNextPrimaryAttack,   time + flDelay);
 	SetEntDataFloat(weapons, m_flNextSecondaryAttack, time + flDelay);
-	new m_hMyWeapons = FindSendPropInfo("CINSPlayer", "m_hMyWeapons");
+	new m_hMyWeapons = FindSendPropOffs("CINSPlayer", "m_hMyWeapons");
 */
 
 // Loop through entries in m_hMyWeapons.
