@@ -1818,7 +1818,7 @@ stock GetClientGround(client)
     return 0.0;
 }
  
-CheckSpawnPoint(Float:vecSpawn[3],client,tObjectiveDistance) {
+CheckSpawnPoint(Float:vecSpawn[3],client,Float:tObjectiveDistance) {
 //Ins_InCounterAttack
 	new m_iTeam = GetClientTeam(client);
 	new Float:distance,Float:furthest,Float:closest=-1.0;
@@ -1856,10 +1856,10 @@ CheckSpawnPoint(Float:vecSpawn[3],client,tObjectiveDistance) {
 			}
 		}
 	}
-	// If any player is too far
-	// if (closest > g_flMaxPlayerDistance) {
-	// 	return 0; 
-	// }
+	//If any player is too far
+	if (closest > g_flMaxPlayerDistance) {
+		return 0; 
+	}
 	//Spawns dynamic
 
 	new fRandomFloat = GetRandomFloat(0, 1.0);
@@ -1867,7 +1867,7 @@ CheckSpawnPoint(Float:vecSpawn[3],client,tObjectiveDistance) {
 	new m_nActivePushPointIndex = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
 	Ins_ObjectiveResource_GetPropVector("m_vCPPositions",m_vCPPositions[m_nActivePushPointIndex],m_nActivePushPointIndex);
 	distance = GetVectorDistance(vecSpawn,m_vCPPositions[m_nActivePushPointIndex]);
-	if (distance > tObjectiveDistance && (fRandomFloat <= g_dynamicSpawn_Perc)) {
+	if (distance > tObjectiveDistance) {// && (fRandomFloat <= g_dynamicSpawn_Perc)) {
 		 return 0;
 	} 
 	else if (distance > (tObjectiveDistance * g_DynamicRespawn_Distance_mult)) {
@@ -1882,16 +1882,14 @@ CheckSpawnPoint(Float:vecSpawn[3],client,tObjectiveDistance) {
 		if (distance < g_flMinCounterattackDistance) {
 			 return 0;
 		}
-		if (distance > tObjectiveDistance  && (fRandomFloat <= g_dynamicSpawnCounter_Perc)) {
-			 return 0;
-		}
-		else if (distance > (tObjectiveDistance * g_DynamicRespawn_Distance_mult)) {
+		if (distance > (tObjectiveDistance * g_DynamicRespawn_Distance_mult) && (fRandomFloat <= g_dynamicSpawnCounter_Perc)) {
 			 return 0;
 
 		} 
-		
-		
-	}
+		else if (distance > tObjectiveDistance) {
+			 return 0;
+		}
+	}		
 	return 1;
 } 
 CheckSpawnPointPlayers(Float:vecSpawn[3],client) {
@@ -1932,6 +1930,32 @@ CheckSpawnPointPlayers(Float:vecSpawn[3],client) {
 			}
 		}
 	}
+
+	//If any player is too far
+	if (closest > g_flMaxPlayerDistance) {
+		return 0; 
+	}
+
+	new fRandomFloat = GetRandomFloat(0, 1.0);
+	// Check distance to point in counterattack
+	if (Ins_InCounterAttack()) {
+		new m_nActivePushPointIndex = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
+		Ins_ObjectiveResource_GetPropVector("m_vCPPositions",m_vCPPositions[m_nActivePushPointIndex],m_nActivePushPointIndex);
+		distance = GetVectorDistance(vecSpawn,m_vCPPositions[m_nActivePushPointIndex]);
+		
+		if (distance < g_flMinCounterattackDistance) {
+			 return 0;
+		}
+		if (distance > (g_flMaxObjectiveDistance * g_DynamicRespawn_Distance_mult) && (fRandomFloat <= g_dynamicSpawnCounter_Perc)) {
+			 return 0;
+
+		} 
+		else if (distance > g_flMaxObjectiveDistance) { 
+			 return 0;
+		}
+		
+		
+	}
 	return 1;
 }
 float GetSpawnPoint_SpawnPoint(client) {
@@ -1941,7 +1965,7 @@ float GetSpawnPoint_SpawnPoint(client) {
 	float vecOrigin[3];
 	GetClientAbsOrigin(client,vecOrigin);
 	new point = FindEntityByClassname(-1, "ins_spawnpoint");
-	new tObjectiveDistance = g_flMaxObjectiveDistance;
+	new Float:tObjectiveDistance = g_flMaxObjectiveDistance;
 	while (point != -1) {
 		// Check to make sure it is the same team
 		m_iTeamNum = GetEntProp(point, Prop_Send, "m_iTeamNum");
@@ -1949,12 +1973,15 @@ float GetSpawnPoint_SpawnPoint(client) {
 			GetEntPropVector(point, Prop_Send, "m_vecOrigin", vecSpawn);
 			if (CheckSpawnPoint(vecSpawn,client,tObjectiveDistance)) {
 				vecSpawn = GetInsSpawnGround(point, vecSpawn);
-				PrintToServer("FOUND! %N (%d) spawnpoint %d at (%f, %f, %f)", client, client, point, vecSpawn[0], vecSpawn[1], vecSpawn[2]);
+				new m_nActivePushPointIndex = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
+				Ins_ObjectiveResource_GetPropVector("m_vCPPositions",m_vCPPositions[m_nActivePushPointIndex],m_nActivePushPointIndex);
+				new Float:distance = GetVectorDistance(vecSpawn,m_vCPPositions[m_nActivePushPointIndex]);
+				PrintToServer("FOUND! %N (%d) spawnpoint %d Distance: %f tObjectiveDistance: %f g_flMaxObjectiveDistance %f at (%f, %f, %f)", client, client, point, distance, tObjectiveDistance, g_flMaxObjectiveDistance, vecSpawn[0], vecSpawn[1], vecSpawn[2]);
 				return vecSpawn;
 			}
 			else
 			{
-				tObjectiveDistance = tObjectiveDistance + 2;
+				tObjectiveDistance = tObjectiveDistance + 2.0;
 			}
 		}
 		point = FindEntityByClassname(point, "ins_spawnpoint");
@@ -2013,7 +2040,7 @@ public Action:Event_Spawn(Handle:event, const String:name[], bool:dontBroadcast)
 		int iCanSpawn = CheckSpawnPointPlayers(vecOrigin,client);
 		new fRandomFloat = GetRandomFloat(0, 1.0);
 		//InsLog(DEBUG, "Event_Spawn iCanSpawn %d", iCanSpawn);
-		if (!iCanSpawn && (!Ins_InCounterAttack() || fRandomFloat < 0.1)) {
+		if (!iCanSpawn && !Ins_InCounterAttack()) { // && (!Ins_InCounterAttack() || fRandomFloat < 0.1)) {
 			/*
 			//Try Nav spawn first
 			if ((g_iHidingSpotCount) && !Ins_InCounterAttack())

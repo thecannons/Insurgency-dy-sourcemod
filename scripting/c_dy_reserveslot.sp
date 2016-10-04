@@ -392,7 +392,7 @@ findShortestConnect(immunity_group)
   
   for (new client = 1; client <= MaxClients; client++)
   {
-    if(!IsClientInGame(client))
+    if(!IsClientInGame(client) || IsFakeClient(client))
       continue;
     if ((s_priorityVector[client]==immunity_group)) {
       if ((ctime < Float:0.0) || (GetClientTime(client)<ctime)) {
@@ -412,7 +412,7 @@ findHighestPing(immunity_group)
   
   for (new client = 1; client <= MaxClients; client++)
   {
-    if(!IsClientInGame(client))
+    if(!IsClientInGame(client) || IsFakeClient(client))
       continue;
     if ((s_priorityVector[client]==immunity_group) && (GetClientAvgLatency(client, NetFlow_Both) >= hping)) {
       hping=GetClientAvgLatency(client, NetFlow_Both);
@@ -432,7 +432,7 @@ findRandomTarget(immunity_group)
   
   for (new client = 1; client <= MaxClients; client++)
   {
-    if(!IsClientInGame(client))
+    if(!IsClientInGame(client) || IsFakeClient(client))
       continue;
     if ((s_priorityVector[client]==immunity_group)) {
       targetCount++;
@@ -461,7 +461,7 @@ selectAnyPlayer(immunity_group)
 {
   for (new client = 1; client <= MaxClients; client++)
   {
-    if(!IsClientInGame(client))
+    if(!IsClientInGame(client) || IsFakeClient(client))
       continue;
     if ((s_priorityVector[client]==immunity_group)) {
       LogMessage("emergency selection of target %d", client); 
