@@ -130,6 +130,9 @@ new
 	String:g_client_last_classstring[MAXPLAYERS+1][64],
 	String:g_client_org_nickname[MAXPLAYERS+1][64],
 	Float:g_enemyTimerPos[MAXPLAYERS+1][3],	// Kill Stray Enemy Bots Globals
+	Float:g_enemyTimerAwayPos[MAXPLAYERS+1][3],	// Kill Stray Enemy Bots Globals
+	g_plyrGrenScreamCoolDown[MAXPLAYERS+1],
+	g_plyrFireScreamCoolDown[MAXPLAYERS+1],
 	g_playerNonMedicRevive[MAXPLAYERS+1],
 	g_playerWoundType[MAXPLAYERS+1],
 	g_playerWoundTime[MAXPLAYERS+1];
@@ -295,6 +298,8 @@ new
 	
 	g_checkStaticAmt,
 	g_checkStaticAmtCntr,
+	g_checkStaticAmtAway,
+	g_checkStaticAmtCntrAway,
 	g_iReinforceTime,
 	g_iRemaining_lives_team_sec,
 	g_iRemaining_lives_team_ins,
@@ -957,6 +962,17 @@ public TagsChanged(Handle:convar, const String:oldValue[], const String:newValue
 // On map starts, call initalizing function
 public OnMapStart()
 {	
+	new Float:fRandom = GetRandomFloat(0.0, 1.0);
+	new Handle:hTheaterOverride = FindConVar("mp_theater_override");	
+	// Occurs counter attack
+	if (fRandom < 0.5)
+	{
+		SetConVarString(hTheaterOverride, "dy_gnalvl_coop_usmc_bomber", true, false);
+	}
+	else
+	{
+		SetConVarString(hTheaterOverride, "dy_gnalvl_coop_usmc", true, false);
+	}
 	//Wait until players ready to enable spawn checking
 	g_playersReady = false;
 	g_botsReady = 0;
@@ -999,7 +1015,30 @@ public OnMapStart()
 	PrecacheSound("weapons/universal/uni_crawl_r_03.wav");
 	PrecacheSound("weapons/universal/uni_crawl_r_05.wav");
 	PrecacheSound("weapons/universal/uni_crawl_r_06.wav");
+
+	//Grenade Call Out
+	PrecacheSound("player/voice/botsurvival/leader/incominggrenade9.ogg");
+	PrecacheSound("player/voice/botsurvival/subordinate/incominggrenade9.ogg");
+	PrecacheSound("player/voice/botsurvival/leader/incominggrenade4.ogg");
+	PrecacheSound("player/voice/botsurvival/subordinate/incominggrenade4.ogg");
+	PrecacheSound("player/voice/botsurvival/subordinate/incominggrenade35.ogg");
+	PrecacheSound("player/voice/botsurvival/subordinate/incominggrenade34.ogg");
+	PrecacheSound("player/voice/botsurvival/subordinate/incominggrenade33.ogg");
+	PrecacheSound("player/voice/botsurvival/subordinate/incominggrenade23.ogg");
+	PrecacheSound("player/voice/botsurvival/leader/incominggrenade2.ogg");
+	PrecacheSound("player/voice/botsurvival/leader/incominggrenade13.ogg");
+	PrecacheSound("player/voice/botsurvival/leader/incominggrenade12.ogg");
+	PrecacheSound("player/voice/botsurvival/leader/incominggrenade11.ogg");
+	PrecacheSound("player/voice/botsurvival/leader/incominggrenade10.ogg");
+	PrecacheSound("player/voice/botsurvival/leader/incominggrenade18.ogg");
 	
+	//Molotov/Incen Callout
+	PrecacheSound("player/voice/responses/security/subordinate/damage/molotov_incendiary_detonated7.ogg");
+	PrecacheSound("player/voice/responses/security/leader/damage/molotov_incendiary_detonated6.ogg");
+	PrecacheSound("player/voice/responses/security/subordinate/damage/molotov_incendiary_detonated6.ogg");
+	PrecacheSound("player/voice/responses/security/leader/damage/molotov_incendiary_detonated5.ogg");
+	PrecacheSound("player/voice/responses/security/leader/damage/molotov_incendiary_detonated4.ogg");
+
 	// AddFileToDownloadsTable("materials/models/items/healthkit01.vmt");
 	// AddFileToDownloadsTable("materials/models/items/healthkit01.vtf");
 	// AddFileToDownloadsTable("materials/models/items/healthkit01_mask.vtf");
@@ -1109,7 +1148,13 @@ public Action:Timer_MapStart(Handle:Timer)
 	// Static enemy check timer
 	g_checkStaticAmt = GetConVarInt(sm_respawn_check_static_enemy);
 	g_checkStaticAmtCntr = GetConVarInt(sm_respawn_check_static_enemy_counter);
+	//Temp testing
+	g_checkStaticAmtAway = 30;
+	g_checkStaticAmtCntrAway = 12;
+
 	CreateTimer(1.0, Timer_CheckEnemyStatic,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	if (g_isCheckpoint)
+		CreateTimer(1.0, Timer_CheckEnemyAway,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 	
 	// Player timeout check timer
 	//CreateTimer(1.0, Timer_PlayerTimeout,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
@@ -1330,6 +1375,14 @@ public Action:Timer_PlayerStatus(Handle:Timer)
 		if (IsClientInGame(client) && IsClientConnected(client) && !IsFakeClient(client) && playerPickSquad[client] == 1)
 		{
 			new team = GetClientTeam(client);
+			g_plyrGrenScreamCoolDown[client]--;
+			if (g_plyrGrenScreamCoolDown[client] <= 0)
+				g_plyrGrenScreamCoolDown[client] = 0;
+
+			g_plyrFireScreamCoolDown[client]--;
+			if (g_plyrFireScreamCoolDown[client] <= 0)
+				g_plyrFireScreamCoolDown[client] = 0;
+
 			if (!IsPlayerAlive(client) && !IsClientTimingOut(client) && IsClientObserver(client) && team == TEAM_1 && g_iEnableRevive == 1 && g_iRoundStatus == 1) //
 			{
 				// Player connected or changed squad
@@ -1337,7 +1390,15 @@ public Action:Timer_PlayerStatus(Handle:Timer)
 				{
 					PrintCenterText(client, "You changed your role in the squad. You can no longer be revived and must wait til next respawn!");
 				}
-				
+
+				decl String:woundType[64];
+				if (g_playerWoundType[client] == 0)
+					woundType = "MINORLY WOUNDED";
+				else if (g_playerWoundType[client] == 1)
+					woundType = "MODERATELY WOUNDED";
+				else if (g_playerWoundType[client] == 2)
+					woundType = "CRITCALLY WOUNDED";
+
 				if (!g_iCvar_respawn_enable || g_iRespawnCount[2] == -1 || g_iSpawnTokens[client] <= 0)
 				{
 					// Player was killed fatally
@@ -1351,14 +1412,14 @@ public Action:Timer_PlayerStatus(Handle:Timer)
 					else if (g_iHurtFatal[client] == 0 && !Ins_InCounterAttack())
 					{
 						decl String:wound_hint[255];
-						Format(wound_hint, 255,"[You were WOUNDED for %d damage]..wait patiently for a medic..do NOT mic/chat spam!", g_clientDamageDone[client]);
+						Format(wound_hint, 255,"[You're %s for %d damage]..wait patiently for a medic..do NOT mic/chat spam!", woundType, g_clientDamageDone[client]);
 						PrintCenterText(client, "%s", wound_hint);
 					}
 					// Player was killed during counter attack
 					else if (g_iHurtFatal[client] == 0 && Ins_InCounterAttack())
 					{
 						decl String:wound_hint[255];
-						Format(wound_hint, 255,"You were WOUNDED during a Counter-Attack for %d damage..if its close to ending..dont bother asking for a medic!", g_clientDamageDone[client]);
+						Format(wound_hint, 255,"You're %s during a Counter-Attack for %d damage..if its close to ending..dont bother asking for a medic!", woundType, g_clientDamageDone[client]);
 						PrintCenterText(client, "%s", wound_hint);
 					}
 				}
@@ -1463,6 +1524,20 @@ public Action:Timer_EnemyReinforce(Handle:Timer)
 						 g_iReinforceTime = reinforce_time_subsequent * iReinforce_multiplier;
 					//if (g_huntCacheDestroyed == true && g_isHunt == 1)
 					//	 g_iReinforceTime = g_iReinforceTime + g_huntReinforceCacheAdd;
+					// Add bots
+					for (new client = 1; client <= MaxClients; client++)
+					{
+						if (client > 0 && IsClientInGame(client))
+						{
+							new m_iTeam = GetClientTeam(client);
+							if (IsFakeClient(client) && !IsPlayerAlive(client) && m_iTeam == TEAM_2)
+							{
+								g_iRemaining_lives_team_ins++;
+								g_iReinforceTime = reinforce_time_subsequent;
+								CreateBotRespawnTimer(client);
+							}
+						}
+					}
 
 				}
 				else
@@ -1539,7 +1614,7 @@ public Action:Timer_CheckEnemyStatic(Handle:Timer)
 						
 						// Get distance
 						new Float:tDistance;
-						new capDistance;
+						new Float:capDistance;
 						tDistance = GetVectorDistance(enemyPos, g_enemyTimerPos[enemyBot]);
 						if (g_isCheckpoint == 1)
 						{
@@ -1585,7 +1660,7 @@ public Action:Timer_CheckEnemyStatic(Handle:Timer)
 						
 						// Get distance
 						new Float:tDistance;
-						new capDistance;
+						new Float:capDistance;
 						tDistance = GetVectorDistance(enemyPos, g_enemyTimerPos[enemyBot]);
 						//Check point distance
 						if (g_isCheckpoint == 1)
@@ -1617,7 +1692,106 @@ public Action:Timer_CheckEnemyStatic(Handle:Timer)
 	
 	return Plugin_Continue;
 }
-
+// Check enemy is stuck
+public Action:Timer_CheckEnemyAway(Handle:Timer)
+{
+	// Check round state
+	if (g_iRoundStatus == 0) return Plugin_Continue;
+	
+	if (Ins_InCounterAttack())
+	{
+		g_checkStaticAmtCntrAway = g_checkStaticAmtCntrAway - 1;
+		if (g_checkStaticAmtCntrAway <= 0)
+		{
+			for (new enemyBot = 1; enemyBot <= MaxClients; enemyBot++)
+			{	
+				if (IsClientInGame(enemyBot) && IsFakeClient(enemyBot))
+				{
+					new m_iTeam = GetClientTeam(enemyBot);
+					if (IsPlayerAlive(enemyBot) && m_iTeam == TEAM_2)
+					{
+						// Get current position
+						decl Float:enemyPos[3];
+						GetClientAbsOrigin(enemyBot, Float:enemyPos);
+						
+						// Get distance
+						new Float:tDistance;
+						new Float:capDistance;
+						tDistance = GetVectorDistance(enemyPos, g_enemyTimerAwayPos[enemyBot]);
+						if (g_isCheckpoint == 1)
+						{
+							new m_nActivePushPointIndex = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
+							Ins_ObjectiveResource_GetPropVector("m_vCPPositions",m_vCPPositions[m_nActivePushPointIndex],m_nActivePushPointIndex);
+							capDistance = GetVectorDistance(enemyPos,m_vCPPositions[m_nActivePushPointIndex]);
+						}
+						else 
+							capDistance = 801;
+						// If enemy position is static, kill him
+						if (tDistance <= 150 && capDistance > 1000) 
+						{
+							//PrintToServer("ENEMY STATIC - KILLING");
+							ForcePlayerSuicide(enemyBot);
+							AddLifeForStaticKilling(enemyBot);
+						}
+						// Update current position
+						else
+						{
+							g_enemyTimerAwayPos[enemyBot] = enemyPos;
+						}
+					}
+				}
+			}
+			g_checkStaticAmtCntrAway = 12;
+		}
+	}
+	else
+	{
+		g_checkStaticAmtAway = g_checkStaticAmtAway - 1;
+		if (g_checkStaticAmtAway <= 0)
+		{
+			for (new enemyBot = 1; enemyBot <= MaxClients; enemyBot++)
+			{	
+				if (IsClientInGame(enemyBot) && IsFakeClient(enemyBot))
+				{
+					new m_iTeam = GetClientTeam(enemyBot);
+					if (IsPlayerAlive(enemyBot) && m_iTeam == TEAM_2)
+					{
+						// Get current position
+						decl Float:enemyPos[3];
+						GetClientAbsOrigin(enemyBot, Float:enemyPos);
+						
+						// Get distance
+						new Float:tDistance;
+						new Float:capDistance;
+						tDistance = GetVectorDistance(enemyPos, g_enemyTimerAwayPos[enemyBot]);
+						//Check point distance
+						if (g_isCheckpoint == 1)
+						{
+							new m_nActivePushPointIndex = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
+							Ins_ObjectiveResource_GetPropVector("m_vCPPositions",m_vCPPositions[m_nActivePushPointIndex],m_nActivePushPointIndex);
+							capDistance = GetVectorDistance(enemyPos,m_vCPPositions[m_nActivePushPointIndex]);
+						}
+						// If enemy position is static, kill him
+						if (tDistance <= 150 && capDistance > 1200) 
+						{
+							//PrintToServer("ENEMY STATIC - KILLING");
+							ForcePlayerSuicide(enemyBot);
+							AddLifeForStaticKilling(enemyBot);
+						}
+						// Update current position
+						else
+						{ 
+							g_enemyTimerAwayPos[enemyBot] = enemyPos;
+						}
+					}
+				}
+			}
+			g_checkStaticAmtAway = 30; 
+		}
+	}
+	
+	return Plugin_Continue;
+}
 void AddLifeForStaticKilling(client)
 {
 	// Respawn type 1
@@ -1986,7 +2160,31 @@ float GetSpawnPoint_SpawnPoint(client) {
 		}
 		point = FindEntityByClassname(point, "ins_spawnpoint");
 	}
-	PrintToServer("Could not find acceptable ins_spawnzone for %N (%d)", client, client);
+	PrintToServer("1st Pass: Could not find acceptable ins_spawnzone for %N (%d)", client, client);
+	//Lets try again but wider range
+	new point2 = FindEntityByClassname(-1, "ins_spawnpoint");
+	tObjectiveDistance = ((g_flMaxObjectiveDistance + 100) * 2);
+	while (point2 != -1) {
+		// Check to make sure it is the same team
+		m_iTeamNum = GetEntProp(point2, Prop_Send, "m_iTeamNum");
+		if (m_iTeamNum == m_iTeam) {
+			GetEntPropVector(point2, Prop_Send, "m_vecOrigin", vecSpawn);
+			if (CheckSpawnPoint(vecSpawn,client,tObjectiveDistance)) {
+				vecSpawn = GetInsSpawnGround(point2, vecSpawn);
+				new m_nActivePushPointIndex = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
+				Ins_ObjectiveResource_GetPropVector("m_vCPPositions",m_vCPPositions[m_nActivePushPointIndex],m_nActivePushPointIndex);
+				new Float:distance = GetVectorDistance(vecSpawn,m_vCPPositions[m_nActivePushPointIndex]);
+				PrintToServer("FOUND! %N (%d) spawnpoint %d Distance: %f tObjectiveDistance: %f g_flMaxObjectiveDistance %f at (%f, %f, %f)", client, client, point2, distance, tObjectiveDistance, g_flMaxObjectiveDistance, vecSpawn[0], vecSpawn[1], vecSpawn[2]);
+				return vecSpawn;
+			}
+			else
+			{
+				tObjectiveDistance = tObjectiveDistance + 2.0;
+			}
+		}
+		point2 = FindEntityByClassname(point2, "ins_spawnpoint");
+	}
+	PrintToServer("2nd Pass: Could not find acceptable ins_spawnzone for %N (%d)", client, client);
 	return vecOrigin;
 }
 float GetSpawnPoint(client) {
@@ -2029,6 +2227,9 @@ public Action:Event_Spawn(Handle:event, const String:name[], bool:dontBroadcast)
 		return Plugin_Continue;
 	}
 	if (!IsFakeClient(client)) {
+		return Plugin_Continue;
+	}
+	if (g_isCheckpoint == 0) {
 		return Plugin_Continue;
 	}
 	
@@ -2421,28 +2622,28 @@ public Action:BotsReady_Timer(Handle:Timer)
 public Action:Event_RoundEnd_Pre(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	// Stop counter-attack music
-	StopCounterAttackMusic();
+	//StopCounterAttackMusic();
 }
 
 // When round ends, intialize variables
 public Action:Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	// Set client command for round end music
-	int iWinner = GetEventInt(event, "winner");
-	decl String:sMusicCommand[128];
-	if (iWinner == TEAM_1)
-		Format(sMusicCommand, sizeof(sMusicCommand), "playgamesound Music.WonGame_Security");
-	else
-		Format(sMusicCommand, sizeof(sMusicCommand), "playgamesound Music.LostGame_Insurgents");
+	// int iWinner = GetEventInt(event, "winner");
+	// decl String:sMusicCommand[128];
+	// if (iWinner == TEAM_1)
+	// 	Format(sMusicCommand, sizeof(sMusicCommand), "playgamesound Music.WonGame_Security");
+	// else
+	// 	Format(sMusicCommand, sizeof(sMusicCommand), "playgamesound Music.LostGame_Insurgents");
 	
-	// Play round end music
-	for (int i = 1; i <= MaxClients; i++)
-	{
-		if (IsClientInGame(i) && IsClientConnected(i) && !IsFakeClient(i))
-		{
-			ClientCommand(i, "%s", sMusicCommand);
-		}
-	}
+	// // Play round end music
+	// for (int i = 1; i <= MaxClients; i++)
+	// {
+	// 	if (IsClientInGame(i) && IsClientConnected(i) && !IsFakeClient(i))
+	// 	{
+	// 		ClientCommand(i, "%s", sMusicCommand);
+	// 	}
+	// }
 	
 	// Reset respawn position
 	g_fRespawnPosition[0] = 0.0;
@@ -2553,7 +2754,7 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 		SetConVarInt(cvar, 1, true, false);
 		
 		// Call music timer
-		CreateTimer(COUNTER_ATTACK_MUSIC_DURATION, Timer_CounterAttackSound);
+		//CreateTimer(COUNTER_ATTACK_MUSIC_DURATION, Timer_CounterAttackSound);
 		
 		// Call counter-attack end timer
 		if (!g_bIsCounterAttackTimerActive)
@@ -2573,7 +2774,7 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 		SetConVarInt(cvar, 1, true, false);
 		
 		// Call music timer
-		CreateTimer(COUNTER_ATTACK_MUSIC_DURATION, Timer_CounterAttackSound);
+		//CreateTimer(COUNTER_ATTACK_MUSIC_DURATION, Timer_CounterAttackSound);
 		
 		// Call counter-attack end timer
 		if (!g_bIsCounterAttackTimerActive)
@@ -2607,12 +2808,12 @@ public Action:Timer_CounterAttackSound(Handle:event)
 		if (IsClientInGame(i) && IsClientConnected(i) && !IsFakeClient(i))
 		{
 			//ClientCommand(i, "playgamesound Music.StartCounterAttack");
-			ClientCommand(i, "play *cues/INS_GameMusic_AboutToAttack_A.ogg");
+			//ClientCommand(i, "play *cues/INS_GameMusic_AboutToAttack_A.ogg");
 		}
 	}
 	
 	// Loop
-	CreateTimer(COUNTER_ATTACK_MUSIC_DURATION, Timer_CounterAttackSound);
+	//CreateTimer(COUNTER_ATTACK_MUSIC_DURATION, Timer_CounterAttackSound);
 }
 
 // When control point captured, reset variables
@@ -2753,7 +2954,7 @@ public Action:Event_ObjectDestroyed_Pre(Handle:event, const String:name[], bool:
 		SetConVarInt(cvar, 1, true, false);
 		
 		// Call music timer
-		CreateTimer(COUNTER_ATTACK_MUSIC_DURATION, Timer_CounterAttackSound);
+		//CreateTimer(COUNTER_ATTACK_MUSIC_DURATION, Timer_CounterAttackSound);
 		
 		// Call counter-attack end timer
 		if (!g_bIsCounterAttackTimerActive)
@@ -2773,7 +2974,7 @@ public Action:Event_ObjectDestroyed_Pre(Handle:event, const String:name[], bool:
 		SetConVarInt(cvar, 1, true, false);
 		
 		// Call music timer
-		CreateTimer(COUNTER_ATTACK_MUSIC_DURATION, Timer_CounterAttackSound);
+		//CreateTimer(COUNTER_ATTACK_MUSIC_DURATION, Timer_CounterAttackSound);
 		
 		// Call counter-attack end timer
 		if (!g_bIsCounterAttackTimerActive)
@@ -2905,7 +3106,7 @@ public Action:Timer_CounterAttackEnd(Handle:Timer)
 	if (g_iRoundStatus == 0)
 	{
 		// Stop counter-attack music
-		StopCounterAttackMusic();
+		//StopCounterAttackMusic();
 		
 		// Reset variable
 		g_bIsCounterAttackTimerActive = false;
@@ -2925,7 +3126,7 @@ public Action:Timer_CounterAttackEnd(Handle:Timer)
 			ResetSecurityLives();
 		
 		// Stop counter-attack music
-		StopCounterAttackMusic();
+		//StopCounterAttackMusic();
 		
 		// Reset variable
 		g_bIsCounterAttackTimerActive = false;
@@ -3105,7 +3306,7 @@ public Action:Event_PlayerPickSquad_Post( Handle:event, const String:name[], boo
 	decl String:sCurNickname[64];
 	Format(sCurNickname, sizeof(sCurNickname), "%N", client);
 	if (!StrEqual(sCurNickname, sNewNickname))
-		SetClientInfo(client, "name", sNewNickname);
+		SetClientName(client, sNewNickname);
 	
 	g_playersReady = true;
 }
@@ -3453,6 +3654,13 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 	// Init variables
 	decl String:wound_hint[64];
 	decl String:fatal_hint[64];
+	decl String:woundType[64];
+	if (g_playerWoundType[client] == 0)
+		woundType = "MINORLY WOUNDED";
+	else if (g_playerWoundType[client] == 1)
+		woundType = "MODERATELY WOUNDED";
+	else if (g_playerWoundType[client] == 2)
+		woundType = "CRITCALLY WOUNDED";
 	
 	// Display death message
 	if (g_fCvar_fatal_chance > 0.0)
@@ -3465,14 +3673,14 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 		}
 		else
 		{
-			Format(wound_hint, 255,"You were wounded for %i damage, call a medic for revive!", g_clientDamageDone[client]);
+			Format(wound_hint, 255,"You're %s for %i damage, call a medic for revive!", woundType, g_clientDamageDone[client]);
 			PrintHintText(client, "%s", wound_hint);
 			PrintToChat(client, "%s", wound_hint);
 		}
 	}
 	else
 	{
-		Format(wound_hint, 255,"You were wounded, call a medic for revive!", g_clientDamageDone[client]);
+		Format(wound_hint, 255,"You're %s for %i damage, call a medic for revive!", woundType, g_clientDamageDone[client]);
 		PrintHintText(client, "%s", wound_hint);
 		PrintToChat(client, "%s", wound_hint);
 	}
@@ -3721,8 +3929,21 @@ public Action:RespawnPlayerPost(Handle:timer, any:client)
 // Respawn bot
 public Action:RespawnBot(Handle:Timer, any:client)
 {
+
 	// Exit if client is not in game
 	if (!IsClientInGame(client) || g_iRoundStatus == 0) return;
+
+	decl String:sModelName[64];
+	GetClientModel(client, sModelName, sizeof(sModelName));
+	if (StrEqual(sModelName, ""))
+	{
+		PrintToServer("Invalid model: %s", sModelName);
+		return; //check if model is blank
+	}
+	else
+	{
+		PrintToServer("Valid model: %s", sModelName);
+	}
 	
 	// Check respawn type
 	if (g_iCvar_respawn_type_team_ins == 1 && g_iSpawnTokens[client] > 0)
@@ -3811,11 +4032,18 @@ public Action:Timer_PlayerRespawn(Handle:Timer, any:client)
 	{
 		if (g_iRespawnTimeRemaining[client] > 0)
 		{
+			decl String:woundType[64];
+			if (g_playerWoundType[client] == 0)
+				woundType = "MINORLY WOUNDED";
+			else if (g_playerWoundType[client] == 1)
+				woundType = "MODERATELY WOUNDED";
+			else if (g_playerWoundType[client] == 2)
+				woundType = "CRITCALLY WOUNDED";
 			// Print remaining time to center text area
 			if (!IsFakeClient(client))
 			{
 				decl String:sRemainingTime[256];
-				Format(sRemainingTime, sizeof(sRemainingTime),"[You were WOUNDED for %d damage]..wait patiently for a medic..do NOT mic/chat spam!\n\n                You will be respawned in %d second%s (%d lives left) ", g_clientDamageDone[client], g_iRespawnTimeRemaining[client], (g_iRespawnTimeRemaining[client] > 1 ? "s" : ""), g_iSpawnTokens[client]);
+				Format(sRemainingTime, sizeof(sRemainingTime),"[You're %s for %d damage]..wait patiently for a medic..do NOT mic/chat spam!\n\n                You will be respawned in %d second%s (%d lives left) ", woundType, g_clientDamageDone[client], g_iRespawnTimeRemaining[client], (g_iRespawnTimeRemaining[client] > 1 ? "s" : ""), g_iSpawnTokens[client]);
 				PrintCenterText(client, sRemainingTime);
 			}
 			
@@ -5874,7 +6102,7 @@ public OnEntityDestroyed(entity)
 		GetEntityClassname(entity, classname, 255);
 		if (StrEqual(classname, "healthkit"))
 		{
-			StopSound(entity, SNDCHAN_STATIC, "Lua_sounds/healthkit_healing.wav");
+			//StopSound(entity, SNDCHAN_STATIC, "Lua_sounds/healthkit_healing.wav");
 		}
     }
 }
@@ -5894,8 +6122,102 @@ public OnEntityCreated(entity, const String:classname[])
 		SDKHook(entity, SDKHook_VPhysicsUpdate, HealthkitGroundCheck);
 		CreateTimer(0.1, HealthkitGroundCheckTimer, entity, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 	}
+	else if (StrEqual(classname, "grenade_m67") || StrEqual(classname, "grenade_f1"))
+	{
+		CreateTimer(0.5, GrenadeScreamCheckTimer, entity, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+	}
+	else if (StrEqual(classname, "grenade_molotov") || StrEqual(classname, "grenade_anm14"))
+		CreateTimer(0.2, FireScreamCheckTimer, entity, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 }
+public Action:FireScreamCheckTimer(Handle:timer, any:entity)
+{
+	new Float:fGrenOrigin[3];
+	new Float:fPlayerOrigin[3];
+	new Float:fPlayerEyeOrigin[3];
+	new owner;
+	if (IsValidEntity(entity) && entity > 0)
+	{
+		GetEntPropVector(entity, Prop_Send, "m_vecOrigin", fGrenOrigin);
+		owner = GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity");
+	}
+	else
+		KillTimer(timer);
 
+
+	
+ 
+	for (new client = 1;client <= MaxClients;client++)
+	{
+		if (client <= 0 || !IsClientInGame(client) || !IsClientConnected(client))
+			continue;
+		if (owner <= 0 || !IsClientInGame(owner) || !IsClientConnected(owner))
+			continue;
+		if (IsFakeClient(client))
+			continue;
+
+		if (IsPlayerAlive(client) && GetClientTeam(client) == 2 && GetClientTeam(owner) == 3)
+		{
+
+			GetClientEyePosition(client, fPlayerEyeOrigin);
+			GetClientAbsOrigin(client,fPlayerOrigin);
+			//new Handle:trace = TR_TraceRayFilterEx(fPlayerEyeOrigin, fGrenOrigin, MASK_SOLID_BRUSHONLY, RayType_EndPoint, Base_TraceFilter); 
+
+			if (GetVectorDistance(fPlayerOrigin, fGrenOrigin) <= 300 &&  g_plyrFireScreamCoolDown[client] <= 0)// && TR_DidHit(trace) && fGrenOrigin[2] > 0)
+			{
+				//PrintToServer("SCREAM FIRE");
+				PlayerFireScreamRand(client);
+				new fRandomInt = GetRandomInt(20, 30);
+				g_plyrFireScreamCoolDown[client] = fRandomInt;
+				//CloseHandle(trace); 
+			}
+		}
+	}
+
+	if (!IsValidEntity(entity) || !(entity > 0))
+		KillTimer(timer);
+}
+public Action:GrenadeScreamCheckTimer(Handle:timer, any:entity)
+{
+	new Float:fGrenOrigin[3];
+	new Float:fPlayerOrigin[3];
+	new Float:fPlayerEyeOrigin[3];
+	new owner;
+	if (IsValidEntity(entity) && entity > 0)
+	{
+		GetEntPropVector(entity, Prop_Send, "m_vecOrigin", fGrenOrigin);
+		owner = GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity");
+	}
+	else
+		KillTimer(timer);
+
+	for (new client = 1;client <= MaxClients;client++)
+	{
+		if (client <= 0 || !IsClientInGame(client) || !IsClientConnected(client))
+			continue;
+
+		if (IsFakeClient(client))
+			continue;
+
+		if (client > 0 && IsPlayerAlive(client) && GetClientTeam(client) == 2 && GetClientTeam(owner) == 3)
+		{
+
+			GetClientEyePosition(client, fPlayerEyeOrigin);
+			GetClientAbsOrigin(client,fPlayerOrigin);			
+			//new Handle:trace = TR_TraceRayFilterEx(fPlayerEyeOrigin, fGrenOrigin, MASK_VISIBLE, RayType_EndPoint, Base_TraceFilter); 
+
+			if (GetVectorDistance(fPlayerOrigin, fGrenOrigin) <= 240 &&  g_plyrGrenScreamCoolDown[client] <= 0)// && TR_DidHit(trace) && fGrenOrigin[2] > 0)
+			{
+				PlayerGrenadeScreamRand(client);
+				new fRandomInt = GetRandomInt(6, 12);
+				g_plyrGrenScreamCoolDown[client] = fRandomInt;
+				//CloseHandle(trace); 
+			} 
+		}
+	}
+
+	if (!IsValidEntity(entity) || !(entity > 0))
+		KillTimer(timer);
+}
 public Action:HealthkitGroundCheck(entity, activator, caller, UseType:type, Float:value)
 {
 	new Float:fOrigin[3];
@@ -5988,7 +6310,6 @@ public Action:Healthkit(Handle:timer, Handle:hDatapack)
 					EmitSoundToAll("ui/sfx/cl_click.wav", entity, SNDCHAN_STATIC, _, _, 1.0);
 				}
 			}
-			
 			for (new client = 1;client <= MaxClients;client++)
 			{
 				if (IsClientInGame(client) && IsPlayerAlive(client) && GetClientTeam(client) == 2)

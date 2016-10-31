@@ -2,7 +2,6 @@
 //Released under GPLv3
 
 #pragma semicolon 1
-
 #include <sourcemod>
 #define AUTOLOAD_EXTENSIONS
 #define REQUIRE_EXTENSIONS
@@ -312,13 +311,13 @@ bool:hasReservedSlotAccess(const String:playername[], userFlags) {
        
       // estimate immunity level and state of reserved slot admin flag
       aid = GetUserAdmin(client);
-      if (aid==INVALID_ADMIN_ID)
+      if (aid==INVALID_ADMIN_ID && !(GetAdminFlag(aid, Admin_Reservation)))
       {
         // not an admin
         immunity=0;
         hasReserved=false;
       } else {
-        immunity = GetAdminImmunityLevel(aid);
+        immunity = UNKICKABLE;// = GetAdminImmunityLevel(aid);
         hasReserved=GetAdminFlag(aid, Admin_Reservation);
       }
       
@@ -328,7 +327,7 @@ bool:hasReservedSlotAccess(const String:playername[], userFlags) {
       }
       
       // decrement immunity level for spectators
-      if (( GetClientTeam(client) == TEAM_TEAMLESS) || (GetClientTeam(client) == TEAM_SPECTATOR)) {
+      if ((( GetClientTeam(client) == TEAM_TEAMLESS) || (GetClientTeam(client) == TEAM_SPECTATOR)) && !hasReserved) {
         // player is spectator
         immunity-=GetConVarInt(s_smHreservedImmunityDecrement); // immunity level is decreased to make this player being kicked before players of same immunity       
       } 
