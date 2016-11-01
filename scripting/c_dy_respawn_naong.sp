@@ -257,6 +257,8 @@ new
 	Handle:sm_critical_revive_time = INVALID_HANDLE,
 	Handle:sm_non_medic_revive_time = INVALID_HANDLE,
 	Handle:sm_medpack_health_amount = INVALID_HANDLE,
+	Handle:sm_multi_loadout_enabled = INVALID_HANDLE,
+	Handle:sm_bombers_only = INVALID_HANDLE,
 	Handle:sm_non_medic_heal_self_max = INVALID_HANDLE,
 
 	// NAV MESH SPECIFIC CVARS
@@ -295,7 +297,10 @@ new
 	g_iCvar_fatal_burn_dmg,
 	g_iCvar_fatal_explosive_dmg,
 	g_iCvar_fatal_chest_stomach,
-	
+	//Dynamic Loadouts
+	g_iCvar_bombers_only,
+	g_iCvar_multi_loadout_enabled,
+
 	g_checkStaticAmt,
 	g_checkStaticAmtCntr,
 	g_checkStaticAmtAway,
@@ -608,6 +613,8 @@ public OnPluginStart()
 	sm_critical_revive_time = CreateConVar("sm_critical_revive_time", "10", "Seconds it takes medic to revive critical wounded");
 	sm_non_medic_revive_time = CreateConVar("sm_non_medic_revive_time", "30", "Seconds it takes non-medic to revive minor wounded, requires medpack");
 	sm_medpack_health_amount = CreateConVar("sm_medpack_health_amount", "500", "Amount of health a deployed healthpack has");
+	sm_bombers_only = CreateConVar("sm_bombers_only", "0", "bombers ONLY?");
+	sm_multi_loadout_enabled = CreateConVar("sm_multi_loadout_enabled", "0", "Use Sernix Variety Bot Loadout? - Default OFF");
 
 	CreateConVar("Lua_Ins_Healthkit", PLUGIN_VERSION, PLUGIN_DESCRIPTION, FCVAR_NOTIFY | FCVAR_PLUGIN | FCVAR_DONTRECORD);
 	
@@ -696,6 +703,10 @@ public OnPluginStart()
 	HookConVarChange(sm_respawn_dynamic_distance_multiplier,CvarChange);
 	HookConVarChange(sm_respawn_dynamic_spawn_counter_percent,CvarChange);
 	HookConVarChange(sm_respawn_dynamic_spawn_percent,CvarChange);
+
+	//Dynamic Loadouts
+	HookConVarChange(sm_bombers_only, CvarChange);
+	HookConVarChange(sm_multi_loadout_enabled, CvarChange);
 
 	// Tags
 	HookConVarChange(FindConVar("sv_tags"), TagsChanged);
@@ -846,6 +857,11 @@ void UpdateRespawnCvars()
 	g_iCvar_fatal_explosive_dmg = GetConVarInt(sm_respawn_fatal_explosive_dmg);
 	g_iCvar_fatal_chest_stomach = GetConVarInt(sm_respawn_fatal_chest_stomach);
 	
+	//Dynamic Loadouts
+	g_iCvar_bombers_only = GetConVarInt(sm_bombers_only);
+	g_iCvar_multi_loadout_enabled = GetConVarInt(sm_multi_loadout_enabled);
+	
+
 	// Nearest body distance metric
 	g_iUnitMetric = GetConVarInt(sm_revive_distance_metric);
 	
@@ -962,17 +978,15 @@ public TagsChanged(Handle:convar, const String:oldValue[], const String:newValue
 // On map starts, call initalizing function
 public OnMapStart()
 {	
-	new Float:fRandom = GetRandomFloat(0.0, 1.0);
-	new Handle:hTheaterOverride = FindConVar("mp_theater_override");	
-	// Occurs counter attack
-	if (fRandom < 0.5)
-	{
-		SetConVarString(hTheaterOverride, "dy_gnalvl_coop_usmc_bomber", true, false);
-	}
-	else
-	{
-		SetConVarString(hTheaterOverride, "dy_gnalvl_coop_usmc", true, false);
-	}
+
+	//Dynamic Loadouts
+	g_iCvar_bombers_only = GetConVarInt(sm_bombers_only);
+	g_iCvar_multi_loadout_enabled = GetConVarInt(sm_multi_loadout_enabled);
+
+	//Load Dynamic Loadouts?
+	//if (g_iCvar_multi_loadout_enabled == 1)
+		Dynamic_Loadouts();
+
 	//Wait until players ready to enable spawn checking
 	g_playersReady = false;
 	g_botsReady = 0;
@@ -1057,6 +1071,42 @@ public OnMapStart()
 	// Update entity
 	GetObjResEnt(1);
 	GetLogicEnt(1);
+}
+
+//Dynamic Loadouts
+void Dynamic_Loadouts()
+{
+	new Float:fRandom = GetRandomFloat(0.0, 1.0);
+	new Handle:hTheaterOverride = FindConVar("mp_theater_override");	
+	// Occurs counter attack
+	if (fRandom >= 0.0 && fRandom < 0.24)
+	{
+		SetConVarString(hTheaterOverride, "dy_gnalvl_coop_usmc", true, false);
+	}
+	else if (fRandom >= 0.24 && fRandom < 0.48)
+	{
+		SetConVarString(hTheaterOverride, "dy_gnalvl_coop_usmc_isis", true, false);
+	}
+	else if (fRandom >= 0.48 && fRandom < 0.72)
+	{
+		//Desert is just diff skins
+		new Float:fRandom_mil = GetRandomFloat(0.0, 1.0);
+		if (fRandom >= 0.5)
+			SetConVarString(hTheaterOverride, "dy_gnalvl_coop_usmc_military", true, false);
+		else
+			SetConVarString(hTheaterOverride, "dy_gnalvl_coop_usmc_military_des", true, false);
+	}
+	else if (fRandom >= 0.72 && fRandom < 0.96)
+	{
+		SetConVarString(hTheaterOverride, "dy_gnalvl_coop_usmc_rebels", true, false);
+	}
+	else if (fRandom >= 0.96)
+	{
+		SetConVarString(hTheaterOverride, "dy_gnalvl_coop_usmc_bomber", true, false);
+	}
+	//Its a good day to die
+	if (g_iCvar_bombers_only == 1)
+		SetConVarString(hTheaterOverride, "dy_gnalvl_coop_usmc_bomber", true, false);
 }
 
 // Initializing
@@ -1880,15 +1930,9 @@ void SetPlayerAmmo(client)
 					// Remove grenades but not pistols
 					decl String:weapon[32];
 					GetEntityClassname(playerGrenades, weapon, sizeof(weapon));
-					if (!(StrEqual(weapon, "weapon_m93r", false) && 
-						StrEqual(weapon, "weapon_m9", false) && 
-						StrEqual(weapon, "weapon_m45", false) && 
-						StrEqual(weapon, "weapon_makarov", false) && 
-						StrEqual(weapon, "weapon_m1911", false)))
-					{
-						RemovePlayerItem(client,playerGrenades);
-						AcceptEntityInput(playerGrenades, "kill");
-					}
+					RemovePlayerItem(client,playerGrenades);
+					AcceptEntityInput(playerGrenades, "kill");
+					
 				}
 			}
 			
@@ -2292,6 +2336,28 @@ public Action:Event_SpawnPost(Handle:event, const String:name[], bool:dontBroadc
 		return Plugin_Continue;
 	}
 	SetNextAttack(client);
+	new Float:fRandom = GetRandomFloat(0.0, 1.0);
+
+	// Check grenades
+	if (fRandom >= 0.5)
+	{
+		new botGrenades = GetPlayerWeaponSlot(client, 3);
+		if (botGrenades != -1 && IsValidEntity(botGrenades)) // We need to figure out what slots are defined#define Slot_HEgrenade 11, #define Slot_Flashbang 12, #define Slot_Smokegrenade 13
+		{
+			while (botGrenades != -1 && IsValidEntity(botGrenades)) // since we only have 3 slots in current theate
+			{
+				botGrenades = GetPlayerWeaponSlot(client, 3);
+				if (botGrenades != -1 && IsValidEntity(botGrenades)) // We need to figure out what slots are defined#define Slot_HEgrenade 11, #define Slot_Flashbang 12, #define Slot_Smokegrenade 1
+				{
+					// Remove grenades but not pistols
+					decl String:weapon[32];
+					GetEntityClassname(botGrenades, weapon, sizeof(weapon));
+					RemovePlayerItem(client,botGrenades);
+					AcceptEntityInput(botGrenades, "kill");
+				}
+			}
+		}
+	}
 	if (!g_iCvar_respawn_enable) {
 		return Plugin_Continue;
 	}
@@ -3937,12 +4003,12 @@ public Action:RespawnBot(Handle:Timer, any:client)
 	GetClientModel(client, sModelName, sizeof(sModelName));
 	if (StrEqual(sModelName, ""))
 	{
-		PrintToServer("Invalid model: %s", sModelName);
+		//PrintToServer("Invalid model: %s", sModelName);
 		return; //check if model is blank
 	}
 	else
 	{
-		PrintToServer("Valid model: %s", sModelName);
+		//PrintToServer("Valid model: %s", sModelName);
 	}
 	
 	// Check respawn type
