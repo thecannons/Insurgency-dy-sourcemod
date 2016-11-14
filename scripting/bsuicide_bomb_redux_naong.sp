@@ -28,6 +28,7 @@ new Handle:cvarExplosiveDeathChance = INVALID_HANDLE; //death chance if explosio
 new Handle:cvarChestStomachDeathChance = INVALID_HANDLE; //death chance if chest/stomach
 new Handle:cvar_yelling_delay = INVALID_HANDLE; //Yelling delay time
 new g_ClientBombs[MAXPLAYERS+1];
+new Float:g_BomberLastPos[MAXPLAYERS+1][3];
 new String:g_client_last_classstring[MAXPLAYERS+1][64];
 //new bool:bEnabled = false;
 new g_isDetonating[MAXPLAYERS+1];

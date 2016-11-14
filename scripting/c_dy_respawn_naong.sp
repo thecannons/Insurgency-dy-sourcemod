@@ -1441,7 +1441,8 @@ public Action:Timer_PlayerStatus(Handle:Timer)
 					PrintCenterText(client, "You changed your role in the squad. You can no longer be revived and must wait til next respawn!");
 				}
 
-				decl String:woundType[64];
+				new String:woundType[128];
+				woundType = "WOUNDED";
 				if (g_playerWoundType[client] == 0)
 					woundType = "MINORLY WOUNDED";
 				else if (g_playerWoundType[client] == 1)
@@ -4097,8 +4098,9 @@ public Action:Timer_PlayerRespawn(Handle:Timer, any:client)
 	if (!IsPlayerAlive(client) && g_iRoundStatus == 1)
 	{
 		if (g_iRespawnTimeRemaining[client] > 0)
-		{
-			decl String:woundType[64];
+		{				
+			new String:woundType[128];
+			woundType = "WOUNDED";
 			if (g_playerWoundType[client] == 0)
 				woundType = "MINORLY WOUNDED";
 			else if (g_playerWoundType[client] == 1)
