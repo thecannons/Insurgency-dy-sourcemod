@@ -88,6 +88,7 @@ new
 	g_iHurtFatal[MAXPLAYERS+1],
 	g_iClientRagdolls[MAXPLAYERS+1],
 	g_iNearestBody[MAXPLAYERS+1],
+	g_botStaticGlobal[MAXPLAYERS+1],
 	g_iRespawnCount[4],
 	g_huntReinforceCacheAdd = 120,
 	bool:g_huntCacheDestroyed = false,
@@ -1676,7 +1677,7 @@ public Action:Timer_CheckEnemyStatic(Handle:Timer)
 						else 
 							capDistance = 801;
 						// If enemy position is static, kill him
-						if (tDistance <= 4 && capDistance > 800) 
+						if (tDistance <= 4 && (capDistance > 800 || g_botStaticGlobal[enemyBot] > 120)) 
 						{
 							//PrintToServer("ENEMY STATIC - KILLING");
 							ForcePlayerSuicide(enemyBot);
@@ -1686,6 +1687,7 @@ public Action:Timer_CheckEnemyStatic(Handle:Timer)
 						else
 						{
 							g_enemyTimerPos[enemyBot] = enemyPos;
+							g_botStaticGlobal[enemyBot]++;
 						}
 					}
 				}
@@ -1723,7 +1725,7 @@ public Action:Timer_CheckEnemyStatic(Handle:Timer)
 						else 
 							capDistance = 801;
 						// If enemy position is static, kill him
-						if (tDistance <= 4 && capDistance > 800) 
+						if (tDistance <= 4 && (capDistance > 800))// || g_botStaticGlobal[enemyBot] > 120)) 
 						{
 							//PrintToServer("ENEMY STATIC - KILLING");
 							ForcePlayerSuicide(enemyBot);
@@ -1733,6 +1735,7 @@ public Action:Timer_CheckEnemyStatic(Handle:Timer)
 						else
 						{ 
 							g_enemyTimerPos[enemyBot] = enemyPos;
+							//g_botStaticGlobal[enemyBot]++;
 						}
 					}
 				}
@@ -2093,22 +2096,22 @@ CheckSpawnPoint(Float:vecSpawn[3],client,Float:tObjectiveDistance) {
 		 return 0;
 	}
 	// Check distance to point in counterattack
-	if (Ins_InCounterAttack()) {
-		new m_nActivePushPointIndex = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
-		Ins_ObjectiveResource_GetPropVector("m_vCPPositions",m_vCPPositions[m_nActivePushPointIndex],m_nActivePushPointIndex);
-		distance = GetVectorDistance(vecSpawn,m_vCPPositions[m_nActivePushPointIndex]);
+	// if (Ins_InCounterAttack()) {
+	// 	new m_nActivePushPointIndex = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
+	// 	Ins_ObjectiveResource_GetPropVector("m_vCPPositions",m_vCPPositions[m_nActivePushPointIndex],m_nActivePushPointIndex);
+	// 	distance = GetVectorDistance(vecSpawn,m_vCPPositions[m_nActivePushPointIndex]);
 		
-		if (distance < g_flMinCounterattackDistance) {
-			 return 0;
-		}
-		if (distance > (tObjectiveDistance * g_DynamicRespawn_Distance_mult) && (fRandomFloat <= g_dynamicSpawnCounter_Perc)) {
-			 return 0;
+	// 	if (distance < g_flMinCounterattackDistance) {
+	// 		 return 0;
+	// 	}
+	// 	if (distance > (tObjectiveDistance * g_DynamicRespawn_Distance_mult) && (fRandomFloat <= g_dynamicSpawnCounter_Perc)) {
+	// 		 return 0;
 
-		} 
-		else if (distance > tObjectiveDistance) {
-			 return 0;
-		}
-	}		
+	// 	} 
+	// 	else if (distance > tObjectiveDistance) {
+	// 		 return 0;
+	// 	}
+	// }		
 	return 1;
 } 
 CheckSpawnPointPlayers(Float:vecSpawn[3],client) {
@@ -2278,6 +2281,14 @@ public Action:Event_Spawn(Handle:event, const String:name[], bool:dontBroadcast)
 		return Plugin_Continue;
 	}
 	
+	//Reset this global timer everytime a bot spawns
+	g_botStaticGlobal[client] = 0;
+
+	// Get the number of control points
+	new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
+	
+	// Get active push point
+	new acp = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
 
 	new Float:vecOrigin[3];
 	GetClientAbsOrigin(client,vecOrigin);
@@ -2286,7 +2297,7 @@ public Action:Event_Spawn(Handle:event, const String:name[], bool:dontBroadcast)
 		int iCanSpawn = CheckSpawnPointPlayers(vecOrigin,client);
 		new fRandomFloat = GetRandomFloat(0, 1.0);
 		//InsLog(DEBUG, "Event_Spawn iCanSpawn %d", iCanSpawn);
-		if (!iCanSpawn && !Ins_InCounterAttack()) { // && (!Ins_InCounterAttack() || fRandomFloat < 0.1)) {
+		if (!iCanSpawn && (!Ins_InCounterAttack() || (acp+1) == ncp)) { // && (!Ins_InCounterAttack() || fRandomFloat < 0.1)) {
 			/*
 			//Try Nav spawn first
 			if ((g_iHidingSpotCount) && !Ins_InCounterAttack())
