@@ -134,6 +134,8 @@ new
 	Float:g_enemyTimerAwayPos[MAXPLAYERS+1][3],	// Kill Stray Enemy Bots Globals
 	g_plyrGrenScreamCoolDown[MAXPLAYERS+1],
 	g_plyrFireScreamCoolDown[MAXPLAYERS+1],
+	g_playerMedicHealsAccumulated[MAXPLAYERS+1],
+	g_playerNonMedicHealsAccumulated[MAXPLAYERS+1],
 	g_playerNonMedicRevive[MAXPLAYERS+1],
 	g_playerWoundType[MAXPLAYERS+1],
 	g_playerWoundTime[MAXPLAYERS+1];
@@ -242,6 +244,7 @@ new
 	Handle:sm_revive_bonus = INVALID_HANDLE,
 	Handle:sm_revive_distance_metric = INVALID_HANDLE,
 	Handle:sm_heal_bonus = INVALID_HANDLE,
+	Handle:sm_heal_cap_for_bonus = INVALID_HANDLE,
 	Handle:sm_heal_amount_medpack = INVALID_HANDLE,
 	Handle:sm_heal_amount_paddles = INVALID_HANDLE,
 	Handle:sm_non_medic_heal_amt = INVALID_HANDLE,
@@ -596,6 +599,7 @@ public OnPluginStart()
 	sm_revive_bonus = CreateConVar("sm_revive_bonus", "1", "Bonus revive score(kill count) for medic");
 	sm_revive_distance_metric = CreateConVar("sm_revive_distance_metric", "1", "Distance metric (0: meters / 1: feet)");
 	sm_heal_bonus = CreateConVar("sm_heal_bonus", "1", "Bonus heal score(kill count) for medic");
+	sm_heal_cap_for_bonus = CreateConVar("sm_heal_cap_for_bonus", "50", "Amount of health given to other players to gain a kill");
 	sm_heal_amount_medpack = CreateConVar("sm_heal_amount_medpack", "5", "Heal amount per 0.5 seconds when using medpack");
 	sm_heal_amount_paddles = CreateConVar("sm_heal_amount_paddles", "3", "Heal amount per 0.5 seconds when using paddles");
 	
@@ -2085,8 +2089,17 @@ CheckSpawnPoint(Float:vecSpawn[3],client,Float:tObjectiveDistance) {
 	//Spawns dynamic
 
 	new fRandomFloat = GetRandomFloat(0, 1.0);
-
+	// Get the number of control points
+	new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
+	
+	// Get active push point
+	new acp = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
+	
 	new m_nActivePushPointIndex = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
+	//Check last point
+	if ((acp+1) == ncp)
+		m_nActivePushPointIndex--;
+
 	Ins_ObjectiveResource_GetPropVector("m_vCPPositions",m_vCPPositions[m_nActivePushPointIndex],m_nActivePushPointIndex);
 	distance = GetVectorDistance(vecSpawn,m_vCPPositions[m_nActivePushPointIndex]);
 	if (distance > tObjectiveDistance) {// && (fRandomFloat <= g_dynamicSpawn_Perc)) {
@@ -2095,23 +2108,24 @@ CheckSpawnPoint(Float:vecSpawn[3],client,Float:tObjectiveDistance) {
 	else if (distance > (tObjectiveDistance * g_DynamicRespawn_Distance_mult)) {
 		 return 0;
 	}
+
+	
 	// Check distance to point in counterattack
-	// if (Ins_InCounterAttack()) {
-	// 	new m_nActivePushPointIndex = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
-	// 	Ins_ObjectiveResource_GetPropVector("m_vCPPositions",m_vCPPositions[m_nActivePushPointIndex],m_nActivePushPointIndex);
-	// 	distance = GetVectorDistance(vecSpawn,m_vCPPositions[m_nActivePushPointIndex]);
-		
+	// if (Ins_InCounterAttack() && ((acp+1) == ncp)) {
+	// 	new m_nActivePushPointIndex2 = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
+	// 	Ins_ObjectiveResource_GetPropVector("m_vCPPositions",m_vCPPositions[m_nActivePushPointIndex2],m_nActivePushPointIndex2);
+	// 	distance = GetVectorDistance(vecSpawn,m_vCPPositions[m_nActivePushPointIndex2]);
 	// 	if (distance < g_flMinCounterattackDistance) {
 	// 		 return 0;
 	// 	}
-	// 	if (distance > (tObjectiveDistance * g_DynamicRespawn_Distance_mult) && (fRandomFloat <= g_dynamicSpawnCounter_Perc)) {
-	// 		 return 0;
+	// // 	if (distance > (tObjectiveDistance * g_DynamicRespawn_Distance_mult) && (fRandomFloat <= g_dynamicSpawnCounter_Perc)) {
+	// // 		 return 0;
 
-	// 	} 
-	// 	else if (distance > tObjectiveDistance) {
-	// 		 return 0;
-	// 	}
-	// }		
+	// // 	} 
+	// // 	else if (distance > tObjectiveDistance) {
+	// // 		 return 0;
+	// // 	}
+	//  }		
 	return 1;
 } 
 CheckSpawnPointPlayers(Float:vecSpawn[3],client) {
@@ -2158,26 +2172,26 @@ CheckSpawnPointPlayers(Float:vecSpawn[3],client) {
 		return 0; 
 	}
 
-	new fRandomFloat = GetRandomFloat(0, 1.0);
-	// Check distance to point in counterattack
-	if (Ins_InCounterAttack()) {
-		new m_nActivePushPointIndex = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
-		Ins_ObjectiveResource_GetPropVector("m_vCPPositions",m_vCPPositions[m_nActivePushPointIndex],m_nActivePushPointIndex);
-		distance = GetVectorDistance(vecSpawn,m_vCPPositions[m_nActivePushPointIndex]);
+	// new fRandomFloat = GetRandomFloat(0, 1.0);
+	// // Check distance to point in counterattack
+	// if (Ins_InCounterAttack()) {
+	// 	new m_nActivePushPointIndex = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
+	// 	Ins_ObjectiveResource_GetPropVector("m_vCPPositions",m_vCPPositions[m_nActivePushPointIndex],m_nActivePushPointIndex);
+	// 	distance = GetVectorDistance(vecSpawn,m_vCPPositions[m_nActivePushPointIndex]);
 		
-		if (distance < g_flMinCounterattackDistance) {
-			 return 0;
-		}
-		if (distance > (g_flMaxObjectiveDistance * g_DynamicRespawn_Distance_mult) && (fRandomFloat <= g_dynamicSpawnCounter_Perc)) {
-			 return 0;
+	// 	if (distance < g_flMinCounterattackDistance) {
+	// 		 return 0;
+	// 	}
+	// 	if (distance > (g_flMaxObjectiveDistance * g_DynamicRespawn_Distance_mult) && (fRandomFloat <= g_dynamicSpawnCounter_Perc)) {
+	// 		 return 0;
 
-		} 
-		else if (distance > g_flMaxObjectiveDistance) { 
-			 return 0;
-		}
+	// 	} 
+	// 	else if (distance > g_flMaxObjectiveDistance) { 
+	// 		 return 0;
+	// 	}
 		
 		
-	}
+	// }
 	return 1;
 }
 float GetSpawnPoint_SpawnPoint(client) {
@@ -4311,9 +4325,20 @@ public Action:Timer_ReviveMonitor(Handle:timer, any:data)
 						iScore = GetPlayerScore(iMedic);
 						//PrintToServer("[SCORE] score: %d", iScore + 10);
 						SetPlayerScore(iMedic, iScore + 10);
+
+						decl String:sBuf2[255];
+						if (iBonus > 1)
+							Format(sBuf2, 255,"Awarded %i kills and %i score for revive", iBonus, 10);
+						else
+							Format(sBuf2, 255,"Awarded %i kill and %i score for revive", iBonus, 10);
 						
+						PrintToChat(iMedic, "%s", sBuf2);
+
 						// Update ragdoll position
 						g_fRagdollPosition[iInjured] = fRagPos;
+
+						//Reward nearby medics who asssisted
+						Check_NearbyMedicsRevive(iMedic, iInjured);
 						
 						// Reset revive counter
 						playerRevived[iInjured] = true;
@@ -4374,7 +4399,7 @@ public Action:Timer_ReviveMonitor(Handle:timer, any:data)
 				GetEdictClassname(ActiveWeapon, sWeapon, sizeof(sWeapon));
 				//PrintToServer("[KNIFE ONLY] CheckWeapon for iMedic %d named %N ActiveWeapon %d sWeapon %s",iMedic,iMedic,ActiveWeapon,sWeapon);
 				
-				// If iMedic can see ragdoll and using defib or knife
+				// If NON Medic can see ragdoll and using healthkit
 				if (fDistance < fReviveDistance && (ClientCanSeeVector(iMedic, fRagPos, fReviveDistance)) 
 					&& ((StrContains(sWeapon, "weapon_healthkit") > -1))
 				)
@@ -4447,6 +4472,7 @@ public Action:Timer_ReviveMonitor(Handle:timer, any:data)
 						new iScore = GetClientFrags(iMedic) + iBonus;
 						SetEntProp(iMedic, Prop_Data, "m_iFrags", iScore);
 						
+						
 						/////////////////////////
 						// Rank System
 						g_iStatRevives[iMedic]++;
@@ -4458,9 +4484,21 @@ public Action:Timer_ReviveMonitor(Handle:timer, any:data)
 						//PrintToServer("[SCORE] score: %d", iScore + 10);
 						SetPlayerScore(iMedic, iScore + 10);
 						
+						decl String:sBuf2[255];
+						if (iBonus > 1)
+							Format(sBuf2, 255,"Awarded %i kills and %i score for revive", iBonus, 10);
+						else
+							Format(sBuf2, 255,"Awarded %i kill and %i score for revive", iBonus, 10);
+						
+						PrintToChat(iMedic, "%s", sBuf2);
+
+						
 						// Update ragdoll position
 						g_fRagdollPosition[iInjured] = fRagPos;
 						
+						//Reward nearby medics who asssisted
+						Check_NearbyMedicsRevive(iMedic, iInjured);
+
 						// Reset revive counter
 						playerRevived[iInjured] = true;
 						
@@ -4538,20 +4576,32 @@ public Action:Timer_MedicMonitor(Handle:timer)
 					if (iHealth < 100)
 					{
 						iHealth += g_iHeal_amount_paddles;
-						if (iHealth >= 100)
+						g_playerMedicHealsAccumulated[medic] += g_iHeal_amount_paddles;
+						new iHealthCap = GetConVarInt(sm_heal_cap_for_bonus);
+						//Reward player for healing
+						if (g_playerMedicHealsAccumulated[medic] >= iHealthCap)
 						{
-							iHealth = 100;
-							
+							g_playerMedicHealsAccumulated[medic] = 0;
 							new iBonus = GetConVarInt(sm_heal_bonus);
 							new iScore = GetClientFrags(medic) + iBonus;
 							SetEntProp(medic, Prop_Data, "m_iFrags", iScore);
+							decl String:sBuf2[255];
+							if (iBonus > 1)
+								Format(sBuf2, 255,"Awarded %i kills for healing %i in HP of other players.", iBonus, iHealthCap);
+							else
+								Format(sBuf2, 255,"Awarded %i kill for healing %i in HP of other players.", iBonus, iHealthCap);
 							
+							PrintToChat(medic, "%s", sBuf2);
 							////////////////////////
 							// Rank System
 							g_iStatHeals[medic]++;
 							//
 							////////////////////////
-							
+						}
+						
+						if (iHealth >= 100)
+						{
+							iHealth = 100;
 							//Client_PrintToChatAll(false, "{OG}%N{N} healed {OG}%N", medic, iTarget);
 							PrintToChatAll("\x05%N\x01 healed \x05%N", medic, iTarget);
 							PrintHintText(iTarget, "You were healed by %N (HP: %i)", medic, iHealth);
@@ -4574,19 +4624,32 @@ public Action:Timer_MedicMonitor(Handle:timer)
 					if (iHealth < 100)
 					{
 						iHealth += g_iHeal_amount_medPack;
-						if (iHealth >= 100)
+						g_playerMedicHealsAccumulated[medic] += g_iHeal_amount_medPack;
+						new iHealthCap = GetConVarInt(sm_heal_cap_for_bonus);
+						//Reward player for healing
+						if (g_playerMedicHealsAccumulated[medic] >= iHealthCap)
 						{
-							iHealth = 100;
-							
+							g_playerMedicHealsAccumulated[medic] = 0;
 							new iBonus = GetConVarInt(sm_heal_bonus);
 							new iScore = GetClientFrags(medic) + iBonus;
 							SetEntProp(medic, Prop_Data, "m_iFrags", iScore);
-							
+							decl String:sBuf2[255];
+							if (iBonus > 1)
+								Format(sBuf2, 255,"Awarded %i kills for healing %i in HP of other players.", iBonus, iHealthCap);
+							else
+								Format(sBuf2, 255,"Awarded %i kill for healing %i in HP of other players.", iBonus, iHealthCap);
+
+							PrintToChat(medic, "%s", sBuf2);
 							////////////////////////
 							// Rank System
 							g_iStatHeals[medic]++;
 							//
 							////////////////////////
+						}
+
+						if (iHealth >= 100)
+						{
+							iHealth = 100;
 							
 							//Client_PrintToChatAll(false, "{OG}%N{N} healed {OG}%N", medic, iTarget);
 							PrintToChatAll("\x05%N\x01 healed \x05%N", medic, iTarget);
@@ -4690,6 +4753,29 @@ public Action:Timer_MedicMonitor(Handle:timer)
 						if (iHealth < g_nonMedic_maxHealOther)
 						{
 							iHealth += g_nonMedicHeal_amount;
+							g_playerNonMedicHealsAccumulated[medic] += g_nonMedicHeal_amount;
+							new iHealthCap = GetConVarInt(sm_heal_cap_for_bonus);
+							//Reward player for healing
+							if (g_playerNonMedicHealsAccumulated[medic] >= iHealthCap)
+							{
+								g_playerNonMedicHealsAccumulated[medic] = 0;
+								new iBonus = GetConVarInt(sm_heal_bonus);
+								new iScore = GetClientFrags(medic) + iBonus;
+								SetEntProp(medic, Prop_Data, "m_iFrags", iScore);
+								decl String:sBuf2[255];
+								if (iBonus > 1)
+									Format(sBuf2, 255,"Awarded %i kills for healing %i in HP of other players.", iBonus, iHealthCap);
+								else
+									Format(sBuf2, 255,"Awarded %i kill for healing %i in HP of other players.", iBonus, iHealthCap);
+								
+								PrintToChat(medic, "%s", sBuf2);
+								////////////////////////
+								// Rank System
+								g_iStatHeals[medic]++;
+								//
+								////////////////////////
+							}
+
 							if (iHealth >= g_nonMedic_maxHealOther)
 							{
 								iHealth = g_nonMedic_maxHealOther;
@@ -6675,6 +6761,91 @@ public Check_NearbyMedics(client)
 	return false;
 }
 
+//This is to award nearby medics that participate in reviving a player
+public Check_NearbyMedicsRevive(client, iInjured)
+{
+	for (new friendlyMedic = 1; friendlyMedic <= MaxClients; friendlyMedic++)
+	{
+		if (IsClientConnected(friendlyMedic) && IsClientInGame(friendlyMedic) && !IsFakeClient(friendlyMedic))
+		{
+			//PrintToServer("Medic 1");
+			//new team = GetClientTeam(friendlyMedic);
+			if (IsPlayerAlive(friendlyMedic) && (StrContains(g_client_last_classstring[friendlyMedic], "medic") > -1) && client != friendlyMedic)
+			{
+				//PrintToServer("Medic 2");
+				//Get position of bot and prop
+				new Float:medicOrigin[3];
+				new Float:fDistance;
+		
+				GetClientAbsOrigin(friendlyMedic,medicOrigin);
+				//GetEntPropVector(entity, Prop_Send, "m_vecOrigin", propOrigin);
+				
+				//determine distance from the two
+				fDistance = GetVectorDistance(medicOrigin,g_fRagdollPosition[iInjured]);
+				
+				new ActiveWeapon = GetEntPropEnt(friendlyMedic, Prop_Data, "m_hActiveWeapon");
+				if (ActiveWeapon < 0)
+					continue;
+
+				// Get weapon class name
+				decl String:sWeapon[32];
+				GetEdictClassname(ActiveWeapon, sWeapon, sizeof(sWeapon));
+
+				//PrintToServer("Medic 3");
+				new bool:bCanHealPaddle = false;
+				if ((StrContains(sWeapon, "weapon_defib") > -1) || (StrContains(sWeapon, "weapon_knife") > -1))
+				{
+					//PrintToServer("Medic 4");
+					bCanHealPaddle = true;
+				}
+
+				new Float:fReviveDistance = 65.0;
+				if (fDistance <= fReviveDistance && bCanHealPaddle)
+				{
+						decl String:woundType[64];
+						if (g_playerWoundType[iInjured] == 0)
+							woundType = "minor wound";
+						else if (g_playerWoundType[iInjured] == 1)
+							woundType = "moderate wound";
+						else if (g_playerWoundType[iInjured] == 2)
+							woundType = "critical wound";
+						decl String:sBuf[255];
+						// Chat to all
+						Format(sBuf, 255,"\x05%N\x01 revived(assisted) \x03%N from a %s", friendlyMedic, iInjured, woundType);
+						PrintToChatAll("%s", sBuf);
+						
+						// Hint to friendlyMedic
+						Format(sBuf, 255,"You revived(assisted) %N from a %s", iInjured, woundType);
+						PrintHintText(friendlyMedic, "%s", sBuf);
+						
+						// Add kill bonus to friendlyMedic
+						new iBonus = GetConVarInt(sm_revive_bonus);
+						new iScore = GetClientFrags(friendlyMedic) + iBonus;
+						SetEntProp(friendlyMedic, Prop_Data, "m_iFrags", iScore);
+						
+						/////////////////////////
+						// Rank System
+						g_iStatRevives[friendlyMedic]++;
+						//
+						/////////////////////////
+						
+						// Add score bonus to friendlyMedic (doesn't work)
+						iScore = GetPlayerScore(friendlyMedic);
+						//PrintToServer("[SCORE] score: %d", iScore + 10);
+						SetPlayerScore(friendlyMedic, iScore + 10);
+
+						decl String:sBuf2[255];
+						if (iBonus > 1)
+							Format(sBuf2, 255,"Awarded %i kills and %i score for assisted revive", iBonus, 10);
+						else
+							Format(sBuf2, 255,"Awarded %i kill and %i score for assisted revive", iBonus, 10);
+						
+						PrintToChat(friendlyMedic, "%s", sBuf2);
+				}
+			}
+		}
+	}
+}
 /*
 ########################LUA HEALING INTEGRATION######################
 #	This portion of the script adds in health packs from Lua 		#
