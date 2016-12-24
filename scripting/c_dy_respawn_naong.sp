@@ -59,6 +59,7 @@ new Float:g_fTimeCheck[2048] = {0.0, ...};
 new g_iTimeCheckHeight[2048] = {0, ...};
 new g_healthPack_Amount[2048] = {0, ...};
 
+
 // This will be used for checking which team the player is on before repsawning them
 #define SPECTATOR_TEAM	0
 #define TEAM_SPEC 	1
@@ -108,7 +109,15 @@ new
 //	playerGrenadeType[MAXPLAYERS + 1][10], //track player grenade types
 //	playerRole[MAXPLAYERS + 1]; // tracks player role so if it changes while wounded, he dies
 
+// These steam ids remove from having a donor tag on request
+	//[1] = 1 STRING, [64] = 40 character limit per string
+new String:g_donorArrayList[2][64] =
+{
+     "STEAM_1:1:54349007"
+};
+new Handle:g_donorTagRemove_Array;
 new Handle:g_playerArrayList;
+
 // Navmesh Init
 new
 	Handle:g_hHidingSpots = INVALID_HANDLE,
@@ -450,6 +459,14 @@ public OnPluginStart()
 {
 	//Create player array list
 	g_playerArrayList = CreateArray(64);
+	g_donorTagRemove_Array = CreateArray(64);
+	//Add Donors to dynamic array
+    for( new i; i < sizeof g_donorArrayList; i++ )
+    {
+        //Add everything to the array
+        PushArrayString( g_donorTagRemove_Array, g_donorArrayList[ i ] );
+    }
+
 	CreateConVar("sm_respawn_version", PLUGIN_VERSION, PLUGIN_DESCRIPTION, FCVAR_NOTIFY | FCVAR_DONTRECORD);
 	sm_respawn_enabled = CreateConVar("sm_respawn_enabled", "1", "Automatically respawn players when they die; 0 - disabled, 1 - enabled");
 	
@@ -3300,7 +3317,7 @@ void StopCounterAttackMusic()
 void ResetSecurityLives()
 {
 	// Disable if counquer
-	if (g_isConquer == 1 || g_isOutpost == 1) return;
+	//if (g_isConquer == 1 || g_isOutpost == 1) return;
 	
 	// Return if respawn is disabled
 	if (!g_iCvar_respawn_enable) return;
@@ -3320,8 +3337,11 @@ void ResetSecurityLives()
 				new iTeam = GetClientTeam(client);
 				if (iTeam != TEAM_1)
 					continue;
-				
-				// Reset individual lives
+
+				//Bonus lives for conquer/outpost
+				if (g_isConquer == 1 || g_isOutpost == 1)
+					g_iSpawnTokens[client] = g_iRespawnCount[iTeam] + 10;
+				else
 				g_iSpawnTokens[client] = g_iRespawnCount[iTeam];
 			}
 		}
@@ -3339,7 +3359,7 @@ void ResetSecurityLives()
 void ResetInsurgencyLives()
 {
 	// Disable if counquer
-	if (g_isConquer == 1 || g_isOutpost == 1) return;
+	//if (g_isConquer == 1 || g_isOutpost == 1) return;
 	
 	// Return if respawn is disabled
 	if (!g_iCvar_respawn_enable) return;
@@ -3360,7 +3380,10 @@ void ResetInsurgencyLives()
 				if (iTeam != TEAM_2)
 					continue;
 				
-				// Reset individual lives
+				//Bonus lives for conquer/outpost
+				if (g_isConquer == 1 || g_isOutpost == 1)
+					g_iSpawnTokens[client] = g_iRespawnCount[iTeam] + 10;
+				else
 				g_iSpawnTokens[client] = g_iRespawnCount[iTeam];
 			}
 		}
@@ -3403,8 +3426,11 @@ public Action:Event_PlayerPickSquad_Post( Handle:event, const String:name[], boo
 		// Init variable
 		g_iHurtFatal[client] = -1;
 	}
-	
-		
+	// Get SteamID to remove donor tag
+	decl String:steamIdTag[64];
+	GetClientAuthId(client, AuthId_Steam3, steamIdTag, sizeof(steamIdTag));
+	new removeDonorTag = FindStringInArray(g_donorTagRemove_Array, steamIdTag);
+
 	// Get class name
 	decl String:class_template[64];
 	GetEventString(event, "class_template", class_template, sizeof(class_template));
@@ -3414,40 +3440,42 @@ public Action:Event_PlayerPickSquad_Post( Handle:event, const String:name[], boo
 	
 	// Get player nickname
 	decl String:sNewNickname[64];
-	
-	// Medic class
-	if (StrContains(g_client_last_classstring[client], "medic") > -1)
+
+	if (removeDonorTag == -1) //If player is NOT in g_donorTagRemove_Array
 	{
-		// Admin medic
-		if (GetConVarInt(sm_respawn_enable_donor_tag) == 1 && (GetUserFlagBits(client) & ADMFLAG_ROOT))
-			Format(sNewNickname, sizeof(sNewNickname), "[ADMIN][MEDIC] %s", g_client_org_nickname[client]);
-		// Donor medic
-		else if (GetConVarInt(sm_respawn_enable_donor_tag) == 1 && (GetUserFlagBits(client) & ADMFLAG_RESERVATION))
-			Format(sNewNickname, sizeof(sNewNickname), "[DONOR][MEDIC] %s", g_client_org_nickname[client]);
-		// Normal medic
+		// Medic class
+		if (StrContains(g_client_last_classstring[client], "medic") > -1)
+		{
+			// Admin medic
+			if (GetConVarInt(sm_respawn_enable_donor_tag) == 1 && (GetUserFlagBits(client) & ADMFLAG_ROOT))
+				Format(sNewNickname, sizeof(sNewNickname), "[ADMIN][MEDIC] %s", g_client_org_nickname[client]);
+			// Donor medic
+			else if (GetConVarInt(sm_respawn_enable_donor_tag) == 1 && (GetUserFlagBits(client) & ADMFLAG_RESERVATION))
+				Format(sNewNickname, sizeof(sNewNickname), "[DONOR][MEDIC] %s", g_client_org_nickname[client]);
+			// Normal medic
+			else
+				Format(sNewNickname, sizeof(sNewNickname), "[MEDIC] %s", g_client_org_nickname[client]);
+		}
+		// Normal class
 		else
-			Format(sNewNickname, sizeof(sNewNickname), "[MEDIC] %s", g_client_org_nickname[client]);
+		{
+			// Admin
+			if (GetConVarInt(sm_respawn_enable_donor_tag) == 1 && (GetUserFlagBits(client) & ADMFLAG_ROOT))
+				Format(sNewNickname, sizeof(sNewNickname), "[ADMIN] %s", g_client_org_nickname[client]);
+			// Donor
+			else if (GetConVarInt(sm_respawn_enable_donor_tag) == 1 && (GetUserFlagBits(client) & ADMFLAG_RESERVATION))
+				Format(sNewNickname, sizeof(sNewNickname), "[DONOR] %s", g_client_org_nickname[client]);
+			// Normal player
+			else
+				Format(sNewNickname, sizeof(sNewNickname), "%s", g_client_org_nickname[client]);
+		}
+		
+		// Set player nickname
+		decl String:sCurNickname[64];
+		Format(sCurNickname, sizeof(sCurNickname), "%N", client);
+		if (!StrEqual(sCurNickname, sNewNickname))
+			SetClientName(client, sNewNickname);
 	}
-	// Normal class
-	else
-	{
-		// Admin
-		if (GetConVarInt(sm_respawn_enable_donor_tag) == 1 && (GetUserFlagBits(client) & ADMFLAG_ROOT))
-			Format(sNewNickname, sizeof(sNewNickname), "[ADMIN] %s", g_client_org_nickname[client]);
-		// Donor
-		else if (GetConVarInt(sm_respawn_enable_donor_tag) == 1 && (GetUserFlagBits(client) & ADMFLAG_RESERVATION))
-			Format(sNewNickname, sizeof(sNewNickname), "[DONOR] %s", g_client_org_nickname[client]);
-		// Normal player
-		else
-			Format(sNewNickname, sizeof(sNewNickname), "%s", g_client_org_nickname[client]);
-	}
-	
-	// Set player nickname
-	decl String:sCurNickname[64];
-	Format(sCurNickname, sizeof(sCurNickname), "%N", client);
-	if (!StrEqual(sCurNickname, sNewNickname))
-		SetClientName(client, sNewNickname);
-	
 	g_playersReady = true;
 
 	//Allow new players to use lives to respawn on join
