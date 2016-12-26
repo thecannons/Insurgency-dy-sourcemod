@@ -5286,7 +5286,7 @@ String:GetHeightString(Float:fClientPosition[3], Float:fTargetPosition[3])
         s = "LEVEL";
     }
     
-    return s
+    return s;
 }
 
 // Check tags
