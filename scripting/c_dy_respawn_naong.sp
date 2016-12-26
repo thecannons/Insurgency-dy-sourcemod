@@ -5006,6 +5006,7 @@ public Action:Timer_NearestBody(Handle:timer, any:data)
 	
 	decl String:sDirection[64];
 	decl String:sDistance[64];
+    decl String:sHeight[6];
 
 	// Client loop
 	for (new medic = 1; medic <= MaxClients; medic++)
@@ -5073,10 +5074,13 @@ public Action:Timer_NearestBody(Handle:timer, any:data)
 				
 				// Get distance string
 				sDistance = GetDistanceString(fNearestDistance);
+
+                // Get height string
+                sHeight = GetHeightString(fMedicPosition, fInjuredPosition);
 				
 				// Print iNearestInjured dead body's distance and direction text
 				//PrintCenterText(medic, "Nearest dead: %N (%s)", iNearestInjured, sDistance);
-				PrintCenterText(medic, "Nearest dead: %N ( %s | %s )", iNearestInjured, sDistance, sDirection);
+				PrintCenterText(medic, "Nearest dead: %N ( %s | %s | %s )", iNearestInjured, sDistance, sDirection, sHeight);
 				new Float:beamPos[3];
 				beamPos = fInjuredPosition;
 				beamPos[2] += 0.3;
@@ -5241,6 +5245,33 @@ String:GetDistanceString(Float:fDistance)
 	}
 	
 	return sResult;
+}
+
+/**
+ * Get height string for nearest dead body
+ *
+ * @param fClientPosition[3]    Client position
+ * @param fTargetPosition[3]    Target position
+ * @Return                      height string.
+ */
+String:GetHeightString(Float:fClientPosition[3], Float:fTargetPosition[3])
+{
+    decl String:s[6];
+    
+    if (fClientPosition[2]+64 < fTargetPosition[2])
+    {
+        s = "ABOVE";
+    }
+    else if (fClientPosition[2]-64 > fTargetPosition[2])
+    {
+        s = "BELOW";
+    }
+    else
+    {
+        s = "LEVEL";
+    }
+    
+    return s;
 }
 
 // Check tags
