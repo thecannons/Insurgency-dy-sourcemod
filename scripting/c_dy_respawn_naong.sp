@@ -4415,6 +4415,9 @@ public Action:Timer_ReviveMonitor(Handle:timer, any:data)
 						
 						// Decrease revive remaining time
 						g_iReviveRemainingTime[iInjured]--;
+						
+						//prevent respawn while reviving
+						g_iRespawnTimeRemaining[iInjured]++;
 					}
 					// Revive player
 					else if (g_iReviveRemainingTime[iInjured] <= 0)
