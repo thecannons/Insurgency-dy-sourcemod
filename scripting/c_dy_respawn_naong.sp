@@ -4385,7 +4385,7 @@ public Action:Timer_ReviveMonitor(Handle:timer, any:data)
 				
 				// If iMedic can see ragdoll and using defib or knife
 				if (fDistance < fReviveDistance && (ClientCanSeeVector(iMedic, fRagPos, fReviveDistance)) 
-					&& ((StrContains(sWeapon, "weapon_defib") > -1) || (StrContains(sWeapon, "weapon_knife") > -1))
+					&& ((StrContains(sWeapon, "weapon_defib") > -1) || (StrContains(sWeapon, "weapon_knife") > -1) || (StrContains(sWeapon, "weapon_kabar") > -1))
 				)
 				{
 					//PrintToServer("[REVIVE_DEBUG] Distance from %N to %N is %f Seconds %d", iInjured, iMedic, fDistance, g_iReviveRemainingTime[iInjured]);		
@@ -4689,7 +4689,7 @@ public Action:Timer_MedicMonitor(Handle:timer)
 					decl String:sWeapon[32];
 					GetEdictClassname(ActiveWeapon, sWeapon, sizeof(sWeapon));
 					
-					if ((StrContains(sWeapon, "weapon_defib") > -1) || (StrContains(sWeapon, "weapon_knife") > -1))
+					if ((StrContains(sWeapon, "weapon_defib") > -1) || (StrContains(sWeapon, "weapon_knife") > -1) || (StrContains(sWeapon, "weapon_kabar") > -1))
 					{
 						bCanHealPaddle = true;
 					}
@@ -6773,7 +6773,7 @@ public Action:Healthkit(Handle:timer, Handle:hDatapack)
 							decl String:sWeapon[32];
 							GetEdictClassname(ActiveWeapon, sWeapon, sizeof(sWeapon));
 							new bool:bCanHealPaddle = false;
-							if (((StrContains(sWeapon, "weapon_defib") > -1) || (StrContains(sWeapon, "weapon_knife") > -1)))
+							if (((StrContains(sWeapon, "weapon_defib") > -1) || (StrContains(sWeapon, "weapon_knife") > -1) || (StrContains(sWeapon, "weapon_kabar") > -1)))
 							{
 								//PrintToServer("DEBUG 3");
 								new iHealth = GetClientHealth(client);
@@ -6914,7 +6914,7 @@ public Check_NearbyMedics(client)
 
 			//PrintToServer("Medic 3");
 				new bool:bCanHealPaddle = false;
-				if ((StrContains(sWeapon, "weapon_defib") > -1) || (StrContains(sWeapon, "weapon_knife") > -1) || (StrContains(sWeapon, "weapon_healthkit") > -1))
+				if ((StrContains(sWeapon, "weapon_defib") > -1) || (StrContains(sWeapon, "weapon_knife") > -1) || (StrContains(sWeapon, "weapon_kabar") > -1) || (StrContains(sWeapon, "weapon_healthkit") > -1))
 				{
 			//PrintToServer("Medic 4");
 					bCanHealPaddle = true;
@@ -6962,7 +6962,7 @@ public Check_NearbyMedicsRevive(client, iInjured)
 
 				//PrintToServer("Medic 3");
 				new bool:bCanHealPaddle = false;
-				if ((StrContains(sWeapon, "weapon_defib") > -1) || (StrContains(sWeapon, "weapon_knife") > -1))
+				if ((StrContains(sWeapon, "weapon_defib") > -1) || (StrContains(sWeapon, "weapon_knife") > -1) || (StrContains(sWeapon, "weapon_kabar") > -1))
 				{
 					//PrintToServer("Medic 4");
 					bCanHealPaddle = true;
