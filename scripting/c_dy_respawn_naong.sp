@@ -2620,13 +2620,12 @@ int GetBestHidingSpot(client, iteration=0)
 // When player connected server, intialize variable
 public OnClientPutInServer(client)
 {
-	if (!IsFakeClient(client))
-	{
+	
 		playerPickSquad[client] = 0;
 		g_iHurtFatal[client] = -1;
 		g_playerFirstJoin[client] = 1;
 		g_iPlayerRespawnTimerActive[client] = 0;
-	}
+	
 	
 	new String:sNickname[64];
 	Format(sNickname, sizeof(sNickname), "%N", client);
@@ -2637,13 +2636,12 @@ public OnClientPutInServer(client)
 public Action:Event_PlayerConnect(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
-	if (!IsFakeClient(client))
-	{
+	
 		playerPickSquad[client] = 0;
 		g_iHurtFatal[client] = -1;
 		g_playerFirstJoin[client] = 1;
 		g_iPlayerRespawnTimerActive[client] = 0;
-	}
+	
 
 	//Update RespawnCvars when players join
 	UpdateRespawnCvars();
