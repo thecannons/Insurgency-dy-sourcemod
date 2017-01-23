@@ -315,7 +315,7 @@ public Action:Timer_Monitor_Props(Handle:Timer)
 
 									ClientCredits = ClientCredits + Price;
 									iCredits[client] = ClientCredits;
-									PrintToChat(client, "Your \x04%s has been destroyed. Refuunded \x03%d credits!", prop_choice, Price);
+									PrintToChat(client, "Your \x04%s has been destroyed. Refunded \x03%d credits!", prop_choice, Price);
 							}
 
 							g_propIntegrity[i] = 0;

@@ -94,6 +94,7 @@ new
 	g_huntReinforceCacheAdd = 120,
 	bool:g_huntCacheDestroyed = false,
 	bool:g_playersReady = false,
+	bool:g_easterEggRound = false,
 	Float:g_fPlayerPosition[MAXPLAYERS+1][3],
 	Float:g_fDeadPosition[MAXPLAYERS+1][3],
 	Float:g_fRagdollPosition[MAXPLAYERS+1][3],
@@ -947,7 +948,12 @@ void UpdateRespawnCvars()
 	// Respawn type 1
 	g_iRespawnCount[2] = GetConVarInt(sm_respawn_lives_team_sec);
 	g_iRespawnCount[3] = GetConVarInt(sm_respawn_lives_team_ins);
-		
+	
+	if (g_easterEggRound == true)
+	{
+		g_iRespawnCount[2] = g_iRespawnCount[2] + 10;
+		g_iRespawnSeconds = (g_iRespawnSeconds / 2);
+	}
 	// Respawn type 2 for players
 	if (g_iCvar_respawn_type_team_sec == 2)
 	{
@@ -1153,6 +1159,7 @@ void Dynamic_Loadouts()
 	else if (fRandom >= 0.96)
 	{
 		SetConVarString(hTheaterOverride, "dy_gnalvl_coop_usmc_bomber", true, false);
+		g_easterEggRound = true;
 	}
 	//Its a good day to die
 	if (g_iCvar_bombers_only == 1)
@@ -3328,7 +3335,7 @@ void ResetSecurityLives()
 					continue;
 
 				//Bonus lives for conquer/outpost
-				if (g_isConquer == 1 || g_isOutpost == 1)
+				if (g_isConquer == 1 || g_isOutpost == 1 || g_isHunt == 1)
 					g_iSpawnTokens[client] = g_iRespawnCount[iTeam] + 10;
 				else
 				g_iSpawnTokens[client] = g_iRespawnCount[iTeam];
@@ -3370,7 +3377,7 @@ void ResetInsurgencyLives()
 					continue;
 				
 				//Bonus lives for conquer/outpost
-				if (g_isConquer == 1 || g_isOutpost == 1)
+				if (g_isConquer == 1 || g_isOutpost == 1 || g_isHunt == 1)
 					g_iSpawnTokens[client] = g_iRespawnCount[iTeam] + 10;
 				else
 				g_iSpawnTokens[client] = g_iRespawnCount[iTeam];
