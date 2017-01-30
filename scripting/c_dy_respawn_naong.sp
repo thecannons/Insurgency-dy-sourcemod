@@ -781,7 +781,7 @@ public OnPluginEnd()
 	new ent = -1;
 	while ((ent = FindEntityByClassname(ent, "healthkit")) > MaxClients && IsValidEntity(ent))
 	{
-		StopSound(ent, SNDCHAN_STATIC, "Lua_sounds/healthkit_healing.wav");
+		StopSound(ent, SNDCHAN_VOICE, "Lua_sounds/healthkit_healing.wav");
 		AcceptEntityInput(ent, "Kill");
 	}
 }
@@ -1032,6 +1032,7 @@ public TagsChanged(Handle:convar, const String:oldValue[], const String:newValue
 // On map starts, call initalizing function
 public OnMapStart()
 {	
+	g_easterEggRound = false;
 	//Clear player array
 	ClearArray(g_playerArrayList);
 
@@ -1109,6 +1110,18 @@ public OnMapStart()
 	PrecacheSound("player/voice/responses/security/leader/damage/molotov_incendiary_detonated5.ogg");
 	PrecacheSound("player/voice/responses/security/leader/damage/molotov_incendiary_detonated4.ogg");
 
+	//Squad / Team Leader Ambient Radio Sounds
+	PrecacheSound("soundscape/emitters/oneshot/mil_radio_01.ogg");
+	PrecacheSound("soundscape/emitters/oneshot/mil_radio_02.ogg");
+	PrecacheSound("soundscape/emitters/oneshot/mil_radio_03.ogg");
+	PrecacheSound("soundscape/emitters/oneshot/mil_radio_04.ogg");
+	PrecacheSound("soundscape/emitters/oneshot/mil_radio_oneshot_01.ogg");
+	PrecacheSound("soundscape/emitters/oneshot/mil_radio_oneshot_02.ogg");
+	PrecacheSound("soundscape/emitters/oneshot/mil_radio_oneshot_03.ogg");
+	PrecacheSound("soundscape/emitters/oneshot/mil_radio_oneshot_04.ogg");
+	PrecacheSound("soundscape/emitters/oneshot/mil_radio_oneshot_05.ogg");
+	PrecacheSound("soundscape/emitters/oneshot/mil_radio_oneshot_06.ogg");
+	
 	// AddFileToDownloadsTable("materials/models/items/healthkit01.vmt");
 	// AddFileToDownloadsTable("materials/models/items/healthkit01.vtf");
 	// AddFileToDownloadsTable("materials/models/items/healthkit01_mask.vtf");
@@ -1251,6 +1264,9 @@ public Action:Timer_MapStart(Handle:Timer)
 
 	// Display nearest body for medics
 	CreateTimer(0.2, Timer_NearestBody, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+
+	// Display nearest body for medics
+	CreateTimer(60.0, Timer_AmbientRadio, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 	
 	// Static enemy check timer
 	g_checkStaticAmt = GetConVarInt(sm_respawn_check_static_enemy);
@@ -1667,7 +1683,7 @@ public Action:Timer_EnemyReinforce(Handle:Timer)
 			else
 			{
 				// Get bot count
-				new minBotCount = (g_iRespawn_lives_team_ins / 8);
+				new minBotCount = (g_iRespawn_lives_team_ins / 7);
 				g_iRemaining_lives_team_ins = g_iRemaining_lives_team_ins + minBotCount;
 				
 				// Add bots
@@ -4995,7 +5011,55 @@ public Action:Timer_MedicMonitor(Handle:timer)
 	
 	return Plugin_Continue; 
 }
+public Action:Timer_AmbientRadio(Handle:timer, any:data)
+{
+	for (new client = 1; client <= MaxClients; client++)
+	{
 
+		if (!IsClientInGame(client) || IsFakeClient(client))
+			continue;
+		
+		new team = GetClientTeam(client); 
+		// Valid medic?
+		if (IsPlayerAlive(client) && ((StrContains(g_client_last_classstring[client], "squadleader") > -1) || (StrContains(g_client_last_classstring[client], "teamleader") > -1)) && team == TEAM_1)
+		{
+
+
+			new fRandomChance = GetRandomInt(1, 100);
+			if (fRandomChance < 50)
+			{	
+				new Handle:hDatapack;
+				new fRandomFloat = GetRandomFloat(1.0, 30.0);
+				//CreateTimer(fRandomFloat, Timer_PlayAmbient);
+				CreateDataTimer(fRandomFloat, Timer_PlayAmbient, hDatapack);
+				WritePackCell(hDatapack, client);
+			}
+		}
+	}
+
+
+}
+public Action:Timer_PlayAmbient(Handle:timer, Handle:hDatapack)
+{
+
+	ResetPack(hDatapack);
+	new client = ReadPackCell(hDatapack);
+				PrintToServer("PlaySound");
+	switch(GetRandomInt(1, 10))
+	{
+		case 1: EmitSoundToAll("soundscape/emitters/oneshot/mil_radio_01.ogg", client, SNDCHAN_VOICE, _, _, 1.0);
+		case 2: EmitSoundToAll("soundscape/emitters/oneshot/mil_radio_02.ogg", client, SNDCHAN_VOICE, _, _, 1.0);
+		case 3: EmitSoundToAll("soundscape/emitters/oneshot/mil_radio_03.ogg", client, SNDCHAN_VOICE, _, _, 1.0);
+		case 4: EmitSoundToAll("soundscape/emitters/oneshot/mil_radio_04.ogg", client, SNDCHAN_VOICE, _, _, 1.0);
+		case 5: EmitSoundToAll("soundscape/emitters/oneshot/mil_radio_oneshot_01.ogg", client, SNDCHAN_VOICE, _, _, 1.0);
+		case 6: EmitSoundToAll("soundscape/emitters/oneshot/mil_radio_oneshot_02.ogg", client, SNDCHAN_VOICE, _, _, 1.0);
+		case 7: EmitSoundToAll("soundscape/emitters/oneshot/mil_radio_oneshot_03.ogg", client, SNDCHAN_VOICE, _, _, 1.0);
+		case 8: EmitSoundToAll("soundscape/emitters/oneshot/mil_radio_oneshot_04.ogg", client, SNDCHAN_VOICE, _, _, 1.0);
+		case 9: EmitSoundToAll("soundscape/emitters/oneshot/mil_radio_oneshot_05.ogg", client, SNDCHAN_VOICE, _, _, 1.0);
+		case 10: EmitSoundToAll("soundscape/emitters/oneshot/mil_radio_oneshot_06.ogg", client, SNDCHAN_VOICE, _, _, 1.0);
+	}
+
+}
 // Check for nearest player
 public Action:Timer_NearestBody(Handle:timer, any:data)
 {
@@ -6648,7 +6712,7 @@ public Action:Healthkit(Handle:timer, Handle:hDatapack)
 					fOrigin[2] -= 6.0;
 					TeleportEntity(entity, fOrigin, fAng, Float:{0.0, 0.0, 0.0});
 					fOrigin[2] += 6.0;
-					EmitSoundToAll("ui/sfx/cl_click.wav", entity, SNDCHAN_STATIC, _, _, 1.0);
+					EmitSoundToAll("ui/sfx/cl_click.wav", entity, SNDCHAN_VOICE, _, _, 1.0);
 				}
 			}
 			for (new client = 1;client <= MaxClients;client++)
@@ -6696,12 +6760,12 @@ public Action:Healthkit(Handle:timer, Handle:hDatapack)
 										PrintHintText(client, "Medic area healing you (HP: %i)", iHealth);
 										switch(GetRandomInt(1, 6))
 										{
-											case 1: EmitSoundToAll("weapons/universal/uni_crawl_l_01.wav", client, SNDCHAN_STATIC, _, _, 1.0);
-											case 2: EmitSoundToAll("weapons/universal/uni_crawl_l_04.wav", client, SNDCHAN_STATIC, _, _, 1.0);
-											case 3: EmitSoundToAll("weapons/universal/uni_crawl_l_02.wav", client, SNDCHAN_STATIC, _, _, 1.0);
-											case 4: EmitSoundToAll("weapons/universal/uni_crawl_r_03.wav", client, SNDCHAN_STATIC, _, _, 1.0);
-											case 5: EmitSoundToAll("weapons/universal/uni_crawl_r_05.wav", client, SNDCHAN_STATIC, _, _, 1.0);
-											case 6: EmitSoundToAll("weapons/universal/uni_crawl_r_06.wav", client, SNDCHAN_STATIC, _, _, 1.0);
+											case 1: EmitSoundToAll("weapons/universal/uni_crawl_l_01.wav", client, SNDCHAN_VOICE, _, _, 1.0);
+											case 2: EmitSoundToAll("weapons/universal/uni_crawl_l_04.wav", client, SNDCHAN_VOICE, _, _, 1.0);
+											case 3: EmitSoundToAll("weapons/universal/uni_crawl_l_02.wav", client, SNDCHAN_VOICE, _, _, 1.0);
+											case 4: EmitSoundToAll("weapons/universal/uni_crawl_r_03.wav", client, SNDCHAN_VOICE, _, _, 1.0);
+											case 5: EmitSoundToAll("weapons/universal/uni_crawl_r_05.wav", client, SNDCHAN_VOICE, _, _, 1.0);
+											case 6: EmitSoundToAll("weapons/universal/uni_crawl_r_06.wav", client, SNDCHAN_VOICE, _, _, 1.0);
 										}
 									}
 
