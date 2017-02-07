@@ -57,7 +57,7 @@ stock SetWeaponAmmo(client, weapon, ammo, type)
 	new PropType:proptype = Prop_Data;
 	//new ammoOffset = FindSendPropInfo("CINSPlayer", "m_iAmmo");
 	new m_ammoType;
-				
+	
 	//PrintToServer("m_iPrimaryAmmoType: %i, Ammo %i", m_ammoType, ammo);
 	//return GetEntData(client, ammoOffset+(slot*4));
 	if (type == 0) // primary

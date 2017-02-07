@@ -193,7 +193,7 @@ public Action:Event_PlayerDeath(Handle:event, String:name[], bool:broadcast) {
 	}
 
 	// if the killer is a bot stop here
-	if (killer == 0 || !IsClientInGame(killer) || IsFakeClient(killer) ) {
+	if (killer == 0 || !IsClientInGame(killer) || IsFakeClient(killer) || victim==killer) {
 		if (GetConVarBool(g_CvarDebugEnabled)) {
 			PrintToServer("[FY] Did not yell, client was not valid (client %d)", killer);
 		}

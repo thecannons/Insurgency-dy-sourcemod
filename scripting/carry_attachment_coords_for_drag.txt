@@ -1,0 +1,1 @@
+$attachment "launcher" "Launcher" 0.00 0.00 0.00 rotate -0 -90 0

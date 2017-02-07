@@ -32,5 +32,13 @@
 			"health"		"500"
 			"adminonly"     "0" //Means it's admin only if set to 1
 	}
+	"Ammo Cache"
+	{
+			"model"			"models/static_props/wcache_crate_01.mdl"
+			"height"		"-1"
+			"price"			"15"
+			"health"		"250"
+			"adminonly"     "0" //Means it's admin only if set to 1
+	}
 		
 }

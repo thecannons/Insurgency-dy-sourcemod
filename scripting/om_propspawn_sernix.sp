@@ -18,6 +18,9 @@
 // models/iraq/ir_hesco_basket_01.mdl Hesco single like large 4
 // \insurgency\insurgency_models.vpk\models\static_afghan\prop_fortification_hesco_large.mdl   Large hesco
 // insurgency2\insurgency\insurgency_models.vpk\models\iraq\ir_hesco_basket_01_row.mdl  Large 4 Hesco (need to engineers 10 points each)
+//Ammo crates
+//models\generic\ammocrate3.mdl
+//models\static_props\wcache_crate_01.mdl
 
 // Include the neccesary files
 #include <sourcemod>
@@ -58,7 +61,7 @@
 #define IN_GRENADE1   (1 << 23) /**< grenade 1 */
 #define IN_GRENADE2   (1 << 24) /**< grenade 2 */
 
-#define JammerView_Radius	1200.0
+#define JammerView_Radius	1600.0
 
 // This will be used for checking which team the player is on before repsawning them
 #define SPECTATOR_TEAM	0
@@ -76,7 +79,7 @@ new String:sVersion[5] = "3.0.2";
 new String:sPrefix[256] = "\x01\x03[\x04PropSpawn\x03]\x01";
 
 //Player properties (credits)
-new iDefCredits = 10;
+new iDefCredits = 35;
 new iCredits[MAXPLAYERS+1];
 new iPropNo[MAXPLAYERS+1];//Stores the number of props a player has
 new Handle:hCredits = INVALID_HANDLE;
@@ -174,7 +177,9 @@ public OnPluginStart()
 	HookEvent("round_start", Event_RoundStart);
 	HookEvent("player_pick_squad", Event_PlayerPickSquad);
 	HookEvent("round_end", Event_RoundEnd);
-	
+	HookEvent("object_destroyed", Event_ObjectDestroyed);
+	HookEvent("controlpoint_captured", Event_ControlPointCaptured);
+
 	new String:tempCredits[5];
 	IntToString(iDefCredits, tempCredits, sizeof(tempCredits));
 	// Convar to control the credits players get when they spawn (default above)
@@ -277,6 +282,41 @@ public Action:Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadca
 		}
 	}
 }
+// When ammo cache destroyed, clear props refund credits
+public Action:Event_ObjectDestroyed(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	//Clear props
+	for (new engineerCheck = 1; engineerCheck <= MaxClients; engineerCheck++)
+	{
+		if (engineerCheck > 0)
+		{
+			if (IsClientConnected(engineerCheck) && IsClientInGame(engineerCheck) && !IsFakeClient(engineerCheck) && (StrContains(g_client_last_classstring[engineerCheck], "engineer") > -1))
+			{
+				iCredits[engineerCheck] = iDefCredits;
+			}
+		}
+	}
+	
+	return Plugin_Continue;
+}
+// When control point captured, reset variables
+public Action:Event_ControlPointCaptured(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	
+	//Clear props
+	for (new engineerCheck = 1; engineerCheck <= MaxClients; engineerCheck++)
+	{
+		if (engineerCheck > 0)
+		{
+			if (IsClientConnected(engineerCheck) && IsClientInGame(engineerCheck) && !IsFakeClient(engineerCheck) && (StrContains(g_client_last_classstring[engineerCheck], "engineer") > -1))
+			{
+				iCredits[engineerCheck] = iDefCredits;
+			}
+		}
+	}
+	
+	return Plugin_Continue;
+}
 
 public Action:Timer_MonitorAntennas(Handle:Timer)
 {
@@ -337,6 +377,10 @@ public GetPropType(entity)
 	else if (StrEqual(propModelName, "models/static_fittings/antenna02b.mdl"))
 	{
 		propType = 3;
+	}
+	else if (StrEqual(propModelName, "models/static_props/wcache_crate_01.mdl"))
+	{
+		propType = 4;
 	}
 	return propType;
 
@@ -403,9 +447,10 @@ public Action:Timer_Monitor_Props(Handle:Timer)
 							if (Price > 0)
 							{
 
-									ClientCredits = ClientCredits + Price;
-									iCredits[client] = ClientCredits;
-									PrintToChat(client, "Your \x04%s has been destroyed. Refunded \x03%d credits!", prop_choice, Price);
+									//ClientCredits = ClientCredits + Price;
+									//iCredits[client] = ClientCredits;
+									//PrintToChat(client, "Your \x04%s has been destroyed. Refunded \x03%d credits!", prop_choice, Price);
+									PrintToChat(client, "Your \x04%s has been destroyed. Points refund on capture", prop_choice);
 							}
 
 							g_propIntegrity[i] = 0;
@@ -507,6 +552,14 @@ public Action:Timer_Monitor_Props(Handle:Timer)
 										{
 											propIntegrity = 500;
 											g_propIntegrity[i] = 500;
+										}
+									}
+									else if (propType == 4) //Max health 250 for ammoboxes
+									{
+										if (propIntegrity > 250)
+										{
+											propIntegrity = 250;
+											g_propIntegrity[i] = 250;
 										}
 									}
 									else
@@ -632,7 +685,7 @@ public Check_NearbyBots(builtProp)
 				fDistance = GetVectorDistance(propOrigin,botOrigin);
 				
 				new propType = GetPropType(builtProp);
-				if (propType == 3) // lower degrade range if antenna
+				if (propType == 3 || propType == 4) // lower degrade range if antenna or ammobox
 				{
 					//return false; //debug disable after
 					if (fDistance <= 70)
@@ -679,7 +732,7 @@ public Hurt_NearbyBots(builtProp, client)
 					new fRandomDamage = GetRandomInt(10, 25);
 					//Hurt bot
 					DealDamage(enemyBot,fRandomDamage,client,DMG_GENERIC,"");
-					PrintToServer("Deal damage to: %N for %I", enemyBot, fRandomDamage);
+					//PrintToServer("Deal damage to: %N for %d", enemyBot, fRandomDamage);
 					// new iHealth = GetClientHealth(client);
 					// iHealth = iHealth - fRandomDamage;
 					// SetEntityHealth(client, iHealth);
@@ -827,11 +880,11 @@ public Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
 	for(new i=0; i<=MaxClients; i++)
 	{
 		iPropNo[i] = 0;
+		iCredits[i] = iDefCredits;
 	}
 
 	new userid = GetEventInt(event, "userid");
 	new client = GetClientOfUserId(userid);
-	iCredits[client] = iDefCredits;
 }
 public Action:YellOut(client) {
 
@@ -872,7 +925,6 @@ stock KillProps(client)
 			AcceptEntityInput(prop, "kill");
 	}
 	iPropNo[client] = 0;
-	iCredits[client] = iDefCredits;
 }
 
 public Action:AdminRemovePropAim(client, args)
@@ -1028,8 +1080,8 @@ PopLoop(Handle:kv, client)
 		while (KvGotoNextKey(kv));
 		CloseHandle(kv);
 	}
-	AddMenuItem(om_public_prop_menu, "decontruct", "Decontruct All (refund)");
-	AddMenuItem(om_public_prop_menu, "fastexit", "Fast-Exit Menu");
+	AddMenuItem(om_public_prop_menu, "decontruct", "Decontruct All (no refund)");
+	//AddMenuItem(om_public_prop_menu, "fastexit", "Fast-Exit Menu");
 }
 
 public Action:Timer_Construct(Handle timer, Handle pack)
@@ -1116,7 +1168,7 @@ public Public_Prop_Menu_Handler(Handle:menu, MenuAction:action, param1, param2)
  
 		/* Get item info */
 		//menu.GetItem(param2, info, sizeof(info))
-		if (param2 == 4)
+		if (param2 == 5)
 		{
 			KillProps(param1);
 			PrintHintText(param1, "Deployables Deconstructed");
@@ -1134,11 +1186,11 @@ public Public_Prop_Menu_Handler(Handle:menu, MenuAction:action, param1, param2)
 			// DisplayMenu(om_public_prop_menu, param1, MENU_TIME_FOREVER);
 			return Plugin_Stop;
 		}
-		if (param2 == 5)
-		{
-			g_engInMenu[param1] = false;
-			return Plugin_Stop;
-		}
+		// if (param2 == 6)
+		// {
+		// 	g_engInMenu[param1] = false;
+		// 	return Plugin_Stop;
+		// }
 		
 		new String:prop_choice[255];
 	
