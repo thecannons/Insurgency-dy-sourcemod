@@ -98,6 +98,7 @@ new g_iRoundEndBlockTimes;
 new g_iRoundEndBlockReviveDelay;
 new g_iRoundEndBlockResetRound;
 new g_iRoundEndBlockDebug;
+new playerPickSquad[MAXPLAYERS + 1];
 
 new Handle:g_hGameConfig;
 new Handle:g_hPlayerRespawn;
@@ -119,7 +120,6 @@ new g_iCPSpeedUp;
 new g_iCPSpeedUpMax;
 new g_iCPSpeedUpRate;
 new g_bIsCounterAttackTimerActive = false;
-new	playerPickSquad[MAXPLAYERS + 1];
 
 public void OnPluginStart() {
 	// cvars
@@ -148,6 +148,8 @@ public void OnPluginStart() {
 	HookEvent("controlpoint_captured", Event_ControlPointCaptured_Post, EventHookMode_PostNoCopy);
 	HookEvent("player_death", Event_PlayerDeathPre, EventHookMode_Pre);
 	HookEvent("player_pick_squad", Event_PlayerPickSquad_Post, EventHookMode_Post);
+	HookEvent("player_connect", Event_PlayerConnect);
+	HookEvent("player_disconnect", Event_PlayerDisconnect, EventHookMode_Pre);
 	
 	// hook variables
 	HookConVarChange(sm_roundendblock_enabled,CvarChange);
@@ -193,7 +195,7 @@ public OnMapStart()
 	g_iCPSpeedUpRate = GetConVarInt(g_hCvarCPSpeedUpRate);
 }
 public Action:Command_AddBlocker(client, args) {
-	AddBlocker();
+	//AddBlocker();
 	PrintToChat(client, "[RndEndBlock] Added roundend blocker"); // show chat debug 
 	
 	return Plugin_Handled;
@@ -201,6 +203,21 @@ public Action:Command_AddBlocker(client, args) {
 public Action:Command_KickBlocker(client, args) {
 	KickBlocker();
 	return Plugin_Handled;
+}
+
+
+// When player connected server, intialize variable
+public OnClientPutInServer(client)
+{
+		playerPickSquad[client] = 0;
+}
+
+public Action:Event_PlayerConnect(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	
+		playerPickSquad[client] = 0;
+
 }
 public Action:Command_BotCount(client, args) {
 	/*
@@ -438,6 +455,19 @@ public Action:Event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroa
 	// 	}
 	// }
 }
+
+// When player disconnected server, intialize variables
+public Action:Event_PlayerDisconnect(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	if (client > 0 && IsClientInGame(client))
+	{
+	
+		playerPickSquad[client] = 0;
+	}
+	return Plugin_Continue;
+}
+
 public Action:Event_PlayerDeathPre(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	if (g_iRoundEndBlockEnabled == 0)
@@ -570,63 +600,63 @@ void ShowPanelAll(String:sMessage[])
 public NullMenuHandler(Handle:menu, MenuAction:action, param1, param2) {}
 
 void AddBlocker() {
-	if (g_iSecBotID > 0)
-	{
-		if (g_iRoundEndBlockDebug)
-		{	
-			PrintToServer("[RndEndBlock] Blocker bot already exists.");
-		}
-		return;
-	}
+	// if (g_iSecBotID > 0)
+	// {
+	// 	if (g_iRoundEndBlockDebug)
+	// 	{	
+	// 		PrintToServer("[RndEndBlock] Blocker bot already exists.");
+	// 	}
+	// 	return;
+	// }
 	
-	//KickBlocker();
-	g_iSecBotID = CreateFakeClient(g_sSecBot);
+	// //KickBlocker();
+	// //g_iSecBotID = CreateFakeClient(g_sSecBot);
 	
-	if (g_iSecBotID > 0)
-	{
-		ChangeClientTeam(g_iSecBotID, TEAM_1);
-		SDKCall(g_hPlayerRespawn, g_iSecBotID);
-		SetEntProp(g_iSecBotID, Prop_Data, "m_iFrags", g_iScore);
+	// if (g_iSecBotID > 0)
+	// {
+	// 	ChangeClientTeam(g_iSecBotID, TEAM_1);
+	// 	SDKCall(g_hPlayerRespawn, g_iSecBotID);
+	// 	SetEntProp(g_iSecBotID, Prop_Data, "m_iFrags", g_iScore);
 		
-		if (g_iRoundEndBlockDebug)
-		{
-			PrintToServer("[RndEndBlock] Added RoundEnd Blocker.");
-		}
-	}
+	// 	if (g_iRoundEndBlockDebug)
+	// 	{
+	// 		PrintToServer("[RndEndBlock] Added RoundEnd Blocker.");
+	// 	}
+	// }
 	//else
 	//	PrintToServer("[RndEndBlock] Failed to adding RoundEnd Blocker.");
 	
-	new Handle:hCvar = INVALID_HANDLE;
-	hCvar = FindConVar("mp_forcecamera");
-	SetConVarInt(hCvar, 0, true, false);
-	hCvar = FindConVar("ins_deadcam_modes");
-	SetConVarInt(hCvar, 1, true, false);
+	// new Handle:hCvar = INVALID_HANDLE;
+	// hCvar = FindConVar("mp_forcecamera");
+	// SetConVarInt(hCvar, 0, true, false);
+	// hCvar = FindConVar("ins_deadcam_modes");
+	// SetConVarInt(hCvar, 1, true, false);
 	
 	
 	return;
 }
 void KickBlockerClient() {
-	if (g_iSecBotID > 0)
-	{
-		KickClient(g_iSecBotID);
-		if (g_iRoundEndBlockDebug)
-		{
-			PrintToServer("[RndEndBlock] Kicked RoundEnd Blocker. (Name: %N / ID: %d)", g_iSecBotID, g_iSecBotID);
-		}
-		g_iSecBotID = 0;
-	}
-	else
-	{
-		KickBlocker();
-	}
+	// if (g_iSecBotID > 0)
+	// {
+	// 	KickClient(g_iSecBotID);
+	// 	if (g_iRoundEndBlockDebug)
+	// 	{
+	// 		PrintToServer("[RndEndBlock] Kicked RoundEnd Blocker. (Name: %N / ID: %d)", g_iSecBotID, g_iSecBotID);
+	// 	}
+	// 	g_iSecBotID = 0;
+	// }
+	// else
+	// {
+	// 	KickBlocker();
+	// }
 	
-	//Restore capture point speed up cvars
-	if (Ins_InCounterAttack())
-	{
-		SetConVarInt(g_hCvarCPSpeedUp, g_iCPSpeedUp, true, false);
-		SetConVarInt(g_hCvarCPSpeedUpMax, g_iCPSpeedUpMax, true, false);
-		SetConVarInt(g_hCvarCPSpeedUpRate, g_iCPSpeedUpRate, true, false);
-	}
+	// //Restore capture point speed up cvars
+	// if (Ins_InCounterAttack())
+	// {
+	// 	SetConVarInt(g_hCvarCPSpeedUp, g_iCPSpeedUp, true, false);
+	// 	SetConVarInt(g_hCvarCPSpeedUpMax, g_iCPSpeedUpMax, true, false);
+	// 	SetConVarInt(g_hCvarCPSpeedUpRate, g_iCPSpeedUpRate, true, false);
+	// }
 }
 void KickBlocker() {
 	// new mc = GetMaxClients();

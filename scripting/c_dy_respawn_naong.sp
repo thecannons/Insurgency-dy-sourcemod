@@ -2348,7 +2348,7 @@ float GetSpawnPoint_SpawnPoint(client) {
 			}
 			else
 			{
-				tObjectiveDistance = tObjectiveDistance + 2.0;
+				tObjectiveDistance += 4.0;
 			}
 		}
 		point = FindEntityByClassname(point, "ins_spawnpoint");
@@ -2372,7 +2372,7 @@ float GetSpawnPoint_SpawnPoint(client) {
 			}
 			else
 			{
-				tObjectiveDistance = tObjectiveDistance + 4.0;
+				tObjectiveDistance += 4.0;
 			}
 		}
 		point2 = FindEntityByClassname(point2, "ins_spawnpoint");
@@ -2380,7 +2380,7 @@ float GetSpawnPoint_SpawnPoint(client) {
 	PrintToServer("2nd Pass: Could not find acceptable ins_spawnzone for %N (%d)", client, client);
 	//Lets try again but wider range
 	new point3 = FindEntityByClassname(-1, "ins_spawnpoint");
-	tObjectiveDistance = ((g_flMaxObjectiveDistance + 100) * 7);
+	tObjectiveDistance = ((g_flMaxObjectiveDistance + 100) * 10);
 	while (point3 != -1) {
 		// Check to make sure it is the same team
 		m_iTeamNum = GetEntProp(point3, Prop_Send, "m_iTeamNum");
@@ -2396,7 +2396,7 @@ float GetSpawnPoint_SpawnPoint(client) {
 			}
 			else
 			{
-				tObjectiveDistance = tObjectiveDistance + 6.0;
+				tObjectiveDistance += 4.0;
 			}
 		}
 		point3 = FindEntityByClassname(point3, "ins_spawnpoint");
@@ -2752,6 +2752,8 @@ public Action:Event_PlayerDisconnect(Handle:event, const String:name[], bool:don
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	if (client > 0 && IsClientInGame(client))
 	{
+	
+		playerPickSquad[client] = 0;
 		// Reset player status
 		g_client_last_classstring[client] = ""; //reset his class model
 		// Remove network ragdoll associated with player

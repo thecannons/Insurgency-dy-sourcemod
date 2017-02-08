@@ -444,13 +444,20 @@ public Action:Timer_DetonatePeriod(Handle:timer, any:client)
 	//ResetPack(bomberPack);
 	//client = ReadPackCell(bomberPack);
 	//bomb = ReadPackCell(bomberPack);
-	bomb = EntRefToEntIndex(g_ClientBombs[client]);
-	GetClientAbsOrigin(client, Float:clientPos);
-	clientPos[2] = clientPos[2] + 54;
-    //client is our victim and we are running through all medics to see whos nearby
-	if(IsFakeClient(client) && IsPlayerAlive(client) && bomb > 0 && bomb != INVALID_ENT_REFERENCE && IsValidEdict(bomb) && IsValidEntity(bomb))
-	{	
-		TeleportEntity(bomb, clientPos, NULL_VECTOR, NULL_VECTOR);
+	if (client > 0 && IsClientConnected(client) && IsClientInGame(client))
+	{
+		bomb = EntRefToEntIndex(g_ClientBombs[client]);
+		GetClientAbsOrigin(client, Float:clientPos);
+		clientPos[2] = clientPos[2] + 54;
+	    //client is our victim and we are running through all medics to see whos nearby
+		if(IsFakeClient(client) && IsPlayerAlive(client) && bomb > 0 && bomb != INVALID_ENT_REFERENCE && IsValidEdict(bomb) && IsValidEntity(bomb))
+		{	
+			TeleportEntity(bomb, clientPos, NULL_VECTOR, NULL_VECTOR);
+		}
+		else
+		{
+			return Plugin_Stop;
+		}
 	}
 	else
 	{
@@ -484,7 +491,7 @@ public CheckExplodeHurt(client) {
 		g_ClientBombs[client] = EntIndexToEntRef(ent);
 		//new Handle:bomberPack;
 		//CreateDataTimer(0.0 , Timer_DetonatePeriod, bomberPack, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);	
-		CreateTimer(0.0, Timer_DetonatePeriod, client, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(0.03, Timer_DetonatePeriod, client, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
         
         // WritePackCell(bomberPack, client);
         // WritePackCell(bomberPack, ent);
@@ -554,7 +561,7 @@ public CheckExplodeDeath(client) {
 	
 	//Assign random variable first
 	//new String:shotWeapName[32];
-
+	
 	new Float:vecOrigin[3],Float:vecAngles[3];
 	GetClientEyePosition(client, vecOrigin);
 
@@ -573,7 +580,7 @@ public CheckExplodeDeath(client) {
 		g_ClientBombs[client] = EntIndexToEntRef(ent);
 		//new Handle:bomberPack;
 		//CreateDataTimer(0.0 , Timer_DetonatePeriod, bomberPack, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);	
-		CreateTimer(0.0, Timer_DetonatePeriod, client, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(0.03, Timer_DetonatePeriod, client, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
         //WritePackCell(bomberPack, client);
         //WritePackCell(bomberPack, ent);
 		
