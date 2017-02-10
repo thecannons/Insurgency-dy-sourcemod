@@ -1281,8 +1281,8 @@ public Action:Timer_MapStart(Handle:Timer)
 	ResetInsurgencyLives();
 	
 	// Ammo tracking timer
-	if (GetConVarInt(sm_respawn_enable_track_ammo) == 1)
-		CreateTimer(1.0, Timer_GearMonitor,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	// if (GetConVarInt(sm_respawn_enable_track_ammo) == 1)
+	// 	CreateTimer(1.0, Timer_GearMonitor,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 	
 	// Enemy reinforcement announce timer
 	if (g_isConquer != 1 && g_isOutpost != 1) 
@@ -4041,8 +4041,8 @@ public Action:RespawnPlayerRevive(Handle:Timer, any:client)
 	SDKCall(g_hForceRespawn, client);
 	
 	// If set 'sm_respawn_enable_track_ammo', restore player's ammo
-	if (playerRevived[client] == true && g_iCvar_enable_track_ammo == 1)
-		SetPlayerAmmo(client);
+	// if (playerRevived[client] == true && g_iCvar_enable_track_ammo == 1)
+	// 	SetPlayerAmmo(client);
 	
 	//Set wound health
 	new iHealth = GetClientHealth(client);
@@ -4121,8 +4121,8 @@ public Action:RespawnPlayerPost(Handle:timer, any:client)
 	if (!IsClientInGame(client)) return;
 	
 	// If set 'sm_respawn_enable_track_ammo', restore player's ammo
-	if (g_iCvar_enable_track_ammo == 1)
-		SetPlayerAmmo(client);
+	// if (g_iCvar_enable_track_ammo == 1)
+	// 	SetPlayerAmmo(client);
 	
 	// Teleport to avtive counter attack point
 	//PrintToServer("[REVIVE_DEBUG] called RespawnPlayerPost for client %N (%d)",client,client);

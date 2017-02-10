@@ -11,7 +11,7 @@ Age=1220320256
 [C:\Users\Daimyo\Dropbox\Github\Insurgency-dy-sourcemod\scripting\om_propspawn_new.sp]
 Age=1222155793
 [C:\Users\scott\Dropbox\Github\Insurgency-dy-sourcemod\scripting\c_dy_respawn_naong.sp]
-Age=1246336836
+Age=1246383202
 [C:\Users\scott\Dropbox\Github\Insurgency-dy-sourcemod\scripting\motd.sp]
 Age=1194277972
 [C:\Users\Daimyo\Dropbox\Github\Insurgency-dy-sourcemod\scripting\popup.sp]
@@ -44,3 +44,5 @@ Age=1246335919
 Age=1228173547
 [C:\Users\Daimyo\Dropbox\Github\Insurgency-dy-sourcemod\scripting\logconnections.sp]
 Age=1246365268
+[C:\Users\Daimyo\Dropbox\Github\Insurgency-dy-sourcemod\scripting\joinmessages.sp]
+Age=1246365844
