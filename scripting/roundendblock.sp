@@ -22,7 +22,7 @@
 #define PLUGIN_DESCRIPTION "Prevent round end."
 
 #define REQUIRE_EXTENSIONS
-#include <insurgency>
+#include <insurgencydy>
 
 // This will be used for checking which team the player is on before repsawning them
 #define SPECTATOR_TEAM	0
@@ -478,9 +478,9 @@ public Action:Event_PlayerDeathPre(Handle:event, const String:name[], bool:dontB
 	{
 		if (g_iIsRoundStarted == 1 && g_iIsRoundStartedPost == 1 && g_iIsGameEnded == 0)
 		{
-			new iRemainingLife = GetRemainingLife();
+			//new iRemainingLife = GetRemainingLife();
 			new iAlivePlayers = GetAlivePlayers();
-			if (iRemainingLife > 0 && iAlivePlayers == 1 && g_iRoundBlockCount > 0)
+			if (iAlivePlayers == 1 && g_iRoundBlockCount > 0)
 			{
 				//AddBlocker();
 				g_iRoundBlockCount--;
@@ -665,12 +665,12 @@ void KickBlocker() {
 	// 		decl String:target_name[50];
 	// 		GetClientName(i, target_name, sizeof(target_name));
 	// 		if (StrContains(target_name, g_sSecBot, false) >= 0)
-	// 		{
+	// 		{ 
 	// 			KickClient(i);
 	// 			if (g_iRoundEndBlockDebug)
 	// 			{
 	// 				PrintToServer("[RndEndBlock] Kicked RoundEnd Blocker. Method_2 (Name: %N / ID: %d)", i, i); // show chat debug 
-	// 			}
+	// 			} 
 	// 		}
 	// 	}
 	// }

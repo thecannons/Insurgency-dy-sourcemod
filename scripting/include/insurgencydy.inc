@@ -6,15 +6,52 @@
 //#include <sourcemod>
 //#include <sdktools>
 //#include <loghelper>
+#if defined REQUIRE_PLUGIN
+#undef REQUIRE_PLUGIN
+#include <updater>
+#include <smlib>
+#define REQUIRE_PLUGIN
+#else
+#include <updater>
+#include <smlib>
+#endif
 
-#define MAX_DEFINABLE_WEAPONS 100
+#define MAX_DEFINABLE_WEAPONS 256
+#define MAX_DEFINABLE_GEAR 256
+#define MAX_DEFINABLE_AMMO 256
+#define MAX_DEFINABLE_EXPLOSIVES 256
+#define MAX_DEFINABLE_WEAPON_UPGRADES 256
+
 #define MAX_WEAPON_LEN 32
 #define MAX_SQUAD_LEN 32
 #define MAX_CLASS_LEN 64
-#define MAX_CONTROLPOINTS 32
+#define MAX_CONTROLPOINTS 64
 #define PREFIX_LEN 7
-#define MAX_SQUADS 8
-#define SQUAD_SIZE 8
+#define MAX_SQUADS 16
+#define SQUAD_SIZE 32
+#define MAX_MAPS 256
+#define MAX_GAMEMODES 32
+
+native Ins_ObjectiveResource_GetProp(const String:prop[], size=4, element=0);
+//native Ins_Log(ELOG_LEVEL:level,const String:format[], any:...);
+native Ins_GetMaxClip1(weapon);
+native Ins_GetWeaponGetMaxClip1(weapon);
+native Ins_GetDefaultClip1(weapon);
+native Float:Ins_ObjectiveResource_GetPropFloat(const String:prop[], size=4, element=0);
+native Ins_ObjectiveResource_GetPropEnt(const String:prop[], element=0);
+native bool:Ins_ObjectiveResource_GetPropBool(const String:prop[], element=0);
+native Ins_ObjectiveResource_GetPropVector(const String:prop[], Float:vec[3], element=0);
+native Ins_ObjectiveResource_GetPropString(const String:prop[], String:buffer[], maxlen);
+
+native bool:Ins_InCounterAttack();
+
+native Ins_GetPlayerScore(client);
+native Ins_GetPlayerClass(client, String:buffer[], maxlen);
+native Ins_GetClassName(squad,squad_slot);
+//native GameLogic_();
+
+native Ins_GetWeaponName(weaponid, String:buffer[], maxlen);
+native Ins_GetWeaponId(String:weapon_name[]);
 
 new StuckCheck[MAXPLAYERS+1] 	= {0, ...};
 new bool:isStuck[MAXPLAYERS+1];
@@ -22,6 +59,327 @@ new bool:isStuck[MAXPLAYERS+1];
 new Float:Step;
 new Float:RadiusSize;
 new Float:Ground_Velocity[3] = {0.0, 0.0, -300.0};
+
+// Team numbers. This is Insurgency specific right now
+// TODO: Add support for DoI style factions, or make it load from a cfg file
+enum Teams
+{
+	TEAM_NONE = 0,
+	TEAM_SPECTATORS,
+	TEAM_SECURITY,
+	TEAM_INSURGENTS,
+}
+
+// Round stats for players
+enum RoundStatFields
+{
+	STAT_KILLS = 0,
+	STAT_DEATHS,
+	STAT_SHOTS,
+	STAT_HITS,
+	STAT_GRENADES,
+	STAT_CAPTURES,
+	STAT_CACHES,
+	STAT_DMG_GIVEN,
+	STAT_DMG_TAKEN,
+	STAT_TEAMKILLS,
+	STAT_SCORE,
+	STAT_SUPPRESSIONS,
+	STAT_ACCURACY,
+}
+
+// Damage hitgroups
+enum Hitgroups
+{
+	HITGROUP_GENERIC = 0,
+	HITGROUP_HEAD,
+	HITGROUP_CHEST,
+	HITGROUP_STOMACH,
+	HITGROUP_LEFTARM,
+	HITGROUP_RIGHTARM,
+	HITGROUP_LEFTLEG,
+	HITGROUP_RIGHTLEG,
+}
+
+// Weapon stat fields
+enum WeaponStatFields
+{
+	LOG_HIT_SHOTS = 0,
+	LOG_HIT_HITS,
+	LOG_HIT_KILLS,
+	LOG_HIT_HEADSHOTS,
+	LOG_HIT_TEAMKILLS,
+	LOG_HIT_DAMAGE,
+	LOG_HIT_DEATHS,
+	LOG_HIT_GENERIC,
+	LOG_HIT_HEAD,
+	LOG_HIT_CHEST,
+	LOG_HIT_STOMACH,
+	LOG_HIT_LEFTARM,
+	LOG_HIT_RIGHTARM,
+	LOG_HIT_LEFTLEG,
+	LOG_HIT_RIGHTLEG,
+}
+
+// Offset of end of weaponstats/beginning of weaponstats2
+#define LOG_HIT_OFFSET 7
+
+// Log levels
+enum LOG_LEVEL {
+	DEFAULT = 0,
+	TRACE,
+	DEBUG,
+	INFO,
+	WARN,
+	ERROR
+}
+
+// Log level names
+new String:g_sLogLevel[6][32] = {
+	"default",
+	"trace",
+	"debug",
+	"info",
+	"warn",
+	"error"
+};
+
+// Global log level variable
+new LOG_LEVEL:g_iLogLevel;// = sizeof(g_sLogLevel);
+
+/**
+ * Log events to console, based upon level
+ *
+ * @param level
+ */
+stock InsLog(LOG_LEVEL:level,const String:format[], any:...) {
+	if ((level) && (level > g_iLogLevel))
+		return;
+	decl String:buffer[512],String:sLevel[32];
+	String_ToUpper(g_sLogLevel[level],sLevel,sizeof(sLevel));
+	VFormat(buffer, sizeof(buffer), format, 3);
+	PrintToServer("[%s] [%s] %s",PLUGIN_LOG_PREFIX,sLevel,buffer);
+}
+
+/**
+ * 
+ *
+ * @param 
+ */
+stock AddFolderToDownloadTable(const String:Directory[], bool:recursive=false)
+{
+	decl String:FileName[64], String:Path[512];
+	new Handle:Dir = OpenDirectory(Directory), FileType:Type;
+	while(ReadDirEntry(Dir, FileName, sizeof(FileName), Type))
+	{
+		if(Type == FileType_Directory && recursive)
+		{
+			FormatEx(Path, sizeof(Path), "%s/%s", Directory, FileName);
+			AddFolderToDownloadTable(FileName,recursive);
+			continue;
+		}
+		if (Type != FileType_File)
+			continue;
+		FormatEx(Path, sizeof(Path), "%s/%s", Directory, FileName);
+		AddFileToDownloadsTable(Path);
+	}
+	return;
+}
+
+/* Returns True if the client is an ingame player, False otherwise.
+ * Checks are performed in the order least likely to spew an error.
+ *
+ * @return                  If the client is a valid client.
+ */
+stock bool:IsValidClient(client) {
+
+  return (client > 0 && client <= MaxClients &&
+    IsClientConnected(client) && IsClientInGame(client) &&
+    !IsClientReplay(client) && !IsClientSourceTV(client));
+
+}
+
+/**
+ * Counts the players in a team, alive or dead.
+ *
+ * @param team             Team index.
+ * @return                 Number of players.
+ */
+stock Team_CountPlayers(team) {
+
+  new count = 0;
+  for (new i = 1; i <= MaxClients; i++) {
+    if (IsValidClient(i) && GetClientTeam(i) == team) {
+      count++;
+    }
+  }
+  return count;
+
+}
+
+/**
+ * Counts the number of living players in a team.
+ *
+ * @param team             Team index.
+ * @return                 Number of living players.
+ */
+stock Team_CountAlivePlayers(team) {
+
+   new count = 0;
+   for (new i = 1; i <= MaxClients; i++) {
+     if (IsValidClient(i) && GetClientTeam(i) == team && IsPlayerAlive(i)) {
+       count++;
+     }
+   }
+   return count;
+
+ }
+/*
+stock Client_IsValid(client, bool:checkConnected)
+{
+	if (client > 4096) {
+		client = EntRefToEntIndex(client);
+	}
+
+	if (client < 1 || client > MaxClients) {
+		return false;
+	}
+
+	if (checkConnected && !IsClientConnected(client)) {
+		return false;
+	}
+	
+	return true;
+}
+*/
+
+/**
+ * 
+ *
+ * @param 
+ */
+stock bool:ClientCanSeeClient(client, target, Float:distance = 0.0, Float:height = 50.0) {
+	new Float:vTargetPosition[3];
+	GetEntPropVector(target, Prop_Send, "m_vecOrigin", vTargetPosition);
+	return ClientCanSeeVector(client,targetpos,distance,height);
+}
+
+/**
+ * 
+ *
+ * @param 
+ */
+stock bool:ClientCanSeeVector(client, Float:vTargetPosition[3], Float:distance = 0.0, Float:height = 50.0) { 
+
+        new Float:vClientPosition[3];
+         
+        GetEntPropVector(client, Prop_Send, "m_vecOrigin", vClientPosition); 
+        vClientPosition[2] += height; 
+         
+        if (distance == 0.0 || GetVectorDistance(vClientPosition, vTargetPosition, false) < distance) 
+        { 
+            new Handle:trace = TR_TraceRayFilterEx(vClientPosition, vTargetPosition, MASK_SOLID_BRUSHONLY, RayType_EndPoint, Base_TraceFilter); 
+
+            if(TR_DidHit(trace)) 
+            { 
+                CloseHandle(trace); 
+                return (false); 
+            } 
+             
+            CloseHandle(trace); 
+
+            return (true); 
+        } 
+        return false; 
+} 
+
+/**
+ * 
+ *
+ * @param 
+ */
+public bool:Base_TraceFilter(entity, contentsMask, any:data) { 
+    if(entity != data) 
+        return (false); 
+
+    return (true); 
+}  
+
+/**
+ * 
+ *
+ * @param 
+ */
+stock bool:IsClientInSightRange(client, target, Float:angle=90.0, Float:distance=0.0, bool:heightcheck=true, bool:negativeangle=false) {
+	new Float:targetpos[3];
+//	if(!isClientConnectedIngameAlive(target))
+//		ThrowError("Target is not Alive.");
+	GetClientAbsOrigin(target, targetpos);
+	return IsVectorInSightRange(client,targetpos,angle,distance,heightcheck,negativeangle);
+}
+
+/**
+ * 
+ *
+ * @param 
+ */
+stock bool:IsVectorInSightRange(client, Float:targetpos[3], Float:angle=90.0, Float:distance=0.0, bool:heightcheck=true, bool:negativeangle=false) {
+	if(angle > 360.0 || angle < 0.0)
+		ThrowError("Angle Max : 360 & Min : 0. %d isn't proper angle.", angle);
+//	if(!isClientConnectedIngameAlive(client))
+//		ThrowError("Client is not Alive.");
+		
+	decl Float:clientpos[3], Float:anglevector[3], Float:targetvector[3], Float:resultangle, Float:resultdistance;
+	
+	GetClientEyeAngles(client, anglevector);
+	anglevector[0] = anglevector[2] = 0.0;
+	GetAngleVectors(anglevector, anglevector, NULL_VECTOR, NULL_VECTOR);
+	NormalizeVector(anglevector, anglevector);
+	if(negativeangle)
+		NegateVector(anglevector);
+
+	GetClientAbsOrigin(client, clientpos);
+	if(heightcheck && distance > 0)
+		resultdistance = GetVectorDistance(clientpos, targetpos);
+	clientpos[2] = targetpos[2] = 0.0;
+	MakeVectorFromPoints(clientpos, targetpos, targetvector);
+	NormalizeVector(targetvector, targetvector);
+	
+	resultangle = RadToDeg(ArcCosine(GetVectorDotProduct(targetvector, anglevector)));
+	
+	if(resultangle <= angle/2)	
+	{
+		if(distance > 0)
+		{
+			if(!heightcheck)
+				resultdistance = GetVectorDistance(clientpos, targetpos);
+			if(distance >= resultdistance)
+				return true;
+			else
+				return false;
+		}
+		else
+			return true;
+	}
+	else
+		return false;
+}
+
+/**
+ * 
+ *
+ * @param 
+ */
+stock GetSendProp(const String:sNetClass[], const String:sPropName[], iFail=1) {
+	int m_iProp = FindSendPropInfo(sNetClass, sPropName);
+	if (iFail) {
+	       	if (m_iProp == -1) {
+        	       	LogError("Can't find %s::%s", sNetClass, sPropName);
+	        }
+        }
+	return m_iProp;
+}
+
 
 //Get and Set Ammo for storing weapons and ammo on death (reference weapon to make sure it exists)
 stock GetWeaponAmmo(client, weapon, type)
@@ -148,157 +506,6 @@ stock SetGrenadeAmmo(client, grenadeType, grenadeAmount)
 */
 
 
-//Jballous Insurgency.inc
-/* Returns True if the client is an ingame player, False otherwise.
- * Checks are performed in the order least likely to spew an error.
- *
- * @return                  If the client is a valid client.
- */
-stock bool:IsValidClient(client) {
-
-  return (client > 0 && client <= MaxClients &&
-    IsClientConnected(client) && IsClientInGame(client) &&
-    !IsClientReplay(client) && !IsClientSourceTV(client));
-
-}
-
-/**
- * Counts the players in a team, alive or dead.
- *
- * @param team             Team index.
- * @return                 Number of players.
- */
-stock Team_CountPlayers(team) {
-
-  new count = 0;
-  for (new i = 1; i <= MaxClients; i++) {
-    if (IsValidClient(i) && GetClientTeam(i) == team) {
-      count++;
-    }
-  }
-  return count;
-
-}
-
-/**
- * Counts the number of living players in a team.
- *
- * @param team             Team index.
- * @return                 Number of living players.
- */
-stock Team_CountAlivePlayers(team) {
-
-   new count = 0;
-   for (new i = 1; i <= MaxClients; i++) {
-     if (IsValidClient(i) && GetClientTeam(i) == team && IsPlayerAlive(i)) {
-       count++;
-     }
-   }
-   return count;
-
- }
-
- /**
- * 
- *
- * @param 
- */
-stock bool:IsClientInSightRange(client, target, Float:angle=90.0, Float:distance=0.0, bool:heightcheck=true, bool:negativeangle=false) {
-	new Float:targetpos[3];
-//	if(!isClientConnectedIngameAlive(target))
-//		ThrowError("Target is not Alive.");
-	GetClientAbsOrigin(target, targetpos);
-	return IsVectorInSightRange(client,targetpos,angle,distance,heightcheck,negativeangle);
-}
-
-/**
- * 
- *
- * @param 
- */
-stock bool:IsVectorInSightRange(client, Float:targetpos[3], Float:angle=90.0, Float:distance=0.0, bool:heightcheck=true, bool:negativeangle=false) {
-	if(angle > 360.0 || angle < 0.0)
-		ThrowError("Angle Max : 360 & Min : 0. %d isn't proper angle.", angle);
-//	if(!isClientConnectedIngameAlive(client))
-//		ThrowError("Client is not Alive.");
-		
-	decl Float:clientpos[3], Float:anglevector[3], Float:targetvector[3], Float:resultangle, Float:resultdistance;
-	
-	GetClientEyeAngles(client, anglevector);
-	anglevector[0] = anglevector[2] = 0.0;
-	GetAngleVectors(anglevector, anglevector, NULL_VECTOR, NULL_VECTOR);
-	NormalizeVector(anglevector, anglevector);
-	if(negativeangle)
-		NegateVector(anglevector);
-
-	GetClientAbsOrigin(client, clientpos);
-	if(heightcheck && distance > 0)
-		resultdistance = GetVectorDistance(clientpos, targetpos);
-	clientpos[2] = targetpos[2] = 0.0;
-	MakeVectorFromPoints(clientpos, targetpos, targetvector);
-	NormalizeVector(targetvector, targetvector);
-	
-	resultangle = RadToDeg(ArcCosine(GetVectorDotProduct(targetvector, anglevector)));
-	
-	if(resultangle <= angle/2)	
-	{
-		if(distance > 0)
-		{
-			if(!heightcheck)
-				resultdistance = GetVectorDistance(clientpos, targetpos);
-			if(distance >= resultdistance)
-				return true;
-			else
-				return false;
-		}
-		else
-			return true;
-	}
-	else
-		return false;
-}
-
-/**
- * 
- *
- * @param 
- */
-stock GetSendProp(const String:sNetClass[], const String:sPropName[], iFail=1) {
-	int m_iProp = FindSendPropInfo(sNetClass, sPropName);
-	if (iFail) {
-	       	if (m_iProp == -1) {
-        	       	LogError("Can't find %s::%s", sNetClass, sPropName);
-	        }
-        }
-	return m_iProp;
-}
-
-
-/**
- * 
- *
- * @param 
- */
-stock AddFolderToDownloadTable(const String:Directory[], bool:recursive=false)
-{
-	decl String:FileName[64], String:Path[512];
-	new Handle:Dir = OpenDirectory(Directory), FileType:Type;
-	while(ReadDirEntry(Dir, FileName, sizeof(FileName), Type))
-	{
-		if(Type == FileType_Directory && recursive)
-		{
-			FormatEx(Path, sizeof(Path), "%s/%s", Directory, FileName);
-			AddFolderToDownloadTable(FileName,recursive);
-			continue;
-		}
-		if (Type != FileType_File)
-			continue;
-		FormatEx(Path, sizeof(Path), "%s/%s", Directory, FileName);
-		AddFileToDownloadsTable(Path);
-	}
-	return;
-}
-
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //									Stuck START
@@ -350,126 +557,6 @@ public bool:TraceEntityFilterSolid(entity, contentsMask)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-stock CheckIfPlayerCanMove(iClient, testID, Float:X=0.0, Float:Y=0.0, Float:Z=0.0)	// In few case there are issues with IsPlayerStuck() like clip
-{
-	decl Float:vecVelo[3];
-	decl Float:vecOrigin[3];
-	GetClientAbsOrigin(iClient, vecOrigin);
-	
-	vecVelo[0] = X;
-	vecVelo[1] = Y;
-	vecVelo[2] = Z;
-	
-	SetEntPropVector(iClient, Prop_Data, "m_vecBaseVelocity", vecVelo);
-	
-	new Handle:TimerDataPack;
-	CreateDataTimer(0.1, TimerWait, TimerDataPack); 
-	WritePackCell(TimerDataPack, iClient);
-	WritePackCell(TimerDataPack, testID);
-	WritePackFloat(TimerDataPack, vecOrigin[0]);
-	WritePackFloat(TimerDataPack, vecOrigin[1]);
-	WritePackFloat(TimerDataPack, vecOrigin[2]);
-}
-
-public Action:TimerWait(Handle:timer, Handle:data)
-{	
-	decl Float:vecOrigin[3];
-	decl Float:vecOriginAfter[3];
-	
-	ResetPack(data, false);
-	new iClient 		= ReadPackCell(data);
-	new testID 			= ReadPackCell(data);
-	vecOrigin[0]		= ReadPackFloat(data);
-	vecOrigin[1]		= ReadPackFloat(data);
-	vecOrigin[2]		= ReadPackFloat(data);
-	
-	
-	GetClientAbsOrigin(iClient, vecOriginAfter);
-	
-	if(GetVectorDistance(vecOrigin, vecOriginAfter, false) < 10.0) // Can't move
-	{
-		if(testID == 0)
-			CheckIfPlayerCanMove(iClient, 1, 0.0, 0.0, -500.0);	// Jump
-		else if(testID == 1)
-			CheckIfPlayerCanMove(iClient, 2, -500.0, 0.0, 0.0);
-		else if(testID == 2)
-			CheckIfPlayerCanMove(iClient, 3, 0.0, 500.0, 0.0);
-		else if(testID == 3)
-			CheckIfPlayerCanMove(iClient, 4, 0.0, -500.0, 0.0);
-		else if(testID == 4)
-			CheckIfPlayerCanMove(iClient, 5, 0.0, 0.0, 300.0);
-		else
-			FixPlayerPosition(iClient);
-	}
-	else
-	{
-		// if(StuckCheck[iClient] < 2)
-		// 	PrintToChat(iClient, "[!stuck] Well Tried, but you are not stuck!");
-		// else
-		// 	PrintToChat(iClient, "[!stuck] Done!", StuckCheck[iClient]);
-	}
-}
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//									Fix Position
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-FixPlayerPosition(iClient)
-{
-	if(isStuck[iClient]) // UnStuck player stuck in prop
-	{
-		new Float:pos_Z = 0.1;
-		
-		while(pos_Z <= RadiusSize && !TryFixPosition(iClient, 10.0, pos_Z))
-		{	
-			pos_Z = -pos_Z;
-			if(pos_Z > 0.0)
-				pos_Z += Step;
-		}
-		
-		if(!CheckIfPlayerIsStuck(iClient) && StuckCheck[iClient] < 7) // If client was stuck => new check
-			StartStuckDetection(iClient);
-		else	
-		{
-			//Can't fix
-			ForcePlayerSuicide(iClient);
-			AddLifeForStaticKilling(iClient);
-		}
-	
-	}
-	else // UnStuck player stuck in clip (invisible wall)
-	{
-		// if it is a clip on the sky, it will try to find the ground !
-		new Handle:trace = INVALID_HANDLE;
-		decl Float:vecOrigin[3];
-		decl Float:vecAngle[3];
-		
-		GetClientAbsOrigin(iClient, vecOrigin);
-		vecAngle[0] = 90.0;
-		trace = TR_TraceRayFilterEx(vecOrigin, vecAngle, MASK_SOLID, RayType_Infinite, TraceEntityFilterSolid);		
-		if(!TR_DidHit(trace)) 
-		{
-			CloseHandle(trace);
-			return;
-		}
-		
-		TR_GetEndPosition(vecOrigin, trace);
-		CloseHandle(trace);
-		vecOrigin[2] += 10.0;
-		TeleportEntity(iClient, vecOrigin, NULL_VECTOR, Ground_Velocity);
-		
-		if(StuckCheck[iClient] < 7) // If client was stuck in invisible wall => new check
-			StartStuckDetection(iClient);
-		else
-		{
-			//Can't unstuck
-			ForcePlayerSuicide(iClient);
-			AddLifeForStaticKilling(iClient);
-		}
-	}
-}
 
 bool:TryFixPosition(iClient, Float:Radius, Float:pos_Z)
 {

@@ -2,7 +2,7 @@
 	OM PropSpawn V3.0
  *	Author: Owned|Myself
  *	Contact: Please post on the forums!
- *	
+ *	 
  *	Sorry this took so long!
  */
 //Potential prop Lists:
@@ -21,7 +21,7 @@
 //Ammo crates
 //models\generic\ammocrate3.mdl
 //models\static_props\wcache_crate_01.mdl
-
+ 
 // Include the neccesary files
 #include <sourcemod>
 #include <sdktools>
@@ -1438,7 +1438,7 @@ public bool:TraceRayNoPlayers(entity, mask, any:data)
 
 public bool:TraceFilterNoPlayers(iEnt, iMask, any:Other)
 {
-    return (iEnt != Other && iEnt > MaxClients);
+    return (iEnt != Other && iEnt > MaxClients); 
 }
 public Action:Event_PlayerDisconnect_Post(Handle:event, const String:name[], bool:dontBroadcast)
 {

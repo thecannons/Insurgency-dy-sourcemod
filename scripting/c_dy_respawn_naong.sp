@@ -415,12 +415,10 @@ database.cfg
 	}
 */
 
-// KOLOROWE KREDKI
+// KOLOROWE KREDKI 
 #define YELLOW 0x01
 #define GREEN 0x04
 
-// DEBUG MODE (1 = ON, 0 = OFF)
-new DEBUG = 0;
 
 // SOME DEFINES
 #define MAX_LINE_WIDTH 60
@@ -676,7 +674,7 @@ public OnPluginStart()
 	//Lua Specific
 	HookEvent("grenade_thrown", Event_GrenadeThrown);
 
-	//For ins_spawnpoint spawning
+	// //For ins_spawnpoint spawning
 	HookEvent("player_spawn", Event_Spawn);
 	HookEvent("player_spawn", Event_SpawnPost, EventHookMode_Post);
 
@@ -686,7 +684,6 @@ public OnPluginStart()
 	HookEvent("round_end", Event_RoundEnd);
 	HookEvent("round_end", Event_RoundEnd_Pre, EventHookMode_Pre);
 	HookEvent("player_pick_squad", Event_PlayerPickSquad_Post, EventHookMode_Post);
-	HookEvent("player_spawn", Event_PlayerSpawn);
 	HookEvent("object_destroyed", Event_ObjectDestroyed_Pre, EventHookMode_Pre);
 	HookEvent("object_destroyed", Event_ObjectDestroyed);
 	HookEvent("object_destroyed", Event_ObjectDestroyed_Post, EventHookMode_Post);
@@ -774,17 +771,16 @@ public OnPluginStart()
 	LoadTranslations("respawn.phrases");
 	LoadTranslations("nearest_player.phrases.txt");
 	
-	// Init plugin
-	CreateTimer(2.0, Timer_MapStart);
 	
 	// Init variables
 	g_iLogicEntity = -1;
 	g_iObjResEntity = -1;
 	
+	//Uncomment this code and SQL code below to utilize rank system (youll need to setup yourself.)
 	/////////////////////////
 	// Rank System
-	RegConsoleCmd("say", Command_Say);			// Monitor say 
-	SQL_TConnect(LoadMySQLBase, "insrank");		// Connect to DB
+	//RegConsoleCmd("say", Command_Say);			// Monitor say 
+	//SQL_TConnect(LoadMySQLBase, "insrank");		// Connect to DB
 	//
 	/////////////////////////
 	
@@ -1080,15 +1076,9 @@ public OnMapStart()
 	g_playersReady = false;
 	g_botsReady = 0;
 	//Lua onmap start
-	//g_iBeaconBeam = PrecacheModel("sprites/glow_fluorescent01.vmt");
-	//g_iBeaconHalo = PrecacheModel("sprites/glow_dusty.vmt");
-	
 	g_iBeaconBeam = PrecacheModel("sprites/laserbeam.vmt");
 	g_iBeaconHalo = PrecacheModel("sprites/halo01.vmt");
 
-	// Healing sounds
-	//PrecacheSound("Lua_sounds/healthkit_complete.wav");
-	//PrecacheSound("Lua_sounds/healthkit_healing.wav");
 	// Destory, Flip sounds
 	PrecacheSound("soundscape/emitters/oneshot/radio_explode.ogg");
 	PrecacheSound("ui/sfx/cl_click.wav");
@@ -1162,25 +1152,11 @@ public OnMapStart()
 	PrecacheSound("sernx_lua_sounds/radio/radio6.ogg");
 	PrecacheSound("sernx_lua_sounds/radio/radio7.ogg");
 	PrecacheSound("sernx_lua_sounds/radio/radio8.ogg");
-	
-	// AddFileToDownloadsTable("materials/models/items/healthkit01.vmt");
-	// AddFileToDownloadsTable("materials/models/items/healthkit01.vtf");
-	// AddFileToDownloadsTable("materials/models/items/healthkit01_mask.vtf");
-	// AddFileToDownloadsTable("models/items/healthkit.dx80.vtx");
-	// AddFileToDownloadsTable("models/items/healthkit.dx90.vtx");
-	// AddFileToDownloadsTable("models/items/healthkit.mdl");
-	// AddFileToDownloadsTable("models/items/healthkit.phy");
-	// AddFileToDownloadsTable("models/items/healthkit.sw.vtx");
-	// AddFileToDownloadsTable("models/items/healthkit.vvd");
-	// AddFileToDownloadsTable("sound/Lua_sounds/healthkit_complete.wav");
-	// AddFileToDownloadsTable("sound/Lua_sounds/healthkit_healing.wav");
+
 
 	// Wait for navmesh
 	CreateTimer(2.0, Timer_MapStart);
 	g_preRoundInitial = true;
-	// Update entity
-	GetObjResEnt(1);
-	GetLogicEnt(1);
 }
 
 //Dynamic Loadouts
@@ -1237,6 +1213,9 @@ public Action:Event_GameEnd(Handle:event, const String:name[], bool:dontBroadcas
 	{
 		g_easterEggRound = false; 
 	}
+	g_iRoundStatus = 0;
+	g_botsReady = 0;
+	g_iEnableRevive = 0;
 }
 
 // Initializing
@@ -1342,68 +1321,6 @@ public Action:Timer_MapStart(Handle:Timer)
 	if (g_isCheckpoint)
 		CreateTimer(1.0, Timer_CheckEnemyAway,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 	
-	// Player timeout check timer
-	//CreateTimer(1.0, Timer_PlayerTimeout,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
-
-	//		##############NAV INIT SPAWNING################
-	//########### NOTHING BELOW THIS, IF THIS CODE CRASHES, NOTHING UNDER RUNS #######
-	/*
-	// Get hiding spot count
-	g_hHidingSpots = NavMesh_GetHidingSpots();//try NavMesh_GetAreas(); or //NavMesh_GetPlaces(); // or NavMesh_GetEncounterPaths();
-	if (g_hHidingSpots != INVALID_HANDLE)
-		g_iHidingSpotCount = GetArraySize(g_hHidingSpots);
-	else
-		g_iHidingSpotCount = 0;
-	
-	// Get the number of control points
-	m_iNumControlPoints = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
-	//PrintToServer("[BOTSPAWNS] m_iNumControlPoints %d",m_iNumControlPoints);
-	for (new i = 0; i < m_iNumControlPoints; i++)
-	{
-		Ins_ObjectiveResource_GetPropVector("m_vCPPositions",m_vCPPositions[i],i);
-		//PrintToServer("[BOTSPAWNS] i %d (%f,%f,%f)",i,m_vCPPositions[i][0],m_vCPPositions[i][1],m_vCPPositions[i][2]);
-	}
-	// Init last hiding spot variable
-	for (new iCP = 0; iCP < m_iNumControlPoints; iCP++)
-	{
-		g_iCPLastHidingSpot[iCP] = 0;
-	}
-	// Retrive hiding spot by control point
-	if (g_iHidingSpotCount)
-	{
-		//PrintToServer("[BOTSPAWNS] g_iHidingSpotCount: %d",g_iHidingSpotCount);
-		for (new iIndex = 0, iSize = g_iHidingSpotCount; iIndex < iSize; iIndex++)
-		{
-			new Float:flHidingSpot[3];//, iHidingSpotFlags;
-			flHidingSpot[0] = GetArrayCell(g_hHidingSpots, iIndex, NavMeshHidingSpot_X);
-			flHidingSpot[1] = GetArrayCell(g_hHidingSpots, iIndex, NavMeshHidingSpot_Y);
-			flHidingSpot[2] = GetArrayCell(g_hHidingSpots, iIndex, NavMeshHidingSpot_Z);
-			new Float:dist,Float:closest = -1.0,pointidx=-1;
-			for (new i = 0; i < m_iNumControlPoints; i++)
-			{
-				dist = GetVectorDistance(flHidingSpot,m_vCPPositions[i]);
-				if ((dist < closest) || (closest == -1.0))
-				{
-					closest = dist;
-					pointidx = i;
-				}
-			}
-			if (pointidx > -1)
-			{
-				g_iCPHidingSpots[pointidx][g_iCPHidingSpotCount[pointidx]] = iIndex;
-				g_iCPHidingSpotCount[pointidx]++;
-			}
-		}
-		//PrintToServer("[BOTSPAWNS] Found hiding count: a %d b %d c %d d %d e %d f %d g %d h %d i %d j %d k %d l %d m %d",g_iCPHidingSpotCount[0],g_iCPHidingSpotCount[1],g_iCPHidingSpotCount[2],g_iCPHidingSpotCount[3],g_iCPHidingSpotCount[4],g_iCPHidingSpotCount[5],g_iCPHidingSpotCount[6],g_iCPHidingSpotCount[7],g_iCPHidingSpotCount[8],g_iCPHidingSpotCount[9],g_iCPHidingSpotCount[10],g_iCPHidingSpotCount[11],g_iCPHidingSpotCount[12]);
-		//LogMessage("Found hiding count: a %d b %d c %d d %d e %d f %d g %d h %d i %d j %d k %d l %d m %d",g_iCPHidingSpotCount[0],g_iCPHidingSpotCount[1],g_iCPHidingSpotCount[2],g_iCPHidingSpotCount[3],g_iCPHidingSpotCount[4],g_iCPHidingSpotCount[5],g_iCPHidingSpotCount[6],g_iCPHidingSpotCount[7],g_iCPHidingSpotCount[8],g_iCPHidingSpotCount[9],g_iCPHidingSpotCount[10],g_iCPHidingSpotCount[11],g_iCPHidingSpotCount[12]);
-	}
-	else
-	{
-		//LogMessage("Hiding spot is not found.");
-	}
-	*/
-	//PrintToServer("[REVIVE_DEBUG] MAP STARTED");	
-	//##########NOTHING BELOW THIS POINT##########
 }
 
 public OnMapEnd()
@@ -1416,6 +1333,9 @@ public OnMapEnd()
 	ResetInsurgencyLives();
 	
 	g_isMapInit = 0;
+	g_botsReady = 0;
+	g_iRoundStatus = 0;
+	g_iEnableRevive = 0;
 }
 
 // Console command for reload config
@@ -1516,46 +1436,10 @@ void RespawnPlayer(client, target)
 	}
 }
 
-/*
-// Check player timeout
-public OnGameFrame()
-{
-	static Float:player_time[MAXPLAYERS+1];
-	static i;
-	for (i = 1; i < MaxClients; i++)
-	{
-		if (i > 0 && IsClientInGame(i) && !IsFakeClient(i))
-		{
-			if (IsClientTimingOut(i))
-			{
-				if (player_time[i])
-				{
-					// timed out
-					if ((GetGameTime() - player_time[i]) >= g_fInterval)
-					{
-						KickClient(i, "%N crashed from server!", i);
-						player_time[i] = 0.0;
-						//PrintToServer("Kicking timed out player: %N ", i);
-						LogToGame("Kicking timed out player: %N ", i);
-					}
-				}
-				else
-				{
-					player_time[i] = GetGameTime();
-				}
-			}
-			else if (player_time[i])
-			{
-				player_time[i] = 0.0;
-			}
-		}
-	}
-}  
-*/
-
 // Check and inform player status
 public Action:Timer_PlayerStatus(Handle:Timer)
 {
+	if (g_iRoundStatus == 0) return Plugin_Continue;
 	for (new client = 1; client <= MaxClients; client++)
 	{
 		if (IsClientInGame(client) && IsClientConnected(client) && !IsFakeClient(client) && playerPickSquad[client] == 1)
@@ -1998,6 +1882,7 @@ void AddLifeForStaticKilling(client)
 // Monitor player's gear
 public Action:Timer_GearMonitor(Handle:Timer)
 {
+	if (g_iRoundStatus == 0) return Plugin_Continue;
 	for (new client = 1; client <= MaxClients; client++)
 	{
 		if (client > 0 && IsClientInGame(client) && !IsFakeClient(client) && IsPlayerAlive(client) && !IsClientObserver(client))
@@ -2021,24 +1906,24 @@ void SetPlayerAmmo(client)
 		new playerGrenades = GetPlayerWeaponSlot(client, 3);
 		//Lets get weapon classname, we need this to create weapon entity if primary does not fit secondary
 		//Make sure IsValidEntity is not only for entities
-		//decl String:weaponClassname[32];
-		// if (secondaryWeapon != playerSecondary[client] && playerSecondary[client] != -1 && IsValidEntity(playerSecondary[client]))
-		// {
-		// 	GetEdictClassname(playerSecondary[client], weaponClassname, sizeof(weaponClassname));
-		// 	RemovePlayerItem(client,secondaryWeapon);
-		// 	AcceptEntityInput(secondaryWeapon, "kill");
-		// 	GivePlayerItem(client, weaponClassname);
-		// 	secondaryWeapon = playerSecondary[client];
-		// }
-		// if (primaryWeapon != playerPrimary[client] && playerPrimary[client] != -1 && IsValidEntity(playerPrimary[client]))
-		// {
-		// 	GetEdictClassname(playerPrimary[client], weaponClassname, sizeof(weaponClassname));
-		// 	RemovePlayerItem(client,primaryWeapon);
-		// 	AcceptEntityInput(primaryWeapon, "kill");
-		// 	GivePlayerItem(client, weaponClassname);
-		// 	EquipPlayerWeapon(client, playerPrimary[client]); 
-		// 	primaryWeapon = playerPrimary[client];
-		// }
+		decl String:weaponClassname[32];
+		if (secondaryWeapon != playerSecondary[client] && playerSecondary[client] != -1 && IsValidEntity(playerSecondary[client]))
+		{
+			GetEdictClassname(playerSecondary[client], weaponClassname, sizeof(weaponClassname));
+			RemovePlayerItem(client,secondaryWeapon);
+			AcceptEntityInput(secondaryWeapon, "kill");
+			GivePlayerItem(client, weaponClassname);
+			secondaryWeapon = playerSecondary[client];
+		}
+		if (primaryWeapon != playerPrimary[client] && playerPrimary[client] != -1 && IsValidEntity(playerPrimary[client]))
+		{
+			GetEdictClassname(playerPrimary[client], weaponClassname, sizeof(weaponClassname));
+			RemovePlayerItem(client,primaryWeapon);
+			AcceptEntityInput(primaryWeapon, "kill");
+			GivePlayerItem(client, weaponClassname);
+			EquipPlayerWeapon(client, playerPrimary[client]); 
+			primaryWeapon = playerPrimary[client];
+		}
 		
 		// Check primary weapon
 		if (primaryWeapon != -1 && IsValidEntity(primaryWeapon))
@@ -2436,6 +2321,20 @@ public Action:Event_Spawn(Handle:event, const String:name[], bool:dontBroadcast)
 	if (StrEqual(sNewNickname, "[INS] RoundEnd Protector"))
 		return Plugin_Continue;
 	
+	if (client > 0 && IsClientInGame(client))
+	{
+		if (!IsFakeClient(client))
+		{
+			g_iPlayerRespawnTimerActive[client] = 0;
+			
+			//remove network ragdoll associated with player
+			new playerRag = EntRefToEntIndex(g_iClientRagdolls[client]);
+			if(playerRag > 0 && IsValidEdict(playerRag) && IsValidEntity(playerRag))
+				RemoveRagdoll(client);
+			
+			g_iHurtFatal[client] = 0;
+		}
+	}
 
 	g_resupplyCounter[client] = GetConVarInt(sm_resupply_delay);
 	g_resupplyDeath[client] = 0;
@@ -2518,7 +2417,7 @@ public Action:Event_SpawnPost(Handle:event, const String:name[], bool:dontBroadc
 	SetNextAttack(client);
 	new Float:fRandom = GetRandomFloat(0.0, 1.0);
 
-	// Check grenades
+	//Check grenades
 	if (fRandom < g_removeBotGrenadeChance)
 	{
 		new botGrenades = GetPlayerWeaponSlot(client, 3);
@@ -2767,25 +2666,6 @@ public Action:Event_PlayerDisconnect(Handle:event, const String:name[], bool:don
 	return Plugin_Continue;
 }
 
-// When player spawns, intialize variable
-public Action:Event_PlayerSpawn( Handle:event, const String:name[], bool:dontBroadcast )
-{
-	new client = GetClientOfUserId( GetEventInt( event, "userid" ) );
-
-	if (client > 0 && IsClientInGame(client))
-	{
-		g_iPlayerRespawnTimerActive[client] = 0;
-		
-		//remove network ragdoll associated with player
-		new playerRag = EntRefToEntIndex(g_iClientRagdolls[client]);
-		if(playerRag > 0 && IsValidEdict(playerRag) && IsValidEntity(playerRag))
-			RemoveRagdoll(client);
-		
-		g_iHurtFatal[client] = 0;
-	}
-	return Plugin_Continue;
-}
-
 // When round starts, intialize variables
 public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
 {
@@ -2804,7 +2684,6 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 	// Reset respawn token
 	ResetInsurgencyLives();
 	ResetSecurityLives();
-	
 	// Reset reinforce time
 	new reinforce_time = GetConVarInt(sm_respawn_reinforce_time);
 	g_iReinforceTime = reinforce_time;
@@ -2848,7 +2727,6 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 		PrintToChatAll("******WORK TOGETHER, ADAPT!*************");
 		PrintToChatAll("************EASTER EGG ROUND************");
 	}
-
 	return Plugin_Continue;
 }
 
@@ -2914,13 +2792,12 @@ public Action:Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadca
 	// Cooldown revive
 	g_iEnableRevive = 0;
 	g_iRoundStatus = 0;
+	g_botsReady = 0;
 	
 	// Reset respawn token
 	ResetInsurgencyLives();
 	ResetSecurityLives();
 	
-	// Update entity
-	GetObjResEnt();
 	
 	////////////////////////
 	// Rank System
@@ -3887,7 +3764,7 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 			new acp = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
 			
 			// Do not decrease life in counterattack
-			if (StrEqual(sGameMode,"checkpoint") && Ins_InCounterAttack() && 
+			if (g_isCheckpoint == 1 && Ins_InCounterAttack() && 
 				(((acp+1) == ncp &&  g_iCvar_final_counterattack_type == 2) || 
 				((acp+1) != ncp && g_iCvar_counterattack_type == 2))
 			)
@@ -5126,6 +5003,7 @@ public Action:Timer_MedicMonitor(Handle:timer)
 
 public Action:Timer_AmmoResupply(Handle:timer, any:data)
 {
+	if (g_iRoundStatus == 0) return Plugin_Continue;
 	for (new client = 1; client <= MaxClients; client++)
 	{
 		if (!IsClientInGame(client) || IsFakeClient(client))
@@ -5311,6 +5189,7 @@ stock Float:GetEntitiesDistance(ent1, ent2)
 } 
 public Action:Timer_AmbientRadio(Handle:timer, any:data)
 {
+	if (g_iRoundStatus == 0) return Plugin_Continue;
 	for (new client = 1; client <= MaxClients; client++)
 	{
 
@@ -5824,903 +5703,814 @@ void SetPlayerScore(client, iScore)
 }
 
 
-int Ins_ObjectiveResource_GetProp(String:prop[32], size = 0, element = 0)
-{
-	new result = -1;
-	GetObjResEnt();
-	if (g_iObjResEntity > 0)
-	{
-		result = GetEntData(g_iObjResEntity, FindSendPropInfo(g_iObjResEntityNetClass, prop) + (size * element));
-	}
-	return result;
-}
-void Ins_ObjectiveResource_GetPropVector(String:prop[32], Float:array[3], element = 0)
-{
-	new size = 12;
-	GetObjResEnt();
-	if (g_iObjResEntity > 0)
-	{
-		new Float:result[3];
-		GetEntDataVector(g_iObjResEntity, FindSendPropInfo(g_iObjResEntityNetClass, prop) + (size * element), result);
-		array[0] = result[0];
-		array[1] = result[1];
-		array[2] = result[2];
-	}
-}
-bool Ins_InCounterAttack()
-{
-	GetLogicEnt();
-	new bool:result;
-	if (g_iLogicEntity > 0)
-	{
-		result = bool:GetEntData(g_iLogicEntity, FindSendPropInfo(g_iLogicEntityNetClass, "m_bCounterAttack"));
-	}
-	return result;
-}
-int GetLogicEnt(always=0) {
-	if (((g_iLogicEntity < 1) || !IsValidEntity(g_iLogicEntity)) || (always))
-	{
-		new String:sGameMode[32],String:sLogicEnt[64];
-		GetConVarString(FindConVar("mp_gamemode"), sGameMode, sizeof(sGameMode));
-		Format (sLogicEnt,sizeof(sLogicEnt),"logic_%s",sGameMode);
-		if (!StrEqual(sGameMode,"checkpoint")) return -1;
-		g_iLogicEntity = FindEntityByClassname(-1,sLogicEnt);
-		GetEntityNetClass(g_iLogicEntity, g_iLogicEntityNetClass, sizeof(g_iLogicEntityNetClass));
-	}
-	if (g_iLogicEntity)
-		return g_iLogicEntity;
-	return -1;
-}
-int GetObjResEnt(always=0)
-{
-	if (((g_iObjResEntity < 1) || !IsValidEntity(g_iObjResEntity)) || (always))
-	{
-		g_iObjResEntity = FindEntityByClassname(0,"ins_objective_resource");
-		GetEntityNetClass(g_iObjResEntity, g_iObjResEntityNetClass, sizeof(g_iObjResEntityNetClass));
-	}
-	if (g_iObjResEntity)
-		return g_iObjResEntity;
-	return -1;
-}
-//Explaining different MASK types: https://wiki.garrysmod.com/page/Enums/MASK
-bool:ClientCanSeeVector(client, Float:vTargetPosition[3], Float:distance = 0.0, Float:height = 50.0) 
-{ 
-	new Float:vClientPosition[3];
-	 
-	GetEntPropVector(client, Prop_Send, "m_vecOrigin", vClientPosition); 
-	vClientPosition[2] += height; 
-	 
-	if (distance == 0.0 || GetVectorDistance(vClientPosition, vTargetPosition, false) < distance) 
-	{ 
-		new Handle:trace = TR_TraceRayFilterEx(vClientPosition, vTargetPosition, MASK_SOLID_BRUSHONLY, RayType_EndPoint, Base_TraceFilter); 
-
-		if(TR_DidHit(trace)) 
-		{ 
-			CloseHandle(trace); 
-			return (false); 
-		} 
-		 
-		CloseHandle(trace); 
-
-		return (true); 
-	} 
-	return false; 
-}
-public bool:Base_TraceFilter(entity, contentsMask, any:data) 
-{ 
-    if(entity != data) 
-        return (false); 
-
-    return (true); 
-} 
-
+//### - UNCOMMENT BELOW TO USE CODE BELOW - ###
 
 // ================================================================================
 // Start Rank System
 // ================================================================================
-// Load data from database
-public LoadMySQLBase(Handle:owner, Handle:hndl, const String:error[], any:data)
-{
-	// Check DB
-	if (hndl == INVALID_HANDLE)
-	{
-		//PrintToServer("Failed to connect: %s", error);
-		g_hDB = INVALID_HANDLE;
-		return;
-	} else {
-		//PrintToServer("DEBUG: DatabaseInit (CONNECTED)");
-	}
+//Load data from database
+// public LoadMySQLBase(Handle:owner, Handle:hndl, const String:error[], any:data)
+// {
+// 	// Check DB
+// 	if (hndl == INVALID_HANDLE)
+// 	{
+// 		//PrintToServer("Failed to connect: %s", error);
+// 		g_hDB = INVALID_HANDLE;
+// 		return;
+// 	} else {
+// 		//PrintToServer("DEBUG: DatabaseInit (CONNECTED)");
+// 	}
 	
 	
-	g_hDB = hndl;
-	decl String:sQuery[1024];
+// 	g_hDB = hndl;
+// 	decl String:sQuery[1024];
 	
-	// Set UTF8
-	FormatEx(sQuery, sizeof(sQuery), "SET NAMES \"UTF8\"");
-	SQL_TQuery(g_hDB, SQLErrorCheckCallback, sQuery);
+// 	// Set UTF8
+// 	FormatEx(sQuery, sizeof(sQuery), "SET NAMES \"UTF8\"");
+// 	SQL_TQuery(g_hDB, SQLErrorCheckCallback, sQuery);
 	
-	// Get 'last_active'
-	FormatEx(sQuery, sizeof(sQuery), "DELETE FROM ins_rank WHERE last_active <= %i", GetTime() - PLAYER_STATSOLD * 12 * 60 * 60);
-	SQL_TQuery(g_hDB, SQLErrorCheckCallback, sQuery);
-}
+// 	// Get 'last_active'
+// 	FormatEx(sQuery, sizeof(sQuery), "DELETE FROM ins_rank WHERE last_active <= %i", GetTime() - PLAYER_STATSOLD * 12 * 60 * 60);
+// 	SQL_TQuery(g_hDB, SQLErrorCheckCallback, sQuery);
+// }
 
-// Init Client
-public OnClientAuthorized(client, const String:auth[])
-{
-	InitializeClient(client);
-}
+// // Init Client
+// public OnClientAuthorized(client, const String:auth[])
+// {
+// 	InitializeClient(client);
+// }
 
-// Init Client
-public InitializeClient( client )
-{
-	if ( !IsFakeClient(client) )
-	{
-		// Init stats
-		g_iStatScore[client]=0;
-		g_iStatKills[client]=0;
-		g_iStatDeaths[client]=0;
-		g_iStatHeadShots[client]=0;
-		g_iStatSuicides[client]=0;
-		g_iStatRevives[client]=0;
-		g_iStatHeals[client]=0;
-		g_iUserFlood[client]=0;
-		g_iUserPtime[client]=GetTime();
+// // Init Client
+// public InitializeClient( client )
+// {
+// 	if ( !IsFakeClient(client) )
+// 	{
+// 		// Init stats
+// 		g_iStatScore[client]=0;
+// 		g_iStatKills[client]=0;
+// 		g_iStatDeaths[client]=0;
+// 		g_iStatHeadShots[client]=0;
+// 		g_iStatSuicides[client]=0;
+// 		g_iStatRevives[client]=0;
+// 		g_iStatHeals[client]=0;
+// 		g_iUserFlood[client]=0;
+// 		g_iUserPtime[client]=GetTime();
 		
-		// Get SteamID
-		decl String:steamId[64];
-		//GetClientAuthString(client, steamId, sizeof(steamId));
-		GetClientAuthId(client, AuthId_Steam3, steamId, sizeof(steamId));
-		g_sSteamIdSave[client] = steamId;
+// 		// Get SteamID
+// 		decl String:steamId[64];
+// 		//GetClientAuthString(client, steamId, sizeof(steamId));
+// 		GetClientAuthId(client, AuthId_Steam3, steamId, sizeof(steamId));
+// 		g_sSteamIdSave[client] = steamId;
 		
-		// Process Init
-		CreateTimer(1.0, initPlayerBase, client);
-	}
-}
+// 		// Process Init
+// 		CreateTimer(1.0, initPlayerBase, client);
+// 	}
+// }
 
-// Init player
-public Action:initPlayerBase(Handle:timer, any:client){
-	if (g_hDB != INVALID_HANDLE)
-	{
-		// Check player's data existance
-		decl String:buffer[200];
-		Format(buffer, sizeof(buffer), "SELECT * FROM ins_rank WHERE steamId = '%s'", g_sSteamIdSave[client]);
-		if(DEBUG == 1){
-			//PrintToServer("DEBUG: Action:initPlayerBase (%s)", buffer);
-		}
-		SQL_TQuery(g_hDB, SQLUserLoad, buffer, client);
-	}
-	else
-	{
-		// Join message
-		PrintToChatAll("\x04%N\x01 joined the fight.", client);
-	}
-}
+// // Init player
+// public Action:initPlayerBase(Handle:timer, any:client){
+// 	if (g_hDB != INVALID_HANDLE)
+// 	{
+// 		// Check player's data existance
+// 		decl String:buffer[200];
+// 		Format(buffer, sizeof(buffer), "SELECT * FROM ins_rank WHERE steamId = '%s'", g_sSteamIdSave[client]);
+// 		if(DEBUG == 1){
+// 			//PrintToServer("DEBUG: Action:initPlayerBase (%s)", buffer);
+// 		}
+// 		SQL_TQuery(g_hDB, SQLUserLoad, buffer, client);
+// 	}
+// 	else
+// 	{
+// 		// Join message
+// 		PrintToChatAll("\x04%N\x01 joined the fight.", client);
+// 	}
+// }
 
-/*
-// Add kills and deaths
-public EventPlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
-{
+// /*
+// // Add kills and deaths
+// public EventPlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
+// {
 
-	new victimId = GetEventInt(event, "userid");
-	new attackerId = GetEventInt(event, "attacker");
+// 	new victimId = GetEventInt(event, "userid");
+// 	new attackerId = GetEventInt(event, "attacker");
 	
-	new victim = GetClientOfUserId(victimId);
-	new attacker = GetClientOfUserId(attackerId);
+// 	new victim = GetClientOfUserId(victimId);
+// 	new attacker = GetClientOfUserId(attackerId);
 
-	if(victim != attacker){
-		g_iStatKills[attacker]++;
-		g_iStatDeaths[victim]++;
+// 	if(victim != attacker){
+// 		g_iStatKills[attacker]++;
+// 		g_iStatDeaths[victim]++;
 
-	} else {
-		g_iStatSuicides[victim]++;
-		g_iStatDeaths[victim]++;
-	}
-}
+// 	} else {
+// 		g_iStatSuicides[victim]++;
+// 		g_iStatDeaths[victim]++;
+// 	}
+// }
 
-// Add headshots
-public EventPlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
-{
-	new attackerId = GetEventInt(event, "attacker");
-	new hitgroup = GetEventInt(event,"hitgroup");
+// // Add headshots
+// public EventPlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
+// {
+// 	new attackerId = GetEventInt(event, "attacker");
+// 	new hitgroup = GetEventInt(event,"hitgroup");
 
-	new attacker = GetClientOfUserId(attackerId);
+// 	new attacker = GetClientOfUserId(attackerId);
 
-	if ( hitgroup == 1 )
-	{
-		g_iStatHeadShots[attacker]++;
-	}
-}
-*/
+// 	if ( hitgroup == 1 )
+// 	{
+// 		g_iStatHeadShots[attacker]++;
+// 	}
+// }
+// */
 
-// Save stats when player disconnect
-public OnClientDisconnect (client)
-{
-	if ( !IsFakeClient(client) && g_iUserInit[client] == 1)
-	{		
-		if (g_hDB != INVALID_HANDLE)
-		{
-			saveUser(client);
-			g_iUserInit[client] = 0;
-		}
-	}
-}
+// // Save stats when player disconnect
+// public OnClientDisconnect (client)
+// {
+// 	if ( !IsFakeClient(client) && g_iUserInit[client] == 1)
+// 	{		
+// 		if (g_hDB != INVALID_HANDLE)
+// 		{
+// 			saveUser(client);
+// 			g_iUserInit[client] = 0;
+// 		}
+// 	}
+// }
 
-// Save stats
-public saveUser(client){
-	if ( !IsFakeClient(client) && g_iUserInit[client] == 1)
-	{		
-		if (g_hDB != INVALID_HANDLE)
-		{
-			new String:buffer[200];
-			Format(buffer, sizeof(buffer), "SELECT * FROM ins_rank WHERE steamId = '%s'", g_sSteamIdSave[client]);
-			if(DEBUG == 1){
-				//PrintToServer("DEBUG: saveUser (%s)", buffer);
-			}
-			SQL_TQuery(g_hDB, SQLUserSave, buffer, client);
-		}
-	}
-}
+// // Save stats
+// public saveUser(client){
+// 	if ( !IsFakeClient(client) && g_iUserInit[client] == 1)
+// 	{		
+// 		if (g_hDB != INVALID_HANDLE)
+// 		{
+// 			new String:buffer[200];
+// 			Format(buffer, sizeof(buffer), "SELECT * FROM ins_rank WHERE steamId = '%s'", g_sSteamIdSave[client]);
+// 			if(DEBUG == 1){
+// 				//PrintToServer("DEBUG: saveUser (%s)", buffer);
+// 			}
+// 			SQL_TQuery(g_hDB, SQLUserSave, buffer, client);
+// 		}
+// 	}
+// }
 
-// Monitor say command
-public Action:Command_Say(client, args)
-{
-	// Init variables
-	decl String:text[192], String:command[64];
-	new startidx = 0;
+// // Monitor say command
+// public Action:Command_Say(client, args)
+// {
+// 	// Init variables
+// 	decl String:text[192], String:command[64];
+// 	new startidx = 0;
 	
-	// Get cmd string
-	GetCmdArgString(text, sizeof(text));
+// 	// Get cmd string
+// 	GetCmdArgString(text, sizeof(text));
 	
-	// Check string
-	if (text[strlen(text)-1] == '"')
-	{		
-		text[strlen(text)-1] = '\0';
-		startidx = 1;	
-	} 	
-	if (strcmp(command, "say2", false) == 0)
+// 	// Check string
+// 	if (text[strlen(text)-1] == '"')
+// 	{		
+// 		text[strlen(text)-1] = '\0';
+// 		startidx = 1;	
+// 	} 	
+// 	if (strcmp(command, "say2", false) == 0)
 	
-	// Set start point
-	startidx += 4;
+// 	// Set start point
+// 	startidx += 4;
 	
-	// Check commands for stats
-	// Rank
-	if (strcmp(text[startidx], "/rank", false) == 0 || strcmp(text[startidx], "!rank", false) == 0 || strcmp(text[startidx], "rank", false) == 0)	{
-		if(g_iUserFlood[client] != 1){
-			saveUser(client);
-			//GetMyRank(client);
-			CreateTimer(0.5, Timer_GetMyRank, client);
-			g_iUserFlood[client]=1;
-			CreateTimer(10.0, removeFlood, client);
-		} else {
-			PrintToChat(client,"%cDo not flood the server!", GREEN);
-		}
-	}
-	// Top10
-	else if (strcmp(text[startidx], "/top10", false) == 0 || strcmp(text[startidx], "!top10", false) == 0 || strcmp(text[startidx], "top10", false) == 0)
-	{		
-		if(g_iUserFlood[client] != 1){
-			saveUser(client);
-			showTOP(client);
-			g_iUserFlood[client]=1;
-			CreateTimer(10.0, removeFlood, client);
-		} else {
-			PrintToChat(client,"%cDo not flood the server!", GREEN);
-		}
-	}
-	// Top10
-	else if (strcmp(text[startidx], "/topmedics", false) == 0 || strcmp(text[startidx], "!topmedics", false) == 0 || strcmp(text[startidx], "topmedics", false) == 0)
-	{		
-		if(g_iUserFlood[client] != 1){
-			saveUser(client);
-			showTOPMedics(client);
-			g_iUserFlood[client]=1;
-			CreateTimer(10.0, removeFlood, client);
-		} else {
-			PrintToChat(client,"%cDo not flood the server!", GREEN);
-		}
-	}
-	// Headhunters
-	else if (strcmp(text[startidx], "/headhunters", false) == 0 || strcmp(text[startidx], "!headhunters", false) == 0 || strcmp(text[startidx], "headhunters", false) == 0)
-	{		
-		if(g_iUserFlood[client] != 1){
-			saveUser(client);
-			showTOPHeadHunter(client);
-			g_iUserFlood[client]=1;
-			CreateTimer(10.0, removeFlood, client);
-		} else {
-			PrintToChat(client,"%cDo not flood the server!", GREEN);
-		}
-	}
-	return Plugin_Continue;
-}
+// 	// Check commands for stats
+// 	// Rank
+// 	if (strcmp(text[startidx], "/rank", false) == 0 || strcmp(text[startidx], "!rank", false) == 0 || strcmp(text[startidx], "rank", false) == 0)	{
+// 		if(g_iUserFlood[client] != 1){
+// 			saveUser(client);
+// 			//GetMyRank(client);
+// 			CreateTimer(0.5, Timer_GetMyRank, client);
+// 			g_iUserFlood[client]=1;
+// 			CreateTimer(10.0, removeFlood, client);
+// 		} else {
+// 			PrintToChat(client,"%cDo not flood the server!", GREEN);
+// 		}
+// 	}
+// 	// Top10
+// 	else if (strcmp(text[startidx], "/top10", false) == 0 || strcmp(text[startidx], "!top10", false) == 0 || strcmp(text[startidx], "top10", false) == 0)
+// 	{		
+// 		if(g_iUserFlood[client] != 1){
+// 			saveUser(client);
+// 			showTOP(client);
+// 			g_iUserFlood[client]=1;
+// 			CreateTimer(10.0, removeFlood, client);
+// 		} else {
+// 			PrintToChat(client,"%cDo not flood the server!", GREEN);
+// 		}
+// 	}
+// 	// Top10
+// 	else if (strcmp(text[startidx], "/topmedics", false) == 0 || strcmp(text[startidx], "!topmedics", false) == 0 || strcmp(text[startidx], "topmedics", false) == 0)
+// 	{		
+// 		if(g_iUserFlood[client] != 1){
+// 			saveUser(client);
+// 			showTOPMedics(client);
+// 			g_iUserFlood[client]=1;
+// 			CreateTimer(10.0, removeFlood, client);
+// 		} else {
+// 			PrintToChat(client,"%cDo not flood the server!", GREEN);
+// 		}
+// 	}
+// 	// Headhunters
+// 	else if (strcmp(text[startidx], "/headhunters", false) == 0 || strcmp(text[startidx], "!headhunters", false) == 0 || strcmp(text[startidx], "headhunters", false) == 0)
+// 	{		
+// 		if(g_iUserFlood[client] != 1){
+// 			saveUser(client);
+// 			showTOPHeadHunter(client);
+// 			g_iUserFlood[client]=1;
+// 			CreateTimer(10.0, removeFlood, client);
+// 		} else {
+// 			PrintToChat(client,"%cDo not flood the server!", GREEN);
+// 		}
+// 	}
+// 	return Plugin_Continue;
+// }
 
-// Get My Rank
-public Action:Timer_GetMyRank(Handle:timer, any:client){
-	if (IsClientInGame(client))
-		GetMyRank(client);
-}
+// // Get My Rank
+// public Action:Timer_GetMyRank(Handle:timer, any:client){
+// 	if (IsClientInGame(client))
+// 		GetMyRank(client);
+// }
 
-// Remove flood flag
-public Action:removeFlood(Handle:timer, any:client){
-	g_iUserFlood[client]=0;
-}
+// // Remove flood flag
+// public Action:removeFlood(Handle:timer, any:client){
+// 	g_iUserFlood[client]=0;
+// }
 
-// Get my rank
-public GetMyRank(client){
-	// Check DB
-	if (g_hDB != INVALID_HANDLE)
-	{
-		// Check player init
-		if(g_iUserInit[client] == 1){
-			// Get stat data from DB
-			decl String:buffer[200];
-			Format(buffer, sizeof(buffer), "SELECT `score`, `kills`, `deaths`, `headshots`, `sucsides`, `revives`, `heals` FROM `ins_rank` WHERE `steamId` = '%s' LIMIT 1", g_sSteamIdSave[client]);
-			if(DEBUG == 1){
-				//PrintToServer("DEBUG: GetMyRank (%s)", buffer);
-			}
-			SQL_TQuery(g_hDB, SQLGetMyRank, buffer, client);
-		}
-		else
-		{
-			PrintToChat(client,"%cWait for system load you from database", GREEN);
-		}
-	}
-	else
-	{
-		PrintToChat(client, "%cRank System is now not available", GREEN);
-	}
-}
+// // Get my rank
+// public GetMyRank(client){
+// 	// Check DB
+// 	if (g_hDB != INVALID_HANDLE)
+// 	{
+// 		// Check player init
+// 		if(g_iUserInit[client] == 1){
+// 			// Get stat data from DB
+// 			decl String:buffer[200];
+// 			Format(buffer, sizeof(buffer), "SELECT `score`, `kills`, `deaths`, `headshots`, `sucsides`, `revives`, `heals` FROM `ins_rank` WHERE `steamId` = '%s' LIMIT 1", g_sSteamIdSave[client]);
+// 			if(DEBUG == 1){
+// 				//PrintToServer("DEBUG: GetMyRank (%s)", buffer);
+// 			}
+// 			SQL_TQuery(g_hDB, SQLGetMyRank, buffer, client);
+// 		}
+// 		else
+// 		{
+// 			PrintToChat(client,"%cWait for system load you from database", GREEN);
+// 		}
+// 	}
+// 	else
+// 	{
+// 		PrintToChat(client, "%cRank System is now not available", GREEN);
+// 	}
+// }
 
-// Get Top10
-public showTOP(client){
-	// Check DB
-	if (g_hDB != INVALID_HANDLE)
-	{
-		// Get Top10
-		decl String:buffer[200];
-		//Format(buffer, sizeof(buffer), "SELECT *, (`deaths`/`kills`) / `played_time` AS rankn FROM `ins_rank` WHERE `kills` > 0 AND `deaths` > 0 ORDER BY rankn ASC LIMIT 10");
-		Format(buffer, sizeof(buffer), "SELECT *, `score` AS rankn FROM `ins_rank` WHERE `score` > 0 ORDER BY rankn DESC LIMIT 10");
-		if(DEBUG == 1){
-			//PrintToServer("DEBUG: showTOP (%s)", buffer);
-		}
-		SQL_TQuery(g_hDB, SQLTopShow, buffer, client);
-	} else {
-		PrintToChat(client, "%cRank System is now not avilable", GREEN);
-	}
-}
+// // Get Top10
+// public showTOP(client){
+// 	// Check DB
+// 	if (g_hDB != INVALID_HANDLE)
+// 	{
+// 		// Get Top10
+// 		decl String:buffer[200];
+// 		//Format(buffer, sizeof(buffer), "SELECT *, (`deaths`/`kills`) / `played_time` AS rankn FROM `ins_rank` WHERE `kills` > 0 AND `deaths` > 0 ORDER BY rankn ASC LIMIT 10");
+// 		Format(buffer, sizeof(buffer), "SELECT *, `score` AS rankn FROM `ins_rank` WHERE `score` > 0 ORDER BY rankn DESC LIMIT 10");
+// 		if(DEBUG == 1){
+// 			//PrintToServer("DEBUG: showTOP (%s)", buffer);
+// 		}
+// 		SQL_TQuery(g_hDB, SQLTopShow, buffer, client);
+// 	} else {
+// 		PrintToChat(client, "%cRank System is now not avilable", GREEN);
+// 	}
+// }
 
-// Get Top Medics
-public showTOPMedics(client){
-	// Check DB
-	if (g_hDB != INVALID_HANDLE)
-	{
-		// Get HadHunters
-		decl String:buffer[200];
-		Format(buffer, sizeof(buffer), "SELECT * FROM ins_rank ORDER BY revives, heals DESC LIMIT 10");
-		if(DEBUG == 1){
-			//PrintToServer("DEBUG: showTOPMedics (%s)", buffer);
-		}
-		SQL_TQuery(g_hDB, SQLTopShowMedic, buffer, client);
-	} else {
-		PrintToChat(client, "%cRank System is now not avilable", GREEN);
-	}
-}
+// // Get Top Medics
+// public showTOPMedics(client){
+// 	// Check DB
+// 	if (g_hDB != INVALID_HANDLE)
+// 	{
+// 		// Get HadHunters
+// 		decl String:buffer[200];
+// 		Format(buffer, sizeof(buffer), "SELECT * FROM ins_rank ORDER BY revives, heals DESC LIMIT 10");
+// 		if(DEBUG == 1){
+// 			//PrintToServer("DEBUG: showTOPMedics (%s)", buffer);
+// 		}
+// 		SQL_TQuery(g_hDB, SQLTopShowMedic, buffer, client);
+// 	} else {
+// 		PrintToChat(client, "%cRank System is now not avilable", GREEN);
+// 	}
+// }
 
-// Get HeadHunters
-public showTOPHeadHunter(client){
-	// Check DB
-	if (g_hDB != INVALID_HANDLE)
-	{
-		// Get HadHunters
-		decl String:buffer[200];
-		Format(buffer, sizeof(buffer), "SELECT * FROM ins_rank ORDER BY headshots DESC LIMIT 10");
-		if(DEBUG == 1){
-			//PrintToServer("DEBUG: showTOPHeadHunter (%s)", buffer);
-		}
-		SQL_TQuery(g_hDB, SQLTopShowHS, buffer, client);
-	} else {
-		PrintToChat(client, "%cRank System is now not avilable", GREEN);
-	}
-}
-// Dummy menu
-public TopMenu(Handle:menu, MenuAction:action, param1, param2)
-{
-}
+// // Get HeadHunters
+// public showTOPHeadHunter(client){
+// 	// Check DB
+// 	if (g_hDB != INVALID_HANDLE)
+// 	{
+// 		// Get HadHunters
+// 		decl String:buffer[200];
+// 		Format(buffer, sizeof(buffer), "SELECT * FROM ins_rank ORDER BY headshots DESC LIMIT 10");
+// 		if(DEBUG == 1){
+// 			//PrintToServer("DEBUG: showTOPHeadHunter (%s)", buffer);
+// 		}
+// 		SQL_TQuery(g_hDB, SQLTopShowHS, buffer, client);
+// 	} else {
+// 		PrintToChat(client, "%cRank System is now not avilable", GREEN);
+// 	}
+// }
+// // Dummy menu
+// public TopMenu(Handle:menu, MenuAction:action, param1, param2)
+// {
+// }
 
-// SQL Callback (Check errors)
-public SQLErrorCheckCallback(Handle:owner, Handle:hndl, const String:error[], any:data)
-{
-	if(!StrEqual("", error))
-	{
-		//PrintToServer("Last Connect SQL Error: %s", error);
-	}
-}
+// // SQL Callback (Check errors)
+// public SQLErrorCheckCallback(Handle:owner, Handle:hndl, const String:error[], any:data)
+// {
+// 	if(!StrEqual("", error))
+// 	{
+// 		//PrintToServer("Last Connect SQL Error: %s", error);
+// 	}
+// }
 
-// Check existance of player's data. If not add new.
-public SQLUserLoad(Handle:owner, Handle:hndl, const String:error[], any:client){
-	if(SQL_FetchRow(hndl))
-	{
-		// Found player's data
-		decl String:name[MAX_LINE_WIDTH];
-		GetClientName( client, name, sizeof(name) );
+// // Check existance of player's data. If not add new.
+// public SQLUserLoad(Handle:owner, Handle:hndl, const String:error[], any:client){
+// 	if(SQL_FetchRow(hndl))
+// 	{
+// 		// Found player's data
+// 		decl String:name[MAX_LINE_WIDTH];
+// 		GetClientName( client, name, sizeof(name) );
 		
-		// Remove special cheracters
-		ReplaceString(name, sizeof(name), "'", "");
-		ReplaceString(name, sizeof(name), "<", "");
-		ReplaceString(name, sizeof(name), "\"", "");
+// 		// Remove special cheracters
+// 		ReplaceString(name, sizeof(name), "'", "");
+// 		ReplaceString(name, sizeof(name), "<", "");
+// 		ReplaceString(name, sizeof(name), "\"", "");
 		
-		// Update last active
-		decl String:buffer[512];
-		Format(buffer, sizeof(buffer), "UPDATE ins_rank SET nick = '%s', last_active = '%i' WHERE steamId = '%s'", name, GetTime(), g_sSteamIdSave[client]);
-		if(DEBUG == 1){
-			//PrintToServer("DEBUG: SQLUserLoad (%s)", buffer);
-		}
-		SQL_TQuery(g_hDB, SQLErrorCheckCallback, buffer);
+// 		// Update last active
+// 		decl String:buffer[512];
+// 		Format(buffer, sizeof(buffer), "UPDATE ins_rank SET nick = '%s', last_active = '%i' WHERE steamId = '%s'", name, GetTime(), g_sSteamIdSave[client]);
+// 		if(DEBUG == 1){
+// 			//PrintToServer("DEBUG: SQLUserLoad (%s)", buffer);
+// 		}
+// 		SQL_TQuery(g_hDB, SQLErrorCheckCallback, buffer);
 		
-		// Init completed
-		g_iUserInit[client] = 1;
-	}
-	else
-	{
-		// Add new record
-		decl String:name[MAX_LINE_WIDTH];
-		decl String:buffer[200];
+// 		// Init completed
+// 		g_iUserInit[client] = 1;
+// 	}
+// 	else
+// 	{
+// 		// Add new record
+// 		decl String:name[MAX_LINE_WIDTH];
+// 		decl String:buffer[200];
 		
-		// Get nickname
-		GetClientName( client, name, sizeof(name) );
+// 		// Get nickname
+// 		GetClientName( client, name, sizeof(name) );
 		
-		// Remove special cheracters
-		ReplaceString(name, sizeof(name), "'", "");
-		ReplaceString(name, sizeof(name), "<", "");
-		ReplaceString(name, sizeof(name), "\"", "");
+// 		// Remove special cheracters
+// 		ReplaceString(name, sizeof(name), "'", "");
+// 		ReplaceString(name, sizeof(name), "<", "");
+// 		ReplaceString(name, sizeof(name), "\"", "");
 		
-		// Add new record
-		Format(buffer, sizeof(buffer), "INSERT INTO ins_rank (steamId, nick, last_active) VALUES('%s', '%s', '%i')", g_sSteamIdSave[client], name, GetTime());
-		if(DEBUG == 1){
-			//PrintToServer("DEBUG: SQLUserLoad (%s)", buffer);
-		}
-		SQL_TQuery(g_hDB, SQLErrorCheckCallback, buffer);
+// 		// Add new record
+// 		Format(buffer, sizeof(buffer), "INSERT INTO ins_rank (steamId, nick, last_active) VALUES('%s', '%s', '%i')", g_sSteamIdSave[client], name, GetTime());
+// 		if(DEBUG == 1){
+// 			//PrintToServer("DEBUG: SQLUserLoad (%s)", buffer);
+// 		}
+// 		SQL_TQuery(g_hDB, SQLErrorCheckCallback, buffer);
 		
-		// Init completed
-		g_iUserInit[client] = 1;
-	}
+// 		// Init completed
+// 		g_iUserInit[client] = 1;
+// 	}
 	
-	// Join message
-	SQLDisplayJoinMessage(client);
-}
+// 	// Join message
+// 	SQLDisplayJoinMessage(client);
+// }
 
-// Display join message - Get score
-void SQLDisplayJoinMessage(client)
-{
-	// Get current score
-	decl String:buffer[512];
-	Format(buffer, sizeof(buffer), "SELECT score FROM ins_rank WHERE steamId = '%s'", g_sSteamIdSave[client]);
-	SQL_TQuery(g_hDB, SQLJoinMsgGetScore, buffer, client);
-}
+// // Display join message - Get score
+// void SQLDisplayJoinMessage(client)
+// {
+// 	// Get current score
+// 	decl String:buffer[512];
+// 	Format(buffer, sizeof(buffer), "SELECT score FROM ins_rank WHERE steamId = '%s'", g_sSteamIdSave[client]);
+// 	SQL_TQuery(g_hDB, SQLJoinMsgGetScore, buffer, client);
+// }
 
-// Display join message - Get rank
-public SQLJoinMsgGetScore(Handle:owner, Handle:hndl, const String:error[], any:client)
-{
-	// Check DB
-	if(hndl == INVALID_HANDLE)
-	{
-		LogError(error);
-		//PrintToServer("Last Connect SQL Error: %s", error);
-		PrintToChatAll("\x04%N\x01 joined the fight.", client);
-		return;
-	}
+// // Display join message - Get rank
+// public SQLJoinMsgGetScore(Handle:owner, Handle:hndl, const String:error[], any:client)
+// {
+// 	// Check DB
+// 	if(hndl == INVALID_HANDLE)
+// 	{
+// 		LogError(error);
+// 		//PrintToServer("Last Connect SQL Error: %s", error);
+// 		PrintToChatAll("\x04%N\x01 joined the fight.", client);
+// 		return;
+// 	}
 	
-	// Get data
-	if(SQL_FetchRow(hndl))
-	{
-		// Get score
-		new iScore = SQL_FetchInt(hndl, 0);
+// 	// Get data
+// 	if(SQL_FetchRow(hndl))
+// 	{
+// 		// Get score
+// 		new iScore = SQL_FetchInt(hndl, 0);
 		
-		// Get player count
-		decl String:buffer[512];
-		Format(buffer, sizeof(buffer),"SELECT COUNT(*) FROM ins_rank WHERE score >= %i", iScore);
-		SQL_TQuery(g_hDB, SQLJoinMsgGetRank, buffer, client);
-	}
-	else
-	{
-		PrintToChatAll("\x04%N\x01 joined the fight.", client);
-	}
-}
+// 		// Get player count
+// 		decl String:buffer[512];
+// 		Format(buffer, sizeof(buffer),"SELECT COUNT(*) FROM ins_rank WHERE score >= %i", iScore);
+// 		SQL_TQuery(g_hDB, SQLJoinMsgGetRank, buffer, client);
+// 	}
+// 	else
+// 	{
+// 		PrintToChatAll("\x04%N\x01 joined the fight.", client);
+// 	}
+// }
 
-// Display join message - Get player count
-public SQLJoinMsgGetRank(Handle:owner, Handle:hndl, const String:error[], any:client)
-{
-	// Check DB
-	if(hndl == INVALID_HANDLE)
-	{
-		LogError(error);
-		//PrintToServer("Last Connect SQL Error: %s", error);
-		PrintToChatAll("\x04%N\x01 joined the fight.", client);
-		return;
-	}
+// // Display join message - Get player count
+// public SQLJoinMsgGetRank(Handle:owner, Handle:hndl, const String:error[], any:client)
+// {
+// 	// Check DB
+// 	if(hndl == INVALID_HANDLE)
+// 	{
+// 		LogError(error);
+// 		//PrintToServer("Last Connect SQL Error: %s", error);
+// 		PrintToChatAll("\x04%N\x01 joined the fight.", client);
+// 		return;
+// 	}
 	
-	// Get data
-	if(SQL_FetchRow(hndl))
-	{
-		// Get score
-		new iRank = SQL_FetchInt(hndl, 0);
-		g_iRank[client] = iRank;
+// 	// Get data
+// 	if(SQL_FetchRow(hndl))
+// 	{
+// 		// Get score
+// 		new iRank = SQL_FetchInt(hndl, 0);
+// 		g_iRank[client] = iRank;
 		
-		// Get player count
-		SQL_TQuery(g_hDB, SQLJoinMsgGetPlayerCount, "SELECT COUNT(*) FROM ins_rank", client);
-	}
-	else
-	{
-		PrintToChatAll("\x04%N\x01 joined the fight.", client);
-	}
-}
-// Display join message - Print to chat all
-public SQLJoinMsgGetPlayerCount(Handle:owner, Handle:hndl, const String:error[], any:client)
-{
-	// Check DB
-	if(hndl == INVALID_HANDLE)
-	{
-		LogError(error);
-		//PrintToServer("Last Connect SQL Error: %s", error);
-		PrintToChatAll("\x04%N\x01 joined the fight.", client);
-		return;
-	}
+// 		// Get player count
+// 		SQL_TQuery(g_hDB, SQLJoinMsgGetPlayerCount, "SELECT COUNT(*) FROM ins_rank", client);
+// 	}
+// 	else
+// 	{
+// 		PrintToChatAll("\x04%N\x01 joined the fight.", client);
+// 	}
+// }
+// // Display join message - Print to chat all
+// public SQLJoinMsgGetPlayerCount(Handle:owner, Handle:hndl, const String:error[], any:client)
+// {
+// 	// Check DB
+// 	if(hndl == INVALID_HANDLE)
+// 	{
+// 		LogError(error);
+// 		//PrintToServer("Last Connect SQL Error: %s", error);
+// 		PrintToChatAll("\x04%N\x01 joined the fight.", client);
+// 		return;
+// 	}
 	
-	// Get data
-	if(SQL_FetchRow(hndl))
-	{
-		// Get player count
-		new iPlayerCount = SQL_FetchInt(hndl, 0);
+// 	// Get data
+// 	if(SQL_FetchRow(hndl))
+// 	{
+// 		// Get player count
+// 		new iPlayerCount = SQL_FetchInt(hndl, 0);
 		
-		// Display join message
-		PrintToChatAll("\x04%N\x01 joined the fight. \x05(Rank: %i of %i)", client, g_iRank[client], iPlayerCount);
-		//PrintToServer("%N joined the fight. (Rank: %i of %i)", client, g_iRank[client], iPlayerCount);
-	}
-	else
-	{
-		PrintToChatAll("\x04%N\x01 joined the fight.", client);
-	}
-}
+// 		// Display join message
+// 		PrintToChatAll("\x04%N\x01 joined the fight. \x05(Rank: %i of %i)", client, g_iRank[client], iPlayerCount);
+// 		//PrintToServer("%N joined the fight. (Rank: %i of %i)", client, g_iRank[client], iPlayerCount);
+// 	}
+// 	else
+// 	{
+// 		PrintToChatAll("\x04%N\x01 joined the fight.", client);
+// 	}
+// }
 
-// Save stats
-public SQLUserSave(Handle:owner, Handle:hndl, const String:error[], any:client){
-	// Check DB
-	if(hndl == INVALID_HANDLE)
-	{
-		LogError(error);
-		//PrintToServer("Last Connect SQL Error: %s", error);
-		return;
-	}
+// // Save stats
+// public SQLUserSave(Handle:owner, Handle:hndl, const String:error[], any:client){
+// 	// Check DB
+// 	if(hndl == INVALID_HANDLE)
+// 	{
+// 		LogError(error);
+// 		//PrintToServer("Last Connect SQL Error: %s", error);
+// 		return;
+// 	}
 	
-	// Declare variables
-	decl QueryReadRow_SCORE;
-	decl QueryReadRow_KILL;
-	decl QueryReadRow_DEATHS;
-	decl QueryReadRow_HEADSHOTS;
-	decl QueryReadRow_SUCSIDES;
-	decl QueryReadRow_REVIVES;
-	decl QueryReadRow_HEALS;
-	decl QueryReadRow_PTIME;
+// 	// Declare variables
+// 	decl QueryReadRow_SCORE;
+// 	decl QueryReadRow_KILL;
+// 	decl QueryReadRow_DEATHS;
+// 	decl QueryReadRow_HEADSHOTS;
+// 	decl QueryReadRow_SUCSIDES;
+// 	decl QueryReadRow_REVIVES;
+// 	decl QueryReadRow_HEALS;
+// 	decl QueryReadRow_PTIME;
 	
-	// Get record
-	if(SQL_FetchRow(hndl)) 
-	{
+// 	// Get record
+// 	if(SQL_FetchRow(hndl)) 
+// 	{
 		
-		// Calculate score
-		QueryReadRow_SCORE=GetPlayerScore(client) - g_iStatScore[client];
-		if (QueryReadRow_SCORE < 0) QueryReadRow_SCORE=0;
-		QueryReadRow_SCORE=SQL_FetchInt(hndl,3) + QueryReadRow_SCORE + (g_iStatRevives[client] * 20) + (g_iStatHeals[client] * 10);
+// 		// Calculate score
+// 		QueryReadRow_SCORE=GetPlayerScore(client) - g_iStatScore[client];
+// 		if (QueryReadRow_SCORE < 0) QueryReadRow_SCORE=0;
+// 		QueryReadRow_SCORE=SQL_FetchInt(hndl,3) + QueryReadRow_SCORE + (g_iStatRevives[client] * 20) + (g_iStatHeals[client] * 10);
 		
-		QueryReadRow_KILL=SQL_FetchInt(hndl,4) + g_iStatKills[client];
-		QueryReadRow_DEATHS=SQL_FetchInt(hndl,5) + g_iStatDeaths[client];
-		QueryReadRow_HEADSHOTS=SQL_FetchInt(hndl,6) + g_iStatHeadShots[client];
-		QueryReadRow_SUCSIDES=SQL_FetchInt(hndl,7) + g_iStatSuicides[client];
-		QueryReadRow_REVIVES=SQL_FetchInt(hndl,8) + g_iStatRevives[client];
-		QueryReadRow_HEALS=SQL_FetchInt(hndl,9) + g_iStatHeals[client];
-		QueryReadRow_PTIME=SQL_FetchInt(hndl,11) + GetTime() - g_iUserPtime[client];
+// 		QueryReadRow_KILL=SQL_FetchInt(hndl,4) + g_iStatKills[client];
+// 		QueryReadRow_DEATHS=SQL_FetchInt(hndl,5) + g_iStatDeaths[client];
+// 		QueryReadRow_HEADSHOTS=SQL_FetchInt(hndl,6) + g_iStatHeadShots[client];
+// 		QueryReadRow_SUCSIDES=SQL_FetchInt(hndl,7) + g_iStatSuicides[client];
+// 		QueryReadRow_REVIVES=SQL_FetchInt(hndl,8) + g_iStatRevives[client];
+// 		QueryReadRow_HEALS=SQL_FetchInt(hndl,9) + g_iStatHeals[client];
+// 		QueryReadRow_PTIME=SQL_FetchInt(hndl,11) + GetTime() - g_iUserPtime[client];
 		
-		// Reset stats
-		g_iStatScore[client] = GetPlayerScore(client);
-		g_iStatKills[client] = 0;
-		g_iStatDeaths[client] = 0;
-		g_iStatHeadShots[client] = 0;
-		g_iStatSuicides[client] = 0;
-		g_iStatRevives[client] = 0;
-		g_iStatHeals[client] = 0;
-		g_iUserPtime[client] = GetTime();
+// 		// Reset stats
+// 		g_iStatScore[client] = GetPlayerScore(client);
+// 		g_iStatKills[client] = 0;
+// 		g_iStatDeaths[client] = 0;
+// 		g_iStatHeadShots[client] = 0;
+// 		g_iStatSuicides[client] = 0;
+// 		g_iStatRevives[client] = 0;
+// 		g_iStatHeals[client] = 0;
+// 		g_iUserPtime[client] = GetTime();
 		
-		// Update database
-		decl String:buffer[512];
-		Format(buffer, sizeof(buffer), "UPDATE ins_rank SET score = '%i', kills = '%i', deaths = '%i', headshots = '%i', sucsides = '%i', revives = '%i', heals = '%i', played_time = '%i' WHERE steamId = '%s'", QueryReadRow_SCORE, QueryReadRow_KILL, QueryReadRow_DEATHS, QueryReadRow_HEADSHOTS, QueryReadRow_SUCSIDES, QueryReadRow_REVIVES, QueryReadRow_HEALS, QueryReadRow_PTIME, g_sSteamIdSave[client]);
+// 		// Update database
+// 		decl String:buffer[512];
+// 		Format(buffer, sizeof(buffer), "UPDATE ins_rank SET score = '%i', kills = '%i', deaths = '%i', headshots = '%i', sucsides = '%i', revives = '%i', heals = '%i', played_time = '%i' WHERE steamId = '%s'", QueryReadRow_SCORE, QueryReadRow_KILL, QueryReadRow_DEATHS, QueryReadRow_HEADSHOTS, QueryReadRow_SUCSIDES, QueryReadRow_REVIVES, QueryReadRow_HEALS, QueryReadRow_PTIME, g_sSteamIdSave[client]);
 		
-		if(DEBUG == 1){
-			//PrintToServer("DEBUG: SQLUserSave (%s)", buffer);
-		}
+// 		if(DEBUG == 1){
+// 			//PrintToServer("DEBUG: SQLUserSave (%s)", buffer);
+// 		}
 		
-		SQL_TQuery(g_hDB, SQLErrorCheckCallback, buffer);
-	}
-}
+// 		SQL_TQuery(g_hDB, SQLErrorCheckCallback, buffer);
+// 	}
+// }
 
-// Get my rank
-public SQLGetMyRank(Handle:owner, Handle:hndl, const String:error[], any:client){
-	// Check DB
-	if(hndl == INVALID_HANDLE)
-	{
-		LogError(error);
-		//PrintToServer("Last Connect SQL Error: %s", error);
-		return;
-	}
+// // Get my rank
+// public SQLGetMyRank(Handle:owner, Handle:hndl, const String:error[], any:client){
+// 	// Check DB
+// 	if(hndl == INVALID_HANDLE)
+// 	{
+// 		LogError(error);
+// 		//PrintToServer("Last Connect SQL Error: %s", error);
+// 		return;
+// 	}
     
-	// Declare variables
-	decl RAscore;
-	decl RAkills;
-	decl RAdeaths;
-	decl RAheadshots;
-	decl RAsucsides;
-	decl RArevives;
-	decl RAheals;
+// 	// Declare variables
+// 	decl RAscore;
+// 	decl RAkills;
+// 	decl RAdeaths;
+// 	decl RAheadshots;
+// 	decl RAsucsides;
+// 	decl RArevives;
+// 	decl RAheals;
 
-	// Get record
-	if(SQL_FetchRow(hndl)) 
-	{
-		// Get stats
-		RAscore=SQL_FetchInt(hndl, 0);
-		RAkills=SQL_FetchInt(hndl, 1);
-		RAdeaths=SQL_FetchInt(hndl, 2);
-		RAheadshots=SQL_FetchInt(hndl, 3);
-		RAsucsides=SQL_FetchInt(hndl, 4);
-		RArevives=SQL_FetchInt(hndl, 5);
-		RAheals=SQL_FetchInt(hndl, 6);
+// 	// Get record
+// 	if(SQL_FetchRow(hndl)) 
+// 	{
+// 		// Get stats
+// 		RAscore=SQL_FetchInt(hndl, 0);
+// 		RAkills=SQL_FetchInt(hndl, 1);
+// 		RAdeaths=SQL_FetchInt(hndl, 2);
+// 		RAheadshots=SQL_FetchInt(hndl, 3);
+// 		RAsucsides=SQL_FetchInt(hndl, 4);
+// 		RArevives=SQL_FetchInt(hndl, 5);
+// 		RAheals=SQL_FetchInt(hndl, 6);
 		
-		decl String:buffer[512];
-		//test
-		// 0.00027144
-		//STEAM_0:1:13462423
-		//Format(buffer, sizeof(buffer), "SELECT ((`deaths`/`kills`)/`played_time`) AS rankn FROM `ins_rank` WHERE (`kills` > 0 AND `deaths` > 0) AND ((`deaths`/`kills`)/`played_time`) < (SELECT ((`deaths`/`kills`)/`played_time`) FROM `ins_rank` WHERE steamId = '%s' LIMIT 1) AND `steamId` != '%s' ORDER BY rankn ASC", g_sSteamIdSave[client], g_sSteamIdSave[client]);
+// 		decl String:buffer[512];
+// 		//test
+// 		// 0.00027144
+// 		//STEAM_0:1:13462423
+// 		//Format(buffer, sizeof(buffer), "SELECT ((`deaths`/`kills`)/`played_time`) AS rankn FROM `ins_rank` WHERE (`kills` > 0 AND `deaths` > 0) AND ((`deaths`/`kills`)/`played_time`) < (SELECT ((`deaths`/`kills`)/`played_time`) FROM `ins_rank` WHERE steamId = '%s' LIMIT 1) AND `steamId` != '%s' ORDER BY rankn ASC", g_sSteamIdSave[client], g_sSteamIdSave[client]);
 		
-		// Get rank
-		Format(buffer, sizeof(buffer), "SELECT COUNT(*) FROM ins_rank WHERE score >= %i", RAscore);
-		SQL_TQuery(g_hDB, SQLGetRank, buffer, client);
+// 		// Get rank
+// 		Format(buffer, sizeof(buffer), "SELECT COUNT(*) FROM ins_rank WHERE score >= %i", RAscore);
+// 		SQL_TQuery(g_hDB, SQLGetRank, buffer, client);
 		
-		PrintToChat(client,"%cScore: %i | Kills: %i | Revives: %i | Heals: %i | Deaths: %i | Headshots: %i | Suicides: %i", GREEN, RAscore, RAkills, RArevives, RAheals, RAdeaths, RAheadshots, RAsucsides);
-	} else {
-		PrintToChat(client, "%cYour rank is not available!", GREEN);
-	}
-}
+// 		PrintToChat(client,"%cScore: %i | Kills: %i | Revives: %i | Heals: %i | Deaths: %i | Headshots: %i | Suicides: %i", GREEN, RAscore, RAkills, RArevives, RAheals, RAdeaths, RAheadshots, RAsucsides);
+// 	} else {
+// 		PrintToChat(client, "%cYour rank is not available!", GREEN);
+// 	}
+// }
 
-// Get my rank - Get rank
-public SQLGetRank(Handle:owner, Handle:hndl, const String:error[], any:client){
-	// Check DB
-	if(hndl == INVALID_HANDLE)
-	{
-		LogError(error);
-		//PrintToServer("Last Connect SQL Error: %s", error);
-		return;
-	}
+// // Get my rank - Get rank
+// public SQLGetRank(Handle:owner, Handle:hndl, const String:error[], any:client){
+// 	// Check DB
+// 	if(hndl == INVALID_HANDLE)
+// 	{
+// 		LogError(error);
+// 		//PrintToServer("Last Connect SQL Error: %s", error);
+// 		return;
+// 	}
 	
-	// Get record
-	if(SQL_FetchRow(hndl)) 
-	{
-		// Get rank
-		new iRank = SQL_FetchInt(hndl, 0);
-		g_iRank[client] = iRank;
+// 	// Get record
+// 	if(SQL_FetchRow(hndl)) 
+// 	{
+// 		// Get rank
+// 		new iRank = SQL_FetchInt(hndl, 0);
+// 		g_iRank[client] = iRank;
 		
-		// Get player count
-		SQL_TQuery(g_hDB, SQLShowRankToChat, "SELECT COUNT(*) FROM ins_rank", client);
-	} else {
-		PrintToChat(client, "%cYour rank is not avlilable!", GREEN);
-	}
-}
+// 		// Get player count
+// 		SQL_TQuery(g_hDB, SQLShowRankToChat, "SELECT COUNT(*) FROM ins_rank", client);
+// 	} else {
+// 		PrintToChat(client, "%cYour rank is not avlilable!", GREEN);
+// 	}
+// }
 
-// Get my rank - Get player count
-public SQLShowRankToChat(Handle:owner, Handle:hndl, const String:error[], any:client){
-	// Check DB
-	if(hndl == INVALID_HANDLE)
-	{
-		LogError(error);
-		//PrintToServer("Last Connect SQL Error: %s", error);
-		return;
-	}
+// // Get my rank - Get player count
+// public SQLShowRankToChat(Handle:owner, Handle:hndl, const String:error[], any:client){
+// 	// Check DB
+// 	if(hndl == INVALID_HANDLE)
+// 	{
+// 		LogError(error);
+// 		//PrintToServer("Last Connect SQL Error: %s", error);
+// 		return;
+// 	}
 	
-	// Get record
-	if(SQL_FetchRow(hndl)) 
-	{
-		// Get player count
-		new iPlayerCount = SQL_FetchInt(hndl, 0);
+// 	// Get record
+// 	if(SQL_FetchRow(hndl)) 
+// 	{
+// 		// Get player count
+// 		new iPlayerCount = SQL_FetchInt(hndl, 0);
 		
-		// Display rank
-		PrintToChat(client,"%cYour rank is: %i (of %i).", GREEN, g_iRank[client], iPlayerCount);
-	} else {
-		PrintToChat(client, "%cYour rank is not avlilable!", GREEN);
-	}
-}
+// 		// Display rank
+// 		PrintToChat(client,"%cYour rank is: %i (of %i).", GREEN, g_iRank[client], iPlayerCount);
+// 	} else {
+// 		PrintToChat(client, "%cYour rank is not avlilable!", GREEN);
+// 	}
+// }
 
-// Show top 10
-public SQLTopShow(Handle:owner, Handle:hndl, const String:error[], any:client){
-	// Check DB
-	if(hndl == INVALID_HANDLE)
-	{
-		LogError(error);
-		//PrintToServer("Last Connect SQL Error: %s", error);
-		return;
-	}
+// // Show top 10
+// public SQLTopShow(Handle:owner, Handle:hndl, const String:error[], any:client){
+// 	// Check DB
+// 	if(hndl == INVALID_HANDLE)
+// 	{
+// 		LogError(error);
+// 		//PrintToServer("Last Connect SQL Error: %s", error);
+// 		return;
+// 	}
 	
-	// Init panel
-	new Handle:hPanel = CreatePanel(GetMenuStyleHandle(MenuStyle_Radio));
-	new String:text[128];
-	Format(text,127,"Top 10 Players");
-	SetPanelTitle(hPanel,text);
+// 	// Init panel
+// 	new Handle:hPanel = CreatePanel(GetMenuStyleHandle(MenuStyle_Radio));
+// 	new String:text[128];
+// 	Format(text,127,"Top 10 Players");
+// 	SetPanelTitle(hPanel,text);
 	
-	// Init variables
-	decl row;
-	decl String:name[64];
-	decl score;
-	decl kills;
-	decl deaths;
+// 	// Init variables
+// 	decl row;
+// 	decl String:name[64];
+// 	decl score;
+// 	decl kills;
+// 	decl deaths;
 	
-	// Check result
-	if (SQL_HasResultSet(hndl))
-	{
-		// Loop players
-		while (SQL_FetchRow(hndl))
-		{
-			row++;
-			// Nickname
-			SQL_FetchString(hndl, 2, name, sizeof(name));
+// 	// Check result
+// 	if (SQL_HasResultSet(hndl))
+// 	{
+// 		// Loop players
+// 		while (SQL_FetchRow(hndl))
+// 		{
+// 			row++;
+// 			// Nickname
+// 			SQL_FetchString(hndl, 2, name, sizeof(name));
 			
-			// Stats
-			score=SQL_FetchInt(hndl,3);
-			kills=SQL_FetchInt(hndl,4);
-			deaths=SQL_FetchInt(hndl,5);
+// 			// Stats
+// 			score=SQL_FetchInt(hndl,3);
+// 			kills=SQL_FetchInt(hndl,4);
+// 			deaths=SQL_FetchInt(hndl,5);
 			
-			// Set text
-			Format(text,127,"[%d] %s", row, name);
-			DrawPanelText(hPanel, text);
-			Format(text,127," - Score: %i | Kills: %i | Deaths: %i", score, kills, deaths);
-			DrawPanelText(hPanel, text);
-		}
-	} else {
-			Format(text,127,"TOP 10 is empty!");
-			DrawPanelText(hPanel, text);
-	}
+// 			// Set text
+// 			Format(text,127,"[%d] %s", row, name);
+// 			DrawPanelText(hPanel, text);
+// 			Format(text,127," - Score: %i | Kills: %i | Deaths: %i", score, kills, deaths);
+// 			DrawPanelText(hPanel, text);
+// 		}
+// 	} else {
+// 			Format(text,127,"TOP 10 is empty!");
+// 			DrawPanelText(hPanel, text);
+// 	}
 	
-	// Draw panel
-	DrawPanelItem(hPanel, " ", ITEMDRAW_SPACER|ITEMDRAW_RAWLINE);
+// 	// Draw panel
+// 	DrawPanelItem(hPanel, " ", ITEMDRAW_SPACER|ITEMDRAW_RAWLINE);
 	
-	Format(text,59,"Exit");
-	DrawPanelItem(hPanel, text);
+// 	Format(text,59,"Exit");
+// 	DrawPanelItem(hPanel, text);
 	
-	SendPanelToClient(hPanel, client, TopMenu, 20);
+// 	SendPanelToClient(hPanel, client, TopMenu, 20);
 
-	CloseHandle(hPanel);
-}
+// 	CloseHandle(hPanel);
+// }
 
-// Show Top medics
-public SQLTopShowMedic(Handle:owner, Handle:hndl, const String:error[], any:client){
-	// Check DB
-	if(hndl == INVALID_HANDLE)
-	{
-		LogError(error);
-		//PrintToServer("Last Connect SQL Error: %s", error);
-		return;
-	}
+// // Show Top medics
+// public SQLTopShowMedic(Handle:owner, Handle:hndl, const String:error[], any:client){
+// 	// Check DB
+// 	if(hndl == INVALID_HANDLE)
+// 	{
+// 		LogError(error);
+// 		//PrintToServer("Last Connect SQL Error: %s", error);
+// 		return;
+// 	}
 	
-	// Init panel
-	new Handle:hPanel = CreatePanel(GetMenuStyleHandle(MenuStyle_Radio));
-	new String:text[128];
-	Format(text,127,"Top Medics");
-	SetPanelTitle(hPanel,text);
+// 	// Init panel
+// 	new Handle:hPanel = CreatePanel(GetMenuStyleHandle(MenuStyle_Radio));
+// 	new String:text[128];
+// 	Format(text,127,"Top Medics");
+// 	SetPanelTitle(hPanel,text);
 	
-	// Init variables
-	decl row;
-	decl String:name[64];
-	decl revives;
-	decl heals;
+// 	// Init variables
+// 	decl row;
+// 	decl String:name[64];
+// 	decl revives;
+// 	decl heals;
 	
-	// Check result
-	if (SQL_HasResultSet(hndl))
-	{
-		// Loop players
-		while (SQL_FetchRow(hndl))
-		{
-			row++;
-			// Nickname
-			SQL_FetchString(hndl, 2, name, sizeof(name));
+// 	// Check result
+// 	if (SQL_HasResultSet(hndl))
+// 	{
+// 		// Loop players
+// 		while (SQL_FetchRow(hndl))
+// 		{
+// 			row++;
+// 			// Nickname
+// 			SQL_FetchString(hndl, 2, name, sizeof(name));
 			
-			// Stats
-			revives=SQL_FetchInt(hndl,8);
-			heals=SQL_FetchInt(hndl,9);
+// 			// Stats
+// 			revives=SQL_FetchInt(hndl,8);
+// 			heals=SQL_FetchInt(hndl,9);
 			
-			// Set text
-			Format(text,127,"[%d] %s", row, name);
-			DrawPanelText(hPanel, text);
-			Format(text,127," - Revives: %i | Heals: %i", revives, heals);
-			DrawPanelText(hPanel, text);
-		}
-	} else {
-			Format(text,127,"TOP Medics is empty!");
-			DrawPanelText(hPanel, text);
-	}
+// 			// Set text
+// 			Format(text,127,"[%d] %s", row, name);
+// 			DrawPanelText(hPanel, text);
+// 			Format(text,127," - Revives: %i | Heals: %i", revives, heals);
+// 			DrawPanelText(hPanel, text);
+// 		}
+// 	} else {
+// 			Format(text,127,"TOP Medics is empty!");
+// 			DrawPanelText(hPanel, text);
+// 	}
 	
-	// Draw panel
-	DrawPanelItem(hPanel, " ", ITEMDRAW_SPACER|ITEMDRAW_RAWLINE);
+// 	// Draw panel
+// 	DrawPanelItem(hPanel, " ", ITEMDRAW_SPACER|ITEMDRAW_RAWLINE);
 	
-	Format(text,59,"Exit");
-	DrawPanelItem(hPanel, text);
+// 	Format(text,59,"Exit");
+// 	DrawPanelItem(hPanel, text);
 	
-	SendPanelToClient(hPanel, client, TopMenu, 20);
+// 	SendPanelToClient(hPanel, client, TopMenu, 20);
 
-	CloseHandle(hPanel);
-}
-// Show Headhunters
-public SQLTopShowHS(Handle:owner, Handle:hndl, const String:error[], any:client){
-	// Check DB
-	if(hndl == INVALID_HANDLE)
-	{
-		LogError(error);
-		//PrintToServer("Last Connect SQL Error: %s", error);
-		return;
-	}
+// 	CloseHandle(hPanel);
+// }
+// // Show Headhunters
+// public SQLTopShowHS(Handle:owner, Handle:hndl, const String:error[], any:client){
+// 	// Check DB
+// 	if(hndl == INVALID_HANDLE)
+// 	{
+// 		LogError(error);
+// 		//PrintToServer("Last Connect SQL Error: %s", error);
+// 		return;
+// 	}
 	
-	// Init panel
-	new Handle:hPanel = CreatePanel(GetMenuStyleHandle(MenuStyle_Radio));
-	new String:text[128];
-	Format(text,127,"Top 10 Headhunters");
-	SetPanelTitle(hPanel,text);
+// 	// Init panel
+// 	new Handle:hPanel = CreatePanel(GetMenuStyleHandle(MenuStyle_Radio));
+// 	new String:text[128];
+// 	Format(text,127,"Top 10 Headhunters");
+// 	SetPanelTitle(hPanel,text);
 	
-	// Init variables
-	decl row;
-	decl String:name[64];
-	decl shoths;
-	decl ptimed;
-	decl String:textime[64];
+// 	// Init variables
+// 	decl row;
+// 	decl String:name[64];
+// 	decl shoths;
+// 	decl ptimed;
+// 	decl String:textime[64];
 	
-	// Check result
-	if (SQL_HasResultSet(hndl))
-	{
-		// Loop players
-		while (SQL_FetchRow(hndl))
-		{
-			row++;
-			// Nickname
-			SQL_FetchString(hndl, 2, name, sizeof(name));
+// 	// Check result
+// 	if (SQL_HasResultSet(hndl))
+// 	{
+// 		// Loop players
+// 		while (SQL_FetchRow(hndl))
+// 		{
+// 			row++;
+// 			// Nickname
+// 			SQL_FetchString(hndl, 2, name, sizeof(name));
 			
-			// Stats
-			shoths=SQL_FetchInt(hndl,6);
-			ptimed=SQL_FetchInt(hndl,11);
+// 			// Stats
+// 			shoths=SQL_FetchInt(hndl,6);
+// 			ptimed=SQL_FetchInt(hndl,11);
 			
-			// Calc
-			if(ptimed <= 3600){
-				Format(textime,63,"%i m.", ptimed / 60);
-			} else if(ptimed <= 43200){
-				Format(textime,63,"%i h.", ptimed / 60 / 60);
-			} else if(ptimed <= 1339200){
-				Format(textime,63,"%i d.", ptimed / 60 / 60 / 12);
-			} else {
-				Format(textime,63,"%i mo.", ptimed / 60 / 60 / 12 / 31);
-			}
+// 			// Calc
+// 			if(ptimed <= 3600){
+// 				Format(textime,63,"%i m.", ptimed / 60);
+// 			} else if(ptimed <= 43200){
+// 				Format(textime,63,"%i h.", ptimed / 60 / 60);
+// 			} else if(ptimed <= 1339200){
+// 				Format(textime,63,"%i d.", ptimed / 60 / 60 / 12);
+// 			} else {
+// 				Format(textime,63,"%i mo.", ptimed / 60 / 60 / 12 / 31);
+// 			}
 			
-			// Set text
-			Format(text,127,"[%d] %s", row, name);
-			DrawPanelText(hPanel, text);
-			Format(text,127," - HS: %i - In Time: %s", shoths, textime);
-			DrawPanelText(hPanel, text);
-		}
-	} else {
-		Format(text,127,"TOP Headhunters is empty!");
-		DrawPanelText(hPanel, text);
-	}
+// 			// Set text
+// 			Format(text,127,"[%d] %s", row, name);
+// 			DrawPanelText(hPanel, text);
+// 			Format(text,127," - HS: %i - In Time: %s", shoths, textime);
+// 			DrawPanelText(hPanel, text);
+// 		}
+// 	} else {
+// 		Format(text,127,"TOP Headhunters is empty!");
+// 		DrawPanelText(hPanel, text);
+// 	}
 	
-	// Display panel
-	DrawPanelItem(hPanel, " ", ITEMDRAW_SPACER|ITEMDRAW_RAWLINE);
+// 	// Display panel
+// 	DrawPanelItem(hPanel, " ", ITEMDRAW_SPACER|ITEMDRAW_RAWLINE);
 
-	Format(text,59,"Exit");
-	DrawPanelItem(hPanel, text);
+// 	Format(text,59,"Exit");
+// 	DrawPanelItem(hPanel, text);
 	
-	SendPanelToClient(hPanel, client, TopMenu, 20);
+// 	SendPanelToClient(hPanel, client, TopMenu, 20);
 
-	CloseHandle(hPanel);
-}
+// 	CloseHandle(hPanel);
+// }
 
 /*
 PrintQueryData(Handle:query)

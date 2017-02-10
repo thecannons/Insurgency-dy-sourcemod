@@ -3,13 +3,13 @@
 
 #pragma semicolon 1
 #pragma unused cvarVersion
-#include <sourcemod>
+#include <sourcemod> 
 #include <sdktools>
 #include <sdkhooks>
 #undef REQUIRE_PLUGIN
 #include <updater>
 
-#define AUTOLOAD_EXTENSIONS
+#define AUTOLOAD_EXTENSIONS 
 #define REQUIRE_EXTENSIONS
 
 #pragma unused cvarVersion
