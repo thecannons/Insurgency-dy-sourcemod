@@ -1,0 +1,5 @@
+sm plugins unload all
+sm plugins reload all
+sm plugins refresh
+
+Not sure if need refresh

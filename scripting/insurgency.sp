@@ -629,11 +629,11 @@ public Native_GetPlayerClass(Handle:plugin, numParams)
 	return;
 }
 bool:InCounterAttack() {
-	GetEntity_GameRulesProxy();
-	new bool:retval;
-	if (g_iGameRulesProxy > 0) {
-		retval = bool:GetEntData(g_iGameRulesProxy, FindSendPropInfo(g_iGameRulesProxyNetClass, "m_bCounterAttack"));
-	}
+	//GetEntity_GameRulesProxy();
+	new bool:retval = false;
+	// if (g_iGameRulesProxy > 0) {
+	// 	retval = bool:GetEntData(g_iGameRulesProxy, FindSendPropInfo(g_iGameRulesProxyNetClass, "m_bCounterAttack"));
+	// }
 	return retval;
 }
 public Native_InCounterAttack(Handle:plugin, numParams)
