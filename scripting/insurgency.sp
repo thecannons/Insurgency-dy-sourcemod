@@ -630,10 +630,22 @@ public Native_GetPlayerClass(Handle:plugin, numParams)
 }
 bool:InCounterAttack() {
 	//GetEntity_GameRulesProxy();
-	new bool:retval = false;
+	new bool:retval;
+	// if (retval)
+	// 	PrintToServer("PRE:InCounterAttack: TRUE");
+	// else
+	// 	PrintToServer("PRE:InCounterAttack: FALSE");
+
 	// if (g_iGameRulesProxy > 0) {
 	// 	retval = bool:GetEntData(g_iGameRulesProxy, FindSendPropInfo(g_iGameRulesProxyNetClass, "m_bCounterAttack"));
 	// }
+	//result = bool:GetEntData(g_iLogicEntity, FindSendPropInfo(g_iLogicEntityNetClass, "m_bCounterAttack"));
+	retval = bool:GameRules_GetProp("m_bCounterAttack");
+	// if (retval)
+	// 	PrintToServer("POST:InCounterAttack: TRUE");
+	// else
+	// 	PrintToServer("POST:InCounterAttack: FALSE");
+
 	return retval;
 }
 public Native_InCounterAttack(Handle:plugin, numParams)

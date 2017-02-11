@@ -843,24 +843,24 @@ void UpdateRespawnCvars()
 	// The number of control points
 	new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
 
-	// if (ncp < 6)
-	// {
-	// 	//Add to minimum dur as well.
-	// 	new fRandomInt = GetRandomInt(15, 30);
-	// 	new fRandomInt2 = GetRandomInt(6, 12);
-	// 	g_counterAttack_min_dur_sec += fRandomInt;
-	// 	g_counterAttack_max_dur_sec += fRandomInt2;
-	// 	g_respawn_counter_chance += 0.2;
-	// }
-	// else if (ncp >= 6 && ncp <= 8)
-	// {
-	// 	//Add to minimum dur as well.
-	// 	new fRandomInt = GetRandomInt(10, 20);
-	// 	new fRandomInt2 = GetRandomInt(4, 8);
-	// 	g_counterAttack_min_dur_sec += fRandomInt;
-	// 	g_counterAttack_max_dur_sec += fRandomInt2;
-	// 	g_respawn_counter_chance += 0.1;
-	// }
+	if (ncp < 6)
+	{
+		//Add to minimum dur as well.
+		new fRandomInt = GetRandomInt(15, 30);
+		new fRandomInt2 = GetRandomInt(6, 12);
+		g_counterAttack_min_dur_sec += fRandomInt;
+		g_counterAttack_max_dur_sec += fRandomInt2;
+		g_respawn_counter_chance += 0.2;
+	}
+	else if (ncp >= 6 && ncp <= 8)
+	{
+		//Add to minimum dur as well.
+		new fRandomInt = GetRandomInt(10, 20);
+		new fRandomInt2 = GetRandomInt(4, 8);
+		g_counterAttack_min_dur_sec += fRandomInt;
+		g_counterAttack_max_dur_sec += fRandomInt2;
+		g_respawn_counter_chance += 0.1;
+	}
 
 
 	// Update Cvars
@@ -2877,7 +2877,7 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 	new Float:fRandom = GetRandomFloat(0.0, 1.0);
 	PrintToServer("Counter Chance = %f", g_respawn_counter_chance);
 	// Occurs counter attack
-	if (fRandom < g_respawn_counter_chance && g_isCheckpoint == 1 && ((acp+1) != ncp))
+	if (fRandom < g_respawn_counter_chance && StrEqual(sGameMode, "checkpoint") && ((acp+1) != ncp))
 	{
 		cvar = INVALID_HANDLE;
 		//PrintToServer("COUNTER YES");
@@ -2898,7 +2898,7 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 		}
 	}
 	// If last capture point
-	else if (g_isCheckpoint == 1 && ((acp+1) == ncp))
+	else if (StrEqual(sGameMode, "checkpoint") && ((acp+1) == ncp))
 	{
 		cvar = INVALID_HANDLE;
 		cvar = FindConVar("mp_checkpoint_counterattack_disable");
@@ -3075,7 +3075,7 @@ public Action:Event_ObjectDestroyed_Pre(Handle:event, const String:name[], bool:
 	new Float:fRandom = GetRandomFloat(0.0, 1.0);
 	PrintToServer("Counter Chance = %f", g_respawn_counter_chance);
 	// Occurs counter attack
-	if (fRandom < g_respawn_counter_chance && g_isCheckpoint == 1 && ((acp+1) != ncp))
+	if (fRandom < g_respawn_counter_chance && StrEqual(sGameMode, "checkpoint") && ((acp+1) != ncp))
 	{
 		cvar = INVALID_HANDLE;
 		//PrintToServer("COUNTER YES");
@@ -3096,7 +3096,7 @@ public Action:Event_ObjectDestroyed_Pre(Handle:event, const String:name[], bool:
 		}
 	}
 	// If last capture point
-	else if (g_isCheckpoint == 1 && ((acp+1) == ncp))
+	else if (StrEqual(sGameMode, "checkpoint") && ((acp+1) == ncp))
 	{
 		cvar = INVALID_HANDLE;
 		cvar = FindConVar("mp_checkpoint_counterattack_disable");
@@ -3763,7 +3763,7 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 			// Do not decrease life in counterattack
 			if (g_isCheckpoint == 1 && Ins_InCounterAttack() && 
 				(((acp+1) == ncp &&  g_iCvar_final_counterattack_type == 2) || 
-				((acp+1) != ncp && g_iCvar_counterattack_type == 2)) || ((acp+1) == ncp &&  g_iCvar_final_counterattack_type == 2)
+				((acp+1) != ncp && g_iCvar_counterattack_type == 2))
 			)
 			{
 				// Respawn type 1 bots
