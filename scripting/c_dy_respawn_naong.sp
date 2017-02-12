@@ -1164,7 +1164,7 @@ void Dynamic_Loadouts()
 {
 	new Float:fRandom = GetRandomFloat(0.0, 1.0);
 	new Handle:hTheaterOverride = FindConVar("mp_theater_override");
-	SetConVarString(hTheaterOverride, "dy_gnalvl_coop_usmc_vanilla", true, false);	
+	//SetConVarString(hTheaterOverride, "dy_gnalvl_coop_usmc_vanilla", true, false);	
 	// Occurs counter attack
 	// if (fRandom >= 0.0 && fRandom < 0.26)
 	// {
