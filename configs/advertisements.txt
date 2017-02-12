@@ -1,0 +1,175 @@
+// Advertisements 0.5
+// by Tsunami
+// 
+// Types
+// -----
+// C: Center message
+// H: Hint message
+// M: Menu message
+// S: Say message
+//    - Colors:  {DEFAULT}, {TEAM}, {GREEN}, {LIGHTGREEN}
+//    - Example: {GREEN}Current {LIGHTGREEN}Map: {DEFAULT}{CURRENTMAP}
+// T: Top message
+//    - Colors:  {WHITE},  {RED},  {GREEN}, {BLUE}, {YELLOW}, {PURPLE}, {CYAN},
+//               {ORANGE}, {PINK}, {OLIVE}, {LIME}, {VIOLET}, {LIGHTBLUE}
+//    - Example: {ORANGE} www.domain.com
+//
+// Flags (optional)
+// -----
+// Accepts flags of admins that will not see the advertisement.
+// When omitted everyone will see the advertisement.
+// When left empty only admins will see the advertisement.
+
+"Advertisements"
+{
+	"1"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}You're playing on Sernix 24/7 Coop, griefing, spamming, or continuous shit talking will lead to a permanent ban.  Just have fun and kill some bots! Server restarts twice everyday at 6am/6pm PST"
+		"flags"		"a"
+	}
+	"2"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}Hint: Certain Insurgents wear light/medium/heavy body armor so aim for head/arms/legs with OTM/HP rounds or use AP rounds(for chest/stomach)"
+		"flags"		"a"
+	}
+	"3"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}This server uses a heavily modified theater fully rehauled by Daimyo, type /motd and find link for details"
+		"flags"		"a"
+	}
+	"4"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}Hint: Sliding is disabled, weight has been rehauled to reflect real world weight of items, ammo, armor and affects players movement, lean, recoil, etc.  This can be a positive and or negative effect(more weight may DECREASE recoil in some instances for example)."
+		"flags"		"a"
+	}
+	"5"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}Hint: Bot aim progressively gets better the longer they see you(depending on range), bots also suppress last known positions, have a hard time shooting moving targets, sometimes get lucky shots too.  They also use focus like we do, so their first shot(s) may be accurate."
+		"flags"		"a"
+	}
+	"6"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}Hint: Friendly fire is set to 5%! Please don't make a big deal about FF unless its blatant griefing!"
+		"flags"		"a"
+	}
+	"7"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}Hint: Your player stance matters when factoring bot aim, standing vs crouch and prone will make you an easy target."
+		"flags"		"a"
+	}
+	"8"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}Hint: Ammo types matter in terms of accuracy spread, penetration, and damage! AP rounds help against chest armor, HP rounds do much more damage to non-armored body parts.  Hovering mouse over the round will give you detailed descriptions of this."
+		"flags"		"a"
+	}
+	"9"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}AT4's have a much greater damage radius (and more damage).  This is to balance the AT4 vs the RPG getting 2 rounds."
+		"flags"		"a"
+	}
+	"10"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}Default 'Restricted Zones' and fog have been removed for a more sandbox seamless experience, bots will use these pathways to flank etc."
+		"flags"		"a"
+	}
+	"11"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}Hint: You can re-supply at the last spawn point(not capture point, sometimes they are combined depending on map), just stand in the old point/spawn and press M then press Re-supply"
+		"flags"		"a"
+	}
+	"12"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}Missing textures or models?  Go into your 'to_Your_Steam_Path/insurgency2/insurgency/maps/' and delete the map file the server is currently running and re-join to download again"
+		"flags"		"a"
+	}
+	"13"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}hint: Incens/Molotovs do 100% damage to enemies, only 5% damage to friendlies(so run through them!). Suppressing bots makes their aim worst, so spray away!"
+		"flags"		"a"
+	}
+	"14"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}hint: Capturing points in checkpoint when not all bots are eleminated is recommended(in a non-trolly way).  The bots numbers get reset when a new point is captured.  This can mean the difference of fighting 96 bots vs 192 bots."
+		"flags"		"a"
+	}
+	"15"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}hint: Smokes work against bots(bots use them often), most effectively when you stand inside the smoke. Bots do sometimes shoot through at last known positions and 2-3 seconds before smoke disappears which seems as though they are shooting through it."
+		"flags"		"a"
+	}
+	"16"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}Insurgency still has its flaws and with custom content/mods, the server crashes from time to time.  It will always auto-reboot, if this happens, open console and type 'retry' "
+		"flags"		"a"
+	}
+	"17"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}PA: Almost all UNIQUE custom maps on this server are ported from community maps and converted into coop, I (Daimyo) do not take credit for the original map design, but simply for the coop conversion and map fixes/changes/improvements which in itself is a lot of work."
+		"flags"		"a"
+	}
+	"18"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}PA: IED AND C4 damage and radius are the same, they both have been reduced from vanilla, check SernixINS for more information"
+		"flags"		"a"
+	}
+	"19"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}PA: New bomber mechanics in! Check them out at the SernixINS Group here under discussions: steamcommunity.com/groups/SernixINS "
+		"flags"		"a"
+	}
+	"20"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}Suggest and give feedback, on new and existing features at steamcommunity.com/groups/SernixINS/discussions For direct contact, email inquiries at Daimyo21mods@gmail.com"
+		"flags"		"a"
+	}
+	"21"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}Suggest and give feedback, on new and existing features at steamcommunity.com/groups/SernixINS/discussions For direct contact, email inquiries at Daimyo21mods@gmail.com"
+		"flags"		"a"
+	}
+	"22"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}Suggest and give feedback on new and existing features at steamcommunity.com/groups/SernixINS/discussions For direct contact, email inquiries at Daimyo21mods@gmail.com"
+		"flags"		"a"
+	}
+	"23"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}If you want to help with monthly costs and support continued development, you can donate via Paypal at daimyo23@gmail.com, Reserve slots are given to donors (there must be reserve slots available, check SernixINS Group or details before donating)"
+		"flags"		"a"
+	}
+	"24"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}To find out more about the Sernix custom features, guides, rules, admins, teamspeak, donation + perks.  Type /motd"
+		"flags"		"a"
+	}
+	"25"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}To find out more about the Sernix custom features, guides, rules, admins, teamspeak, donation + perks.  Type /motd"
+		"flags"		"a"
+	}
+}

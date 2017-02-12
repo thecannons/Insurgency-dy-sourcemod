@@ -5,6 +5,7 @@
 			"model"			"models/static_fortifications/sandbagwall02.mdl"
 			"height"		"-1"
 			"price"			"5"
+			"health"		"1000"
 			"adminonly"     "0" //Means it's admin only if set to 1
 	}
 	"Sandbag Wall"
@@ -12,6 +13,31 @@
 			"model"			"models/static_fortifications/sandbagwall01.mdl"
 			"height"		"-1"
 			"price"			"5"
+			"health"		"1000"
+			"adminonly"     "0" //Means it's admin only if set to 1
+	}
+	"Barbed Wire"
+	{
+			"model"			"models/fortifications/barbed_wire_02b.mdl"
+			"height"		"-1"
+			"price"			"5"
+			"health"		"1000"
+			"adminonly"     "0" //Means it's admin only if set to 1
+	}
+	"IED Jammer"
+	{
+			"model"			"models/static_fittings/antenna02b.mdl"
+			"height"		"-1"
+			"price"			"10"
+			"health"		"500"
+			"adminonly"     "0" //Means it's admin only if set to 1
+	}
+	"Ammo Cache"
+	{
+			"model"			"models/static_props/wcache_crate_01.mdl"
+			"height"		"-1"
+			"price"			"15"
+			"health"		"250"
 			"adminonly"     "0" //Means it's admin only if set to 1
 	}
 		

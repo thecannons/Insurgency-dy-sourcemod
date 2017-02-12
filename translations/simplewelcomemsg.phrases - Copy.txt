@@ -10,12 +10,12 @@
 	
 	"WelcomeMsg2"
 	{
-		"en"		"{green}######=- IMPORTANT: Subscribe to this file: https://steamcommunity.com/sharedfiles/filedetails/?id=349519759 -=######{lightgreen}"
+		"en"		"{green}######=- To revive players, choose medic class and hold knife out while standing over body -=######{lightgreen}"
 	}
 	
 	"WelcomeMsg3"
 	{
-		"en"		"{green}## IMPORTANT: Subscribe to this too: https://steamcommunity.com/sharedfiles/filedetails/?id=508986302 ##{lightgreen}"
+		"en"		"{green}Check steamcommunity.com/groups/SernixINS for more details!{lightgreen}"
 	}
 	
 	"WelcomeMsg4"

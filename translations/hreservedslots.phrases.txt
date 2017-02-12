@@ -1,0 +1,24 @@
+﻿"Phrases"
+{
+	"no free slots"
+	{
+		"en"			"This slot is reserved for admins"
+		"pl"			"Ten slot jest zarezerwowany dla adminów"
+		"de"			"Dieser Slot ist für Admins reserviert"
+		"hu"			"Ez a slot adminoknak van fenntartva"
+	}
+	"kicked for free slot"
+	{
+		"en"			"You were autokicked to free a reserved slot"
+		"pl"			"Zostałeś automatycznie kopnięty by zwolnić zarezerwowany slot"
+		"de"			"Du wurdest automatisch gekickt, um einen reservierten Slot zu räumen"
+		"hu"			"Ez a slot kellett egy adminnak"
+	}
+	"server offers to reconnect"
+	{
+		"en"			"This slot is reserved. Press F3 to accept redirection"
+		"pl"			"Ten slot jest zarezerwowany. Naciśnij F3 by zaakceptować przekierowanie"
+		"de"			"Dieser Slot ist reserviert, drücke F3 für eine Weiterleitung"
+		"hu"			"Ez a slot foglalt. Nyomj F3-at hogy elfogadd az atiranyitast"
+	}
+}

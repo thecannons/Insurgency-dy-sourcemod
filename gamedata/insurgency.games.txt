@@ -1,48 +1,122 @@
 "Games"
 {
-	"#default"
-	{
-		"#supported"
-		{
-			"game"		"cstrike"
-			"game"		"dod"
-			"game"		"hl2mp"
-		}
-
-		"Offsets"
-		{
-			"GetMaxClip1"
-			{
-				"windows"	"310"
-				"linux"		"311"
-			}
-		}
-	}
-
-	"tf"
-	{
-		"Offsets"
-		{
-			"GetMaxClip1"
-			{
-				"windows"	"319"
-				"linux"		"320"
-			}
-		}
-	}
-	"csgo"
-	{
-		"Offsets"
-		{
-			"GetMaxClip1"
-			{
-				"windows"	"352"
-				"linux"		"354"
-			}
-		}
-	}
 	"insurgency"
 	{
+		"Offsets"
+		{
+			"CINSWeapon::GiveDefaultAmmo"
+			{
+				"linux"		"393"
+				"windows"	"392"
+			}
+			"CINSWeapon::HasChamberedRound"
+			{
+				"linux"		"441"
+				"windows"	"440"
+			}
+			"CINSWeapon::ChamberRound"
+			{
+				"linux"		"442"
+				"windows"	"441"
+			}
+			"CINSWeapon::IsEmpty"
+			{
+				"linux"		"443"
+				"windows"	"442"
+			}
+			"CINSWeapon::UseChamberRound"
+			{
+				"linux"		"444"
+				"windows"	"443"
+			}
+			"CINSWeapon::DecrementAmmo"
+			{
+				"linux"		"445"
+				"windows"	"444"
+			}
+			"CINSWeapon::CreateRecoil"
+			{
+				"linux"		"446"
+				"windows"	"445"
+			}
+			"CINSWeapon::HasFireMode"
+			{
+				"linux"		"447"
+				"windows"	"446"
+			}
+			"CINSWeapon::IsFireMode"
+			{
+				"linux"		"448"
+				"windows"	"447"
+			}
+			"CINSWeapon::GetFireMode"
+			{
+				"linux"		"449"
+				"windows"	"448"
+			}
+			"CINSWeapon::UsesFireModes"
+			{
+				"linux"		"450"
+				"windows"	"449"
+			}
+			"GiveNamedItem"
+			{
+				"windows"	"397"
+				"linux"		"401"
+				"mac"		"401"
+			}
+			"CheckReload"
+			{
+				"windows"	"282"
+				"linux"		"283"
+			}
+			"GetDefaultClip1"
+			{
+				"windows"	"326"
+				"linux"		"327"
+			}
+			"GetFireRate"
+			{
+				"windows"	"297"
+				"linux"		"298"
+			}
+			"GetMaxClip1"
+			{
+				"windows"	"324"
+				"linux"		"325"
+			}
+			"GetName"
+			{
+				"windows"	"334"
+				"linux"		"335"
+			}
+			"GetPrintName"
+			{
+				"windows"	"335"
+				"linux"		"336"
+			}
+			"GetSlot"
+			{
+				"windows"	"332"
+				"linux"		"333"
+			}
+			"GetWeight"
+			{
+				"windows"	"328"
+				"linux"		"329"
+			}
+			"RemovePlayerItem"
+			{
+				"windows"	"270"
+				"linux"		"271"
+				"mac"		"271"
+			}
+			"ShouldBlockPrimaryFire"
+			{
+				"windows"	"280"
+				"linux"		"281"
+			}
+		}
 		"Signatures"
 		{
                         "Spawn"
@@ -63,11 +137,6 @@
 				"windows"	"\x55\x8b\xEC\x51\x56\x8B\xF1\x8B\x06\x8B\x2A\x2A\x2A\x2A\x2A\xFF\xD0\x84\xC0\x0F\x84\x2A\x2A\x2A\x2A\x80"
                                 "linux"         "@_ZN10CINSPlayer8ResupplyEv"
                         }
-			"AddMags"
-			{
-				"library"	"server"
-				"linux"		"@_ZN19CINSWeaponMagazines7AddMagsEi"
-			}
 			"RoundCount"
 			{
 				"library"	"server"
@@ -90,81 +159,38 @@
 				"library"	"server"
 				"linux"		"@_ZN10CINSPlayer12GetMagazinesEi"
 			}
-			"GetPrintName"
-			{
+			"AddMags"
+                        {
 				"library"	"server"
-				"windows"	"\x55\x8B\xEC\x83\xEC\x08\xA1\x2A\x2A\x2A\x2A\x56\x8B\xF1\x57\x8B\x78\x14\x8B\x86\x84\x05\x00\x00\x89\x45\xF8\x8D\x45\xF8\x50\x8D\x4F\x04\xE8\x2A\x2A\x2A\x2A\x83\xF8\xFF\x74\x2A\x8D\x0C\x40\x8B\x47\x08\x83\x7C\xC8\x14\x00"
-				"linux"		"@_ZNK10CINSWeapon12GetPrintNameEv"
+                                "linux"         "@_ZN19CINSWeaponMagazines7AddMagsEi"
 			}
 		}
+	}
+        "doi"
+        {
+//23	22	CDOIPlayer::Spawn()
+//121	120	CBaseEntity::Respawn()
+//348	347	CINSPlayer::SharedSpawn()
+//349	348	CINSPlayer::ForceRespawn()
+//350	349	CBasePlayer::PostSpawnPointSelection()
+//351	350	CDOIPlayer::InitialSpawn()
+//476	475	CDOIPlayer::IsReadyToSpawn()
+//477	476	CINSPlayer::ShouldGainInstantSpawn()
+//478	477	CINSPlayer::ResetPerRoundStats()
+//479	478	CINSPlayer::ResetScores()
+
 		"Offsets"
 		{
-			"ShouldBlockPrimaryFire"
-			{
-				"windows"	"279"
-				"linux"		"280"
-			}
-
-			"IsWeaponZoomed"
-			{
-				"windows"	"280"
-				"linux"		"281"
-			}
-
-			"CheckReload"
-			{
-				"windows"	"281"
-				"linux"		"282"
-			}
-
-			"GetFireRate"
-			{
-				"windows"	"296"
-				"linux"		"297"
-			}
-
-			"GetWeight"
-			{
-				"windows"	"327"
-				"linux"		"328"
-			}
-
-			"GetSlot"
-			{
-				"windows"	"331"
-				"linux"		"332"
-			}
-
-			"GetName"
-			{
-				"windows"	"333"
-				"linux"		"334"
-			}
-
-			"GetMaxClip1"
-			{
-				"windows"	"323"
-				"linux"		"324"
-			}
-
-
-			"GetDefaultClip1"
-			{
-				"windows"	"325"
-				"linux"		"326"
-			}
-
-			"GetPrintName"
-			{
-				"windows"	"334"
-				"linux"		"335"
-			}
-
-			"UsesClipsForAmmo1"
-			{
-				"windows"	"337"
-				"linux"		"338"
-			}
+                        "Spawn"
+                        {
+				"linux"		"23"
+				"windows"	"22"
+                        }
+                        "ForceRespawn"
+                        {
+				"linux"		"349"
+				"windows"	"348"
+                        }
 		}
 	}
 }

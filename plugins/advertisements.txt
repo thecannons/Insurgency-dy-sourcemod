@@ -1,0 +1,79 @@
+// Advertisements 0.5
+// by Tsunami
+// 
+// Types
+// -----
+// C: Center message
+// H: Hint message
+// M: Menu message
+// S: Say message
+//    - Colors:  {DEFAULT}, {TEAM}, {GREEN}, {LIGHTGREEN}
+//    - Example: {GREEN}Current {LIGHTGREEN}Map: {DEFAULT}{CURRENTMAP}
+// T: Top message
+//    - Colors:  {WHITE},  {RED},  {GREEN}, {BLUE}, {YELLOW}, {PURPLE}, {CYAN},
+//               {ORANGE}, {PINK}, {OLIVE}, {LIME}, {VIOLET}, {LIGHTBLUE}
+//    - Example: {ORANGE} www.domain.com
+//
+// Flags (optional)
+// -----
+// Accepts flags of admins that will not see the advertisement.
+// When omitted everyone will see the advertisement.
+// When left empty only admins will see the advertisement.
+
+"Advertisements"
+{
+	"1"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}You're playing on Sernix 24/7 Coop, griefing, spamming, or continuous shit talking will lead to a permanent ban.  Just have fun and kill some bots!"
+		"flags"		"a"
+	}
+	"2"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}Hint: Certain Insurgents wear light/medium/heavy body armor so aim for head/arms/legs or use AP rounds"
+		"flags"		"a"
+	}
+	"3"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}This server uses a heavily modified theater utilizing Gnalvl Realism mod"
+		"flags"		"a"
+	}
+	"4"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}Hint: Sliding is disabled, weight affects movement speed/acceleration."
+		"flags"		"a"
+	}
+	"5"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}Hint: Bot aim progressively gets better the longer they see you, get in cover"
+		"flags"		"a"
+	}
+	"6"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}Hint: Friendly fire is set to 10 percent! Please don't make a big deal about FF unless its blatant griefing!"
+		"flags"		"a"
+	}
+	"7"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}Hint: Your player stance matters when factoring bot aim, standing vs prone will make you an easy target."
+		"flags"		"a"
+	}
+	"8"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}Hint: Ammo types matter in terms of accuracy spread! AP rounds help against chest armor and walls, HP rounds do much more damage to non-armored body parts but dont penetrate walls."
+		"flags"		"a"
+	}
+	"9"
+	{
+		"type"		"S"
+		"text"		"{DEFAULT}Please report any bugs, suggestions, concerns to Daimyo21mods@gmail.com"
+		"flags"		"a"
+	}
+}
