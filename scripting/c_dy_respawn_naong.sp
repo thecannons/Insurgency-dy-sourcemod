@@ -106,6 +106,7 @@ new
 	Float:g_fDeadPosition[MAXPLAYERS+1][3],
 	Float:g_fRagdollPosition[MAXPLAYERS+1][3],
 	Float:g_vecOrigin[MAXPLAYERS+1][3],
+	g_iPlayerBGroups[MAXPLAYERS+1],
 	Float:g_fRespawnPosition[3];
 
 //Ammo Amounts
@@ -1164,7 +1165,7 @@ void Dynamic_Loadouts()
 {
 	new Float:fRandom = GetRandomFloat(0.0, 1.0);
 	new Handle:hTheaterOverride = FindConVar("mp_theater_override");
-	//SetConVarString(hTheaterOverride, "dy_gnalvl_coop_usmc_vanilla", true, false);	
+	SetConVarString(hTheaterOverride, "dy_gnalvl_coop_usmc", true, false);	
 	// Occurs counter attack
 	// if (fRandom >= 0.0 && fRandom < 0.26)
 	// {
@@ -3718,6 +3719,10 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 	// Get player ID
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	
+    g_iPlayerBGroups[client] = GetEntProp(client, Prop_Send, "m_nBody");
+
+    PrintToServer("BodyGroups: %d", g_iPlayerBGroups[client]);
+
 	// Check client valid
 	if (!IsClientInGame(client)) return Plugin_Continue;
 	
@@ -3951,6 +3956,8 @@ public Action:ConvertDeleteRagdoll(Handle:Timer, any:client)
 				
 				// Set collisiongroup
 				SetEntProp(tempRag, Prop_Send, "m_CollisionGroup", 17);
+				//Set bodygroups for ragdoll
+    			SetEntProp(tempRag, Prop_Send, "m_nBody", g_iPlayerBGroups[client]);
 				
 				// Teleport to current position
 				TeleportEntity(tempRag, g_fDeadPosition[client], NULL_VECTOR, NULL_VECTOR);
