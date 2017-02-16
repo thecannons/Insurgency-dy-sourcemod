@@ -3103,7 +3103,7 @@ public Action:Event_ObjectDestroyed_Pre(Handle:event, const String:name[], bool:
 		}
 	}
 	// If last capture point
-	else if (g_isCheckpoint == 0 && ((acp+1) == ncp))
+	else if (g_isCheckpoint == 1 && ((acp+1) == ncp))
 	{
 		cvar = INVALID_HANDLE;
 		cvar = FindConVar("mp_checkpoint_counterattack_disable");
