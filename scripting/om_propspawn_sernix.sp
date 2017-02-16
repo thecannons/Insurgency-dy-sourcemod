@@ -535,7 +535,7 @@ public Action:Timer_Monitor_Props(Handle:Timer)
 
 								if (iPropRef == mPropRef && fDistance <= 120 && (StrContains(g_client_last_classstring[client], "engineer") > -1))
 								{
-									if (StrContains(sWeapon, "weapon_knife") > -1)
+									if ((StrContains(sWeapon, "weapon_knife") > -1) || (StrContains(sWeapon, "weapon_wrench") > -1))
 									{
 										//PrintToServer("g_integrityRepair: %d | propIntegrity %d", g_integrityRepair, propIntegrity);
 										propIntegrity = propIntegrity + g_integrityRepair;
@@ -1108,7 +1108,7 @@ public Action:Timer_Construct(Handle timer, Handle pack)
 	decl String:sWeapon[32];
 	GetEdictClassname(ActiveWeapon, sWeapon, sizeof(sWeapon));
 
-	if (client > 0 && vectDist < 0 || vectDist > 0 || !IsPlayerAlive(client) || IsClientTimingOut(client) || !(StrContains(sWeapon, "weapon_knife") > -1))
+	if (client > 0 && vectDist < 0 || vectDist > 0 || !IsPlayerAlive(client) || IsClientTimingOut(client) || (!(StrContains(sWeapon, "weapon_knife") > -1) && !(StrContains(sWeapon, "weapon_wrench") > -1)))
 	{
 		decl String:textPrintChat[64];
 		Format(textPrintChat, sizeof(textPrintChat), "(Deploy Canceled) - You moved and or put knife away");
@@ -1117,7 +1117,7 @@ public Action:Timer_Construct(Handle timer, Handle pack)
 		g_engInMenu[client] = false;
 		return Plugin_Stop;
 	}
-	if (client > 0 && g_ConstructRemainingTime[client] <= 0 && IsPlayerAlive(client) && !IsClientTimingOut(client) && (StrContains(sWeapon, "weapon_knife") > -1))
+	if (client > 0 && g_ConstructRemainingTime[client] <= 0 && IsPlayerAlive(client) && !IsClientTimingOut(client) && ((StrContains(sWeapon, "weapon_knife") > -1) || (StrContains(sWeapon, "weapon_wrench") > -1)))
 	{
 		g_ConstructRemainingTime[client] = g_ConstructDeployTime;
 		PropSpawn(client, target);
@@ -1550,7 +1550,7 @@ OnButtonPress(client, button, buttons)
 	////PrintToServer("[KNIFE ONLY] CheckWeapon for iMedic %d named %N ActiveWeapon %d sWeapon %s",iMedic,iMedic,ActiveWeapon,sWeapon);
 
     ////PrintToServer("Client Eye Height %f",eyepos[2]);    
-   if(button == IN_SPRINT && buttons & IN_DUCK && buttons & IN_CANCEL && (StrContains(g_client_last_classstring[client], "engineer") > -1) && g_engInMenu[client] == false && (StrContains(sWeapon, "weapon_knife") > -1))// && !(buttons & IN_FORWARD) && !(buttons & IN_ATTACK2) && !(buttons & IN_ATTACK))// & !IN_ATTACK2) 
+   if(button == IN_SPRINT && buttons & IN_DUCK && buttons & IN_CANCEL && (StrContains(g_client_last_classstring[client], "engineer") > -1) && g_engInMenu[client] == false && ((StrContains(sWeapon, "weapon_knife") > -1) || (StrContains(sWeapon, "weapon_wrench") > -1)))// && !(buttons & IN_FORWARD) && !(buttons & IN_ATTACK2) && !(buttons & IN_ATTACK))// & !IN_ATTACK2) 
    {
       //PrintToServer("DEBUG PRESSING BUTTONS");    
     

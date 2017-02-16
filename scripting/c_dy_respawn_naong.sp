@@ -223,6 +223,7 @@ new
 	
 	// Counter-attack
 	Handle:sm_respawn_counterattack_type = INVALID_HANDLE,
+	Handle:sm_respawn_counterattack_vanilla = INVALID_HANDLE,
 	Handle:sm_respawn_final_counterattack_type = INVALID_HANDLE,
 	Handle:sm_respawn_security_on_counter = INVALID_HANDLE,
 	Handle:sm_respawn_counter_chance = INVALID_HANDLE,
@@ -307,6 +308,7 @@ new
 	Float:g_fCvar_respawn_delay_team_ins,
 	g_iCvar_enable_track_ammo,
 	g_iCvar_counterattack_type,
+	g_iCvar_counterattack_vanilla,
 	g_iCvar_final_counterattack_type,
 	g_iCvar_SpawnMode,
 	
@@ -593,6 +595,7 @@ public OnPluginStart()
 	sm_respawn_min_counter_dur_sec = CreateConVar("sm_respawn_min_counter_dur_sec", "66", "Minimum randomized counter attack duration");
 	sm_respawn_max_counter_dur_sec = CreateConVar("sm_respawn_max_counter_dur_sec", "126", "Maximum randomized counter attack duration");
 	sm_respawn_final_counter_dur_sec = CreateConVar("sm_respawn_final_counter_dur_sec", "180", "Final counter attack duration");
+	sm_respawn_counterattack_vanilla = CreateConVar("sm_respawn_counterattack_vanilla", "0", "Use vanilla counter attack mechanics? (0: no, 1: yes)");
 	
 	//Dynamic respawn mechanics
 	sm_respawn_dynamic_distance_multiplier = CreateConVar("sm_respawn_dynamic_distance_multiplier", "2", "This multiplier is used to make bot distance from points on/off counter attacks more dynamic by making distance closer/farther when bots respawn");
@@ -1020,6 +1023,7 @@ void UpdateRespawnCvars()
 	g_flMinCounterattackDistance = GetConVarFloat(cvarMinCounterattackDistance);
 	g_flCanSeeVectorMultiplier = GetConVarFloat(cvarCanSeeVectorMultiplier);
 	g_iCvar_counterattack_type = GetConVarInt(sm_respawn_counterattack_type);
+	g_iCvar_counterattack_vanilla = GetConVarInt(sm_respawn_counterattack_vanilla);
 	g_iCvar_final_counterattack_type = GetConVarInt(sm_respawn_final_counterattack_type);
 	g_flMinPlayerDistance = GetConVarFloat(cvarMinPlayerDistance);
 	g_flMaxPlayerDistance = GetConVarFloat(cvarMaxPlayerDistance);
@@ -2420,7 +2424,7 @@ public Action:Event_SpawnPost(Handle:event, const String:name[], bool:dontBroadc
 	new Float:fRandom = GetRandomFloat(0.0, 1.0);
 
 	//Check grenades
-	if (fRandom < g_removeBotGrenadeChance)
+	if (fRandom < g_removeBotGrenadeChance && !Ins_InCounterAttack())
 	{
 		new botGrenades = GetPlayerWeaponSlot(client, 3);
 		if (botGrenades != -1 && IsValidEntity(botGrenades)) // We need to figure out what slots are defined#define Slot_HEgrenade 11, #define Slot_Flashbang 12, #define Slot_Smokegrenade 13
@@ -2878,7 +2882,7 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 	new Float:fRandom = GetRandomFloat(0.0, 1.0);
 	PrintToServer("Counter Chance = %f", g_respawn_counter_chance);
 	// Occurs counter attack
-	if (fRandom < g_respawn_counter_chance && StrEqual(sGameMode, "checkpoint") && ((acp+1) != ncp))
+	if (fRandom < g_respawn_counter_chance && g_isCheckpoint == 1 && ((acp+1) != ncp))
 	{
 		cvar = INVALID_HANDLE;
 		//PrintToServer("COUNTER YES");
@@ -2899,7 +2903,7 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 		}
 	}
 	// If last capture point
-	else if (StrEqual(sGameMode, "checkpoint") && ((acp+1) == ncp))
+	else if (g_isCheckpoint == 0 && ((acp+1) == ncp))
 	{
 		cvar = INVALID_HANDLE;
 		cvar = FindConVar("mp_checkpoint_counterattack_disable");
@@ -3071,12 +3075,14 @@ public Action:Event_ObjectDestroyed_Pre(Handle:event, const String:name[], bool:
 		SetConVarInt(cvar_ca_dur, fRandomInt, true, false);
 	}
 	
-	
+	//Are we using vanilla counter attack?
+	if (g_iCvar_counterattack_vanilla == 1) return Plugin_Continue;
+
 	// Get ramdom value for occuring counter attack
 	new Float:fRandom = GetRandomFloat(0.0, 1.0);
 	PrintToServer("Counter Chance = %f", g_respawn_counter_chance);
 	// Occurs counter attack
-	if (fRandom < g_respawn_counter_chance && StrEqual(sGameMode, "checkpoint") && ((acp+1) != ncp))
+	if (fRandom < g_respawn_counter_chance && g_isCheckpoint && ((acp+1) != ncp))
 	{
 		cvar = INVALID_HANDLE;
 		//PrintToServer("COUNTER YES");
@@ -3097,7 +3103,7 @@ public Action:Event_ObjectDestroyed_Pre(Handle:event, const String:name[], bool:
 		}
 	}
 	// If last capture point
-	else if (StrEqual(sGameMode, "checkpoint") && ((acp+1) == ncp))
+	else if (g_isCheckpoint == 0 && ((acp+1) == ncp))
 	{
 		cvar = INVALID_HANDLE;
 		cvar = FindConVar("mp_checkpoint_counterattack_disable");
@@ -3721,7 +3727,7 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 	
     g_iPlayerBGroups[client] = GetEntProp(client, Prop_Send, "m_nBody");
 
-    PrintToServer("BodyGroups: %d", g_iPlayerBGroups[client]);
+//    PrintToServer("BodyGroups: %d", g_iPlayerBGroups[client]);
 
 	// Check client valid
 	if (!IsClientInGame(client)) return Plugin_Continue;
