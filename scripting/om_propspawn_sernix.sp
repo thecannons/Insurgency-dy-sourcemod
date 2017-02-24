@@ -411,8 +411,8 @@ public Action:Timer_Monitor_Props(Handle:Timer)
 						//PrintToServer("g_integrityDegrade %d", g_integrityDegrade);
 						if (propType == 2) //Degrade 4x as slow for barbwire
 						{
-							g_propIntegrity[i] = g_propIntegrity[i] - (g_integrityDegrade / 4);
-							Hurt_NearbyBots(prop, client);
+							g_propIntegrity[i] = g_propIntegrity[i] - (g_integrityDegrade / 6);
+							//Hurt_NearbyBots(prop, client);
 						}
 						else if (propType == 1 || propType == 3) //Degrade normal for defense fortifications
 						{
