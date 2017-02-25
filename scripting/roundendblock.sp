@@ -740,8 +740,28 @@ void RevivePlayers()
 					}
 				}
 			}
+			else if (iTeam == TEAM_2)
+			{
+				//Despawn Insurgents with IEDs
+
+				//Get weapon handle
+				new ActiveWeapon = GetEntPropEnt(client, Prop_Data, "m_hActiveWeapon");
+				if (ActiveWeapon < 0)
+					continue;
+
+				// Get weapon name
+				decl String:sWeapon[32];
+				GetEdictClassname(ActiveWeapon, sWeapon, sizeof(sWeapon));
+
+				if (StrContains(sWeapon, "weapon_c4_ied") > -1)
+				{
+					AcceptEntityInput(client, "KillHierarchy");
+				}
+			}
 		}
 	}
+	//TODO: Despawn dropped IEDs
+
 	iIsReviving = 0;
 	if (g_iRoundEndBlockDebug)
 	{
