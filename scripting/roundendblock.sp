@@ -760,7 +760,20 @@ void RevivePlayers()
 			}
 		}
 	}
-	//TODO: Despawn dropped IEDs
+
+	//Despawn dropped IEDs
+	while (true)
+	{
+		new iIED = FindEntityByClassname(-1, "grenade_ied");
+		if (iIED > -1) //IED found
+		{
+			AcceptEntityInput(iIED, "KillHierarchy");
+		}
+		else
+		{
+			break;
+		}
+	}
 
 	iIsReviving = 0;
 	if (g_iRoundEndBlockDebug)
