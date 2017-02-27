@@ -1,7 +1,7 @@
 [C:\Users\Daimyo\Dropbox\Github\Insurgency-dy-sourcemod\scripting\c_dy_respawn_naong.sp]
-Age=1247196248
+Age=1247418182
 [C:\Users\Daimyo\Dropbox\Github\Insurgency-dy-sourcemod\scripting\bsuicide_bomb_redux_naong.sp]
-Age=1246212698
+Age=1247418070
 [C:\Users\Daimyo\Dropbox\Github\Insurgency-dy-sourcemod\scripting\botnames.sp]
 Age=1220252315
 [C:\Users\Daimyo\Dropbox\Github\Insurgency-dy-sourcemod\scripting\om_propspawn.sp]
@@ -19,15 +19,15 @@ Age=1221985224
 [C:\Users\Daimyo\Dropbox\Github\Insurgency-dy-sourcemod\scripting\buildwars_v2.sp]
 Age=1221955063
 [C:\Users\Daimyo\Dropbox\Github\Insurgency-dy-sourcemod\scripting\om_propspawn_sernix.sp]
-Age=1247197028
+Age=1247445476
 [C:\Users\scott\Dropbox\Github\Insurgency-dy-sourcemod\scripting\om_propspawn_sernix.sp]
 Age=1246645053
 [C:\Users\Daimyo\Dropbox\Github\Insurgency-dy-sourcemod\scripting\navmesh_detailed.sp]
 Age=1227953300
 [C:\Users\Daimyo\Dropbox\Github\Insurgency-dy-sourcemod\scripting\d_dy_pull_rag.sp]
-Age=1228175595
+Age=1247348573
 [C:\Users\Daimyo\Dropbox\Github\Insurgency-dy-sourcemod\scripting\c_dy_reserveslot.sp]
-Age=1229215456
+Age=1229213408
 [C:\Users\scott\Dropbox\Github\Insurgency-dy-sourcemod\scripting\c_dy_reserveslot.sp]
 Age=1229213409
 [C:\Users\scott\Dropbox\Github\Insurgency-dy-sourcemod\scripting\bsuicide_bomb_redux_naong.sp]
@@ -35,7 +35,7 @@ Age=1246335964
 [C:\Users\Daimyo\Dropbox\Github\Insurgency-dy-sourcemod\scripting\fuckyeah.sp]
 Age=1245690781
 [C:\Users\Daimyo\Dropbox\Github\Insurgency-dy-sourcemod\scripting\roundendblock.sp]
-Age=1246142744
+Age=1247451810
 [C:\Users\scott\Dropbox\Github\Insurgency-dy-sourcemod\scripting\roundendblock.sp]
 Age=1246267772
 [C:\Users\scott\Dropbox\Github\Insurgency-dy-sourcemod\scripting\insurgency.sp]
@@ -50,3 +50,5 @@ Age=1246365844
 Age=1246459290
 [C:\Users\scott\Dropbox\Github\Insurgency-dy-sourcemod\scripting\crashmap.sp]
 Age=1247230988
+[C:\Users\Daimyo\Dropbox\Github\Insurgency-dy-sourcemod\scripting\afk_manager4.sp]
+Age=1247445958

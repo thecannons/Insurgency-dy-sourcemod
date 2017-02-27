@@ -163,6 +163,7 @@ new g_iUnitMetric;
 // Handle for config
 new
 	Handle:sm_respawn_enabled = INVALID_HANDLE,
+	Handle:sm_revive_enabled = INVALID_HANDLE,
 	
 	// Respawn delay time
 	Handle:sm_respawn_delay_team_ins = INVALID_HANDLE,
@@ -299,6 +300,7 @@ new
 // Init global variables
 new
 	g_iCvar_respawn_enable,
+	g_iCvar_revive_enable,
 	Float:g_respawn_counter_chance,
 	g_counterAttack_min_dur_sec,
 	g_counterAttack_max_dur_sec,
@@ -473,7 +475,7 @@ public OnPluginStart()
 
 	CreateConVar("sm_respawn_version", PLUGIN_VERSION, PLUGIN_DESCRIPTION, FCVAR_NOTIFY | FCVAR_DONTRECORD);
 	sm_respawn_enabled = CreateConVar("sm_respawn_enabled", "1", "Automatically respawn players when they die; 0 - disabled, 1 - enabled");
-	
+	sm_revive_enabled = CreateConVar("sm_revive_enabled", "1", "Reviving enabled from medics?  This creates revivable ragdoll after death; 0 - disabled, 1 - enabled");
 	// Nav Mesh Botspawn specific START
 	cvarSpawnMode = CreateConVar("sm_botspawns_spawn_mode", "1", "Only normal spawnpoints at the objective, the old way (0), spawn in hiding spots following rules (1)", FCVAR_NOTIFY);
 	cvarMinCounterattackDistance = CreateConVar("sm_botspawns_min_counterattack_distance", "3600.0", "Min distance from counterattack objective to spawn", FCVAR_NOTIFY);
@@ -682,7 +684,7 @@ public OnPluginStart()
 	HookEvent("player_spawn", Event_Spawn);
 	HookEvent("player_spawn", Event_SpawnPost, EventHookMode_Post);
 
-	HookEvent("player_hurt", Event_PlayerHurt);
+	HookEvent("player_hurt", Event_PlayerHurt_Pre, EventHookMode_Pre);
 	HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("round_start", Event_RoundStart);
 	HookEvent("round_end", Event_RoundEnd);
@@ -723,6 +725,7 @@ public OnPluginStart()
 	HookConVarChange(sm_medpack_health_amount, CvarChange);
 	// Respawn specific
 	HookConVarChange(sm_respawn_enabled, EnableChanged);
+	HookConVarChange(sm_revive_enabled, EnableChanged);
 	HookConVarChange(sm_respawn_delay_team_sec, CvarChange);
 	HookConVarChange(sm_respawn_delay_team_ins, CvarChange);
 	HookConVarChange(sm_respawn_lives_team_sec, CvarChange);
@@ -869,7 +872,7 @@ void UpdateRespawnCvars()
 
 	// Update Cvars
 	g_iCvar_respawn_enable = GetConVarInt(sm_respawn_enabled);
-	
+	g_iCvar_revive_enable = GetConVarInt(sm_revive_enabled);
 	// Bot spawn mode
 	g_iCvar_SpawnMode = GetConVarInt(cvarSpawnMode);
 	
@@ -1170,12 +1173,13 @@ void Dynamic_Loadouts()
 	new Float:fRandom = GetRandomFloat(0.0, 1.0);
 	new Handle:hTheaterOverride = FindConVar("mp_theater_override");
 	SetConVarString(hTheaterOverride, "dy_gnalvl_coop_usmc", true, false);	
-	// Occurs counter attack
-	// if (fRandom >= 0.0 && fRandom < 0.26)
-	// {
-	// 	SetConVarString(hTheaterOverride, "dy_gnalvl_coop_usmc", true, false);
-	// 	g_easterEggFlag = false;
-	// }
+	
+	//Occurs counter attack
+	if (fRandom >= 0.0 && fRandom < 0.5)
+	{
+		SetConVarString(hTheaterOverride, "dy_gnalvl_coop_usmc_isis", true, false);
+		g_easterEggFlag = false;
+	}
 	// else if (fRandom >= 0.26 && fRandom < 0.50)
 	// {
 	// 	SetConVarString(hTheaterOverride, "dy_gnalvl_coop_usmc_isis", true, false);
@@ -3508,12 +3512,16 @@ public Action:Event_PlayerPickSquad_Post( Handle:event, const String:name[], boo
 }
 
 // Triggers when player hurt
-public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
+public Action:Event_PlayerHurt_Pre(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new victim = GetClientOfUserId(GetEventInt(event, "userid"));
-	
+	if (IsClientInGame(victim) && IsFakeClient(victim)) 
+		return Plugin_Continue;
+
+	new victimHealth = GetEventInt(event, "health");
 	new dmg_taken = GetEventInt(event, "dmg_health");
-	if (g_fCvar_fatal_chance > 0.0)
+	//PrintToServer("victimHealth: %d, dmg_taken: %d", victimHealth, dmg_taken);
+	if (g_fCvar_fatal_chance > 0.0 && dmg_taken > victimHealth)
 	{
 		// Get information for event structure
 		new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
@@ -3744,12 +3752,10 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 	// Get gamemode
 	decl String:sGameMode[32];
 	GetConVarString(FindConVar("mp_gamemode"), sGameMode, sizeof(sGameMode));
-	
-	// Check enables
-	if (g_iCvar_respawn_enable)
+	new team = GetClientTeam(client);
+	if (g_iCvar_revive_enable)
 	{
 		// Convert ragdoll
-		new team = GetClientTeam(client);
 		if (team == TEAM_1)
 		{
 			// Get current position
@@ -3761,6 +3767,10 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 			if (g_iEnableRevive == 1 && g_iRoundStatus == 1)
 				CreateTimer(5.0, ConvertDeleteRagdoll, client);
 		}
+	}
+	// Check enables
+	if (g_iCvar_respawn_enable)
+	{
 		
 		// Client should be TEAM_1 or TEAM_2
 		if (team == TEAM_1 || team == TEAM_2)
@@ -4462,9 +4472,9 @@ public Action:Timer_ReviveMonitor(Handle:timer, any:data)
 						
 						// Add kill bonus to iMedic
 						new iBonus = GetConVarInt(sm_revive_bonus);
-						PrintToServer("iBonus: %d", iBonus);
+						//PrintToServer("iBonus: %d", iBonus);
 						new iScore = GetClientFrags(iMedic) + iBonus;
-						PrintToServer("GetClientFrags: %d | iScore: %d", GetClientFrags(iMedic), iScore);
+						//PrintToServer("GetClientFrags: %d | iScore: %d", GetClientFrags(iMedic), iScore);
 						SetEntProp(iMedic, Prop_Data, "m_iFrags", iScore);
 						
 						/////////////////////////
@@ -5240,7 +5250,7 @@ public Action:Timer_PlayAmbient(Handle:timer, Handle:hDatapack)
 
 	ResetPack(hDatapack);
 	new client = ReadPackCell(hDatapack);
-				PrintToServer("PlaySound");
+				//PrintToServer("PlaySound");
 	switch(GetRandomInt(1, 18))
 	{
 		case 1: EmitSoundToAll("soundscape/emitters/oneshot/mil_radio_01.ogg", client, SNDCHAN_VOICE, _, _, 1.0);

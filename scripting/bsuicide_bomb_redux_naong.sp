@@ -500,7 +500,7 @@ public CheckExplodeHurt(client) {
 			YellDetonateSound(client);
 			//PrintToChatAll("\x05Suicide Bomber detonated bomb.");
 			
-			DealDamage(ent,304,client,DMG_BLAST,"weapon_c4_ied");
+			DealDamage(ent,280,client,DMG_BLAST,"weapon_c4_ied");
 		}
 	}
 }
@@ -590,7 +590,7 @@ public CheckExplodeDeath(client) {
 			YellDetonateSound(client);
 			//PrintToChatAll("\x05Suicide Bomber detonated bomb.");
 			
-			DealDamage(ent,304,client,DMG_BLAST,"weapon_c4_ied");
+			DealDamage(ent,280,client,DMG_BLAST,"weapon_c4_ied");
 		}
 	}
 }

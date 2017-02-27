@@ -79,7 +79,7 @@ new String:sVersion[5] = "3.0.2";
 new String:sPrefix[256] = "\x01\x03[\x04PropSpawn\x03]\x01";
 
 //Player properties (credits)
-new iDefCredits = 35;
+new iDefCredits = 18;
 new iCredits[MAXPLAYERS+1];
 new iPropNo[MAXPLAYERS+1];//Stores the number of props a player has
 new Handle:hCredits = INVALID_HANDLE;
@@ -110,8 +110,8 @@ new Handle:hIntegDegrade = INVALID_HANDLE;
 new Handle:hDegradeMultiplier = INVALID_HANDLE;
 new Handle:hIntegRepair = INVALID_HANDLE;
 new Handle:ConstructTimers[MAXPLAYERS+1];
-new	g_integrityDegrade = 200;
-new	g_integrityRepair = 100;
+new	g_integrityDegrade = 600;
+new	g_integrityRepair = 300;
 new g_CvarYellChance;
 
 // Status
@@ -229,7 +229,7 @@ public OnMapStart()
 }
 public Action:Timer_MapStart(Handle:Timer)
 {
-	CreateTimer(1.0, Timer_Monitor_Props,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(3.0, Timer_Monitor_Props,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 }
 
 
@@ -247,9 +247,9 @@ public OnConVarChanged(Handle:convar, const String:oldValue[], const String:newV
 		bCreditsOnDeath = GetConVarBool(convar);
 	if(convar == hDeathCreditNo)
 		iDeathCreditNo = GetConVarInt(convar);
-	if(convar == g_integrityRepair)
+	if(convar == hIntegRepair)
 		g_integrityRepair = GetConVarInt(convar);
-	if(convar == g_integrityDegrade)
+	if(convar == hIntegDegrade)
 		g_integrityDegrade = GetConVarInt(convar);
 	if(convar == hCvarYellChance)
 		g_CvarYellChance = GetConVarFloat(convar);
@@ -293,6 +293,7 @@ public Action:Event_ObjectDestroyed(Handle:event, const String:name[], bool:dont
 			if (IsClientConnected(engineerCheck) && IsClientInGame(engineerCheck) && !IsFakeClient(engineerCheck) && (StrContains(g_client_last_classstring[engineerCheck], "engineer") > -1))
 			{
 				iCredits[engineerCheck] = iDefCredits;
+				KillProps(engineerCheck);
 			}
 		}
 	}
@@ -311,6 +312,7 @@ public Action:Event_ControlPointCaptured(Handle:event, const String:name[], bool
 			if (IsClientConnected(engineerCheck) && IsClientInGame(engineerCheck) && !IsFakeClient(engineerCheck) && (StrContains(g_client_last_classstring[engineerCheck], "engineer") > -1))
 			{
 				iCredits[engineerCheck] = iDefCredits;
+				KillProps(engineerCheck);
 			}
 		}
 	}

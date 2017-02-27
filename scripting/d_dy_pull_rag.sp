@@ -134,7 +134,7 @@ OnButtonPress(client, button, buttons)
               }
           } 
 
-          new Float:fReviveDistance = 64.0;
+          new Float:fReviveDistance = 80.0;
           new Float:vecPos[3];
           new Float:ragPos[3];
           new Float:tDistance;

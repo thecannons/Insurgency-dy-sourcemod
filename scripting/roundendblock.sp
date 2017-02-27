@@ -94,6 +94,8 @@ new Handle:sm_roundendblock_revive_delay = INVALID_HANDLE;
 new Handle:sm_roundendblock_reset_each_round = INVALID_HANDLE;
 new Handle:sm_roundendblock_debug = INVALID_HANDLE;
 new g_iRoundEndBlockEnabled;
+new g_iRoundEndBlockCapCount = 0;
+new g_iRoundEndBlockMaxCapPoints = 3;
 new g_iRoundEndBlockTimes;
 new g_iRoundEndBlockReviveDelay;
 new g_iRoundEndBlockResetRound;
@@ -111,6 +113,8 @@ new g_iRoundStatus = 0;
 new g_iRoundBlockCount;
 new g_iAnnounceActive;
 new g_iReviveCount;
+new g_max_AnnounceTime = 480;
+new g_announceTick;
 
 // Cvars for caupture point speed
 new Handle:g_hCvarCPSpeedUp;
@@ -140,10 +144,11 @@ public void OnPluginStart() {
 	// hook events
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
-	HookEvent("round_end", Event_RoundEnd_Pre, EventHookMode_Pre);
+	HookEvent("round_end", Event_RoundEnd_Pre, EventHookMode_Pre);	
+	HookEvent("round_end", Event_RoundEnd_Post, EventHookMode_PostNoCopy);	
 	HookEvent("game_start", Event_GameStart, EventHookMode_PostNoCopy);
 	HookEvent("game_end", Event_GameEnd, EventHookMode_PostNoCopy);
-	HookEvent("object_destroyed", Event_ObjectDestroyed, EventHookMode_PostNoCopy);
+	HookEvent("object_destroyed", Event_ObjectDestroyed_Post, EventHookMode_PostNoCopy);
 	HookEvent("controlpoint_captured", Event_ControlPointCaptured_Pre, EventHookMode_Pre);
 	HookEvent("controlpoint_captured", Event_ControlPointCaptured_Post, EventHookMode_PostNoCopy);
 	HookEvent("player_death", Event_PlayerDeathPre, EventHookMode_Pre);
@@ -193,6 +198,26 @@ public OnMapStart()
 	g_iCPSpeedUp = GetConVarInt(g_hCvarCPSpeedUp);
 	g_iCPSpeedUpMax = GetConVarInt(g_hCvarCPSpeedUpMax);
 	g_iCPSpeedUpRate = GetConVarInt(g_hCvarCPSpeedUpRate);
+
+	g_announceTick = g_max_AnnounceTime;
+	CreateTimer(1.0, Timer_AnnounceSaves, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+
+}
+public Action:Timer_AnnounceSaves(Handle:timer, any:data)
+{
+
+	g_announceTick--;
+	if (g_announceTick <= 0)
+	{
+		decl String:textToPrint[64];
+		decl String:textToHint[64];
+		Format(textToPrint, sizeof(textToPrint), "\x03[Server] Remaining RoundEnd Saves: %d", g_iRoundBlockCount);
+		Format(textToHint, sizeof(textToHint), "\x03[Server] Remaining RoundEnd Saves: %d", g_iRoundBlockCount);
+		PrintToChatAll(textToPrint);
+		PrintHintTextToAll(textToHint);
+		g_announceTick = g_max_AnnounceTime;
+	}
+
 }
 public Action:Command_AddBlocker(client, args) {
 	//AddBlocker();
@@ -316,13 +341,35 @@ public Action:Event_RoundEnd_Pre(Handle:event, const String:name[], bool:dontBro
 	g_iIsRoundStarted = 0;
 	g_iIsRoundStartedPost = 0;
 	g_iRoundStatus = 0;
-	g_iRoundBlockCount = g_iRoundEndBlockTimes;
+
+	if (g_iRoundEndBlockDebug)
+	{
+		PrintToServer("[RndEndBlock] Round ended.");
+	}
+}
+public Action:Event_RoundEnd_Post(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	// Kick blocker client
+	//KickBlockerClient();
+	//KickBlocker(); //Just resets cvars now
+	// Reset respawn position
+	g_fSpawnPoint[0] = 0.0;
+	g_fSpawnPoint[1] = 0.0;
+	g_fSpawnPoint[2] = 0.0;
+	
+	g_iIsRoundStarted = 0;
+	g_iIsRoundStartedPost = 0;
+	g_iRoundStatus = 0;
+
+	if (g_iRoundEndBlockResetRound == 1)
+		g_iRoundBlockCount = g_iRoundEndBlockTimes;
 	
 	if (g_iRoundEndBlockDebug)
 	{
 		PrintToServer("[RndEndBlock] Round ended.");
 	}
 }
+
 public Action:Event_GameStart(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	g_iIsGameEnded = 0;
@@ -331,9 +378,18 @@ public Action:Event_GameEnd(Handle:event, const String:name[], bool:dontBroadcas
 {
 	g_iIsGameEnded = 1;
 }
-public Action:Event_ObjectDestroyed(Handle:event, const String:name[], bool:dontBroadcast)
+public Action:Event_ObjectDestroyed_Post(Handle:event, const String:name[], bool:dontBroadcast)
 {
+	g_iRoundEndBlockCapCount++; 
+	if (g_iRoundEndBlockMaxCapPoints > g_iRoundEndBlockMaxCapPoints)
+	{
+		PrintToChatAll("[RndEndBlock] Round Save Earned due to capturing %d objectives", g_iRoundEndBlockMaxCapPoints);
+		g_iRoundEndBlockCapCount = 0;
+		if (g_iRoundEndBlockResetRound == 1 && g_iRoundBlockCount < 1)
+			g_iRoundBlockCount++;
+	}
 	new attacker = GetEventInt(event, "attacker");
+
 	if (attacker > 0 && IsValidClient(attacker))
 	{
 		new Float:attackerPos[3];
@@ -345,9 +401,7 @@ public Action:Event_ObjectDestroyed(Handle:event, const String:name[], bool:dont
 			PrintToServer("[RndEndBlock] Spawnpoint updated. (Object destroyed)");
 		}
 	}
-	
-	if (g_iRoundEndBlockResetRound == 1)
-		g_iRoundBlockCount = g_iRoundEndBlockTimes;
+
 	
 	return Plugin_Continue;
 }
@@ -389,9 +443,6 @@ public Action:Timer_CounterAttackEnd(Handle:Timer)
 	// Check counter-attack end
 	if (!Ins_InCounterAttack())
 	{
-		// Reset block count
-		if (g_iRoundEndBlockResetRound == 1)
-			g_iRoundBlockCount = g_iRoundEndBlockTimes;
 		
 		//PrintToServer("[RndEndBlock] Counter-attack is over.");
 		
@@ -405,7 +456,14 @@ public Action:Event_ControlPointCaptured_Post(Handle:event, const String:name[],
 {
 	decl String:cappers[256];
 	GetEventString(event, "cappers", cappers, sizeof(cappers));
-	
+	g_iRoundEndBlockCapCount++; 
+	if (g_iRoundEndBlockMaxCapPoints > g_iRoundEndBlockMaxCapPoints)
+	{
+		PrintToChatAll("[RndEndBlock] Round Save Earned due to capturing %d objectives", g_iRoundEndBlockMaxCapPoints);
+		g_iRoundEndBlockCapCount = 0;
+		if (g_iRoundEndBlockResetRound == 1 && g_iRoundBlockCount < 1)
+			g_iRoundBlockCount++;
+	}
 	new cappersLength = strlen(cappers);
 	for (new i = 0 ; i < cappersLength; i++)
 	{
@@ -426,8 +484,6 @@ public Action:Event_ControlPointCaptured_Post(Handle:event, const String:name[],
 		}
 	}
 	
-	if (g_iRoundEndBlockResetRound == 1)
-		g_iRoundBlockCount = g_iRoundEndBlockTimes;
 }
 
 public Action:Event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroadcast)
@@ -472,7 +528,7 @@ public Action:Event_PlayerDeathPre(Handle:event, const String:name[], bool:dontB
 {
 	if (g_iRoundEndBlockEnabled == 0)
 		return Plugin_Continue;
-	
+	new teamSecCount = GetSecTeamBotCount();
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	if (client > 0 && IsClientConnected(client) && IsClientInGame(client) && !IsFakeClient(client))
 	{
@@ -480,7 +536,16 @@ public Action:Event_PlayerDeathPre(Handle:event, const String:name[], bool:dontB
 		{
 			//new iRemainingLife = GetRemainingLife();
 			new iAlivePlayers = GetAlivePlayers();
-			if (iAlivePlayers == 1 && g_iRoundBlockCount > 0)
+			new iAliveAllowed = 5;
+			if (teamSecCount <= 6)
+				iAliveAllowed = 1;
+			if (teamSecCount > 6 && teamSecCount <= 10)
+				iAliveAllowed = 2;
+			else
+				iAliveAllowed = GetRandomInt(1, 5);
+
+
+			if (iAlivePlayers < iAliveAllowed && g_iRoundBlockCount > 0)
 			{
 				//AddBlocker();
 				g_iRoundBlockCount--;

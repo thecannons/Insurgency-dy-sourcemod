@@ -85,6 +85,20 @@
 		"no"		"Left 4 Dead Mod Oppdaget"
 	}
 
+	"GESOURCE"
+	{
+		"en"		"Detected Mod GoldenEye:Source"
+		"de"		"Mod GoldenEye:Source erkannt"
+		"fr"		"GoldenEye:Source detecté"
+		"pl"		"Wykryto Mod GoldenEye:Source"
+		"hu"		"GoldenEye:Source játékmód észlelve"
+		"ru"		"Обнаружен мод GoldenEye:Source"
+		"es"		"Detectado Modo GoldenEye:Source"
+		"pt"		"Mod detectado GoldenEye:Source"
+		"tr"		"GoldenEye:Source Mod Tespit Edildi"
+		"no"		"GoldenEye:Source Mod Oppdaget"
+	}
+
 
 	// Debug Messages
 

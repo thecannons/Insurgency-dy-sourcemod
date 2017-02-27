@@ -132,6 +132,12 @@ public Event_PlayerSpawn(Handle: event , const String: name[] , bool: dontBroadc
 	iCredits[client] = iDefCredits;
 }
 
+public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], bool:dontBroadcast)
+{
+
+
+	
+}
 public Event_PlayerDeath(Handle: event , const String: name[] , bool: dontBroadcast)
 {
 	new victimuserid = GetEventInt(event, "userid");
