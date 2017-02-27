@@ -36,7 +36,7 @@
 	{
 			"model"			"models/static_props/wcache_crate_01.mdl"
 			"height"		"-1"
-			"price"			"4"
+			"price"			"6"
 			"health"		"250"
 			"adminonly"     "0" //Means it's admin only if set to 1
 	}

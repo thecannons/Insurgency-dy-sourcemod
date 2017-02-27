@@ -294,12 +294,14 @@ new
 	Handle:cvarCanSeeVectorMultiplier = INVALID_HANDLE, //CanSeeVector Multiplier divide this by cvarMaxPlayerDistance
 	Handle:sm_ammo_resupply_range = INVALID_HANDLE, //Range of ammo resupply
 	Handle:sm_resupply_delay = INVALID_HANDLE, //Delay to resupply
+	Handle:sm_jammer_required = INVALID_HANDLE, //Jammer required for intel messages?
 	Handle:cvarMaxPlayerDistance = INVALID_HANDLE; //Min/max distance from players to spawn
 
 
 // Init global variables
 new
 	g_iCvar_respawn_enable,
+	g_jammerRequired,
 	g_iCvar_revive_enable,
 	Float:g_respawn_counter_chance,
 	g_counterAttack_min_dur_sec,
@@ -652,7 +654,7 @@ public OnPluginStart()
 	sm_multi_loadout_enabled = CreateConVar("sm_multi_loadout_enabled", "0", "Use Sernix Variety Bot Loadout? - Default OFF");
 	sm_ammo_resupply_range = CreateConVar("sm_ammo_resupply_range", "80", "Range to resupply near ammo cache");
 	sm_resupply_delay = CreateConVar("sm_resupply_delay", "5", "Delay loop for resupply ammo");
-
+	sm_jammer_required = CreateConVar("sm_jammer_required", "1", "Require deployable jammer for enemy reports? 0 = Disabled 1 = Enabled");
 
 
 	CreateConVar("Lua_Ins_Healthkit", PLUGIN_VERSION, PLUGIN_DESCRIPTION, FCVAR_NOTIFY | FCVAR_PLUGIN | FCVAR_DONTRECORD);
@@ -750,7 +752,9 @@ public OnPluginStart()
 
 	// Tags
 	HookConVarChange(FindConVar("sv_tags"), TagsChanged);
-
+	//Other
+	HookConVarChange(sm_jammer_required, CvarChange);
+	
 	// Init respawn function
 	// Next 14 lines of text are taken from Andersso's DoDs respawn plugin. Thanks :)
 	g_hGameConfig = LoadGameConfigFile("insurgency.games");
@@ -869,7 +873,7 @@ void UpdateRespawnCvars()
 		g_respawn_counter_chance += 0.1;
 	}
 
-
+	g_jammerRequired = GetConVarInt(sm_jammer_required);
 	// Update Cvars
 	g_iCvar_respawn_enable = GetConVarInt(sm_respawn_enabled);
 	g_iCvar_revive_enable = GetConVarInt(sm_revive_enabled);
@@ -1524,14 +1528,28 @@ public Action:Timer_Enemies_Remaining(Handle:Timer)
 			alive_insurgents++;
 		}
 	}
-	// Announce
-	decl String:textToPrintChat[64];
-	decl String:textToPrint[64];
-	Format(textToPrintChat, sizeof(textToPrintChat), "Enemies alive: %d | Enemy reinforcements remaining: %d", alive_insurgents, g_iRemaining_lives_team_ins);
-	Format(textToPrint, sizeof(textToPrint), "Enemies alive: %d | Enemy reinforcements remaining: %d", alive_insurgents ,g_iRemaining_lives_team_ins);
-	PrintHintTextToAll(textToPrint);
-	PrintToChatAll(textToPrintChat);
-	
+	new validAntenna = -1;
+	validAntenna = FindValid_Antenna();
+	if (validAntenna != -1 || g_jammerRequired == 0)
+	{
+		// Announce
+		decl String:textToPrintChat[64];
+		decl String:textToPrint[64];
+		Format(textToPrintChat, sizeof(textToPrintChat), "[INTEL]Enemies alive: %d | Enemy reinforcements left: %d", alive_insurgents, g_iRemaining_lives_team_ins);
+		Format(textToPrint, sizeof(textToPrint), "[INTEL]Enemies alive: %d | Enemy reinforcements left: %d", alive_insurgents ,g_iRemaining_lives_team_ins);
+		PrintHintTextToAll(textToPrint);
+		PrintToChatAll(textToPrintChat);
+	}
+	else
+	{
+		// Announce
+		decl String:textToPrintChat[64];
+		decl String:textToPrint[64];
+		Format(textToPrintChat, sizeof(textToPrintChat), "[INTEL]Comms are down, build jammer to get enemy reports.");
+		Format(textToPrint, sizeof(textToPrintChat), "[INTEL]Comms are down, build jammer to get enemy reports.");
+		PrintHintTextToAll(textToPrint);
+		PrintToChatAll(textToPrintChat);
+	}
 	return Plugin_Continue;
 }
 
@@ -1551,34 +1569,51 @@ public Action:Timer_EnemyReinforce(Handle:Timer)
 	if (g_iRemaining_lives_team_ins <= (g_iRespawn_lives_team_ins / iReinforce_multiplier) + iReinforce_multiplier_base)
 	{
 		g_iReinforceTime = g_iReinforceTime - 1;
-		
+		new validAntenna = -1;
+		validAntenna = FindValid_Antenna();
+		decl String:textToPrintChat[64];
+		decl String:textToPrint[64];
 		// Announce every 10 seconds
 		if (g_iReinforceTime % 10 == 0 && g_iReinforceTime > 10)
 		{
-			decl String:textToPrintChat[64];
-			decl String:textToPrint[64];
-			Format(textToPrintChat, sizeof(textToPrintChat), "Friendlies spawn on Counter-Attacks, Capture the Point!");
-			if (g_isHunt == 1)
-				Format(textToPrint, sizeof(textToPrint), "Enemies reinforce in %d seconds | Kill remaining/blow cache!", g_iReinforceTime);
-			else
-				Format(textToPrint, sizeof(textToPrint), "Enemies reinforce in %d seconds | Capture the point soon!", g_iReinforceTime);
-
-			PrintHintTextToAll(textToPrint);
-			if (g_iReinforceTime <= 60)
+			
+			if (validAntenna != -1 || g_jammerRequired == 0)
 			{
-				PrintToChatAll(textToPrint);
+				
+				//Format(textToPrintChat, sizeof(textToPrintChat), "[INTEL]Friendlies spawn on Counter-Attacks, Capture the Point!");
+				if (g_isHunt == 1)
+					Format(textToPrint, sizeof(textToPrint), "[INTEL]Enemies reinforce in %d seconds | Kill rest/blow cache!", g_iReinforceTime);
+				else
+					Format(textToPrint, sizeof(textToPrint), "[INTEL]Enemies reinforce in %d seconds | Capture the point soon!", g_iReinforceTime);
+
+				PrintHintTextToAll(textToPrint);
+				if (g_iReinforceTime <= 60)
+				{
+					PrintToChatAll(textToPrint);
+				}
+			}
+			else
+			{
+				new fCommsChance = GetRandomInt(1, 100);
+				if (fCommsChance > 50)
+				{
+					// Announce
+					Format(textToPrintChat, sizeof(textToPrintChat), "[INTEL]Comms are down, build jammer to get enemy reports.");
+					Format(textToPrint, sizeof(textToPrintChat), "[INTEL]Comms are down, build jammer to get enemy reports.");
+					PrintHintTextToAll(textToPrint);
+					PrintToChatAll(textToPrintChat);
+				}
 			}
 		}
 		// Anncount every 1 second
-		if (g_iReinforceTime <= 10)
+		if (g_iReinforceTime <= 10 && (validAntenna != -1 || g_jammerRequired == 0))
 		{
-			decl String:textToPrintChat[64];
-			decl String:textToPrint[64];
-			Format(textToPrintChat, sizeof(textToPrintChat), "Friendlies spawn on Counter-Attacks, Capture the Point!");
+			
+			//Format(textToPrintChat, sizeof(textToPrintChat), "[INTEL]Friendlies spawn on Counter-Attacks, Capture the Point!");
 			if (g_isHunt == 1)
-				Format(textToPrint, sizeof(textToPrint), "Enemies reinforce in %d seconds | Kill remaining/blow cache!", g_iReinforceTime);
+				Format(textToPrint, sizeof(textToPrint), "[INTEL]Enemies reinforce in %d seconds | Kill remaining/blow cache!", g_iReinforceTime);
 			else
-				Format(textToPrint, sizeof(textToPrint), "Enemies reinforce in %d seconds | Capture the point soon!", g_iReinforceTime);
+				Format(textToPrint, sizeof(textToPrint), "[INTEL]Enemies reinforce in %d seconds | Capture the point soon!", g_iReinforceTime);
 
 			PrintHintTextToAll(textToPrint);
 			//PrintToChatAll(textToPrintChat);
@@ -1598,8 +1633,20 @@ public Action:Timer_EnemyReinforce(Handle:Timer)
 					new iBotCount = GetTeamInsCount();
 					// Add bots	
 					g_iRemaining_lives_team_ins = g_iRemaining_lives_team_ins + iBotCount;
-					Format(textToPrint, sizeof(textToPrint), "Enemy Reinforcements Added to Existing Reinforcements!");
-					PrintHintTextToAll(textToPrint);
+					Format(textToPrint, sizeof(textToPrint), "[INTEL]Enemy Reinforcements Added to Existing Reinforcements!");
+					if (validAntenna != -1 || g_jammerRequired == 0)
+						PrintHintTextToAll(textToPrint);
+					else
+					{
+						new fCommsChance = GetRandomInt(1, 100);
+						if (fCommsChance > 50)
+						{
+							Format(textToPrintChat, sizeof(textToPrintChat), "[INTEL]Comms are down, build jammer to get enemy reports.");
+							Format(textToPrint, sizeof(textToPrintChat), "[INTEL]Comms are down, build jammer to get enemy reports.");
+							PrintHintTextToAll(textToPrint);
+							PrintToChatAll(textToPrintChat);
+						}
+					}
 					g_iReinforceTime = reinforce_time_subsequent;
 					if (g_isHunt == 1)
 						 g_iReinforceTime = reinforce_time_subsequent * iReinforce_multiplier;
@@ -1623,9 +1670,20 @@ public Action:Timer_EnemyReinforce(Handle:Timer)
 				}
 				else
 				{
-					Format(textToPrint, sizeof(textToPrint), "Enemy Reinforcements at Maximum Capacity");
-					PrintHintTextToAll(textToPrint);
-
+					Format(textToPrint, sizeof(textToPrint), "[INTEL]Enemy Reinforcements at Maximum Capacity");
+					if (validAntenna != -1 || g_jammerRequired == 0)
+						PrintHintTextToAll(textToPrint);
+					else
+					{
+						new fCommsChance = GetRandomInt(1, 100);
+						if (fCommsChance > 50)
+						{
+							Format(textToPrintChat, sizeof(textToPrintChat), "[INTEL]Comms are down, build jammer to get enemy reports.");
+							Format(textToPrint, sizeof(textToPrintChat), "[INTEL]Comms are down, build jammer to get enemy reports.");
+							PrintHintTextToAll(textToPrint);
+							PrintToChatAll(textToPrintChat);
+						}
+					}
 					// Reset reinforce time
 					new reinforce_time = GetConVarInt(sm_respawn_reinforce_time);
 					g_iReinforceTime = reinforce_time;
@@ -1661,8 +1719,20 @@ public Action:Timer_EnemyReinforce(Handle:Timer)
 				//new fRandomInt = GetRandomInt(1, 4);
 				
 				decl String:textToPrint[64];
-				Format(textToPrint, sizeof(textToPrint), "Enemy Reinforcements Have Arrived!");
-				PrintHintTextToAll(textToPrint);
+				Format(textToPrint, sizeof(textToPrint), "[INTEL]Enemy Reinforcements Have Arrived!");
+				if (validAntenna != -1 || g_jammerRequired == 0)
+					PrintHintTextToAll(textToPrint);
+				else
+				{
+					new fCommsChance = GetRandomInt(1, 100);
+					if (fCommsChance > 50)
+					{
+						Format(textToPrintChat, sizeof(textToPrintChat), "[INTEL]Comms are down, build jammer to get enemy reports.");
+						Format(textToPrint, sizeof(textToPrintChat), "[INTEL]Comms are down, build jammer to get enemy reports.");
+						PrintHintTextToAll(textToPrint);
+						PrintToChatAll(textToPrintChat);
+					}
+				}
 			}
 		}
 	}
@@ -2863,7 +2933,16 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 
 	// Get random duration
 	new fRandomInt = GetRandomInt(g_counterAttack_min_dur_sec, g_counterAttack_max_dur_sec);
-	
+	new fRandomIntCounterLarge = GetRandomInt(1, 100);
+	new largeCounterEnabled = false;
+	if (fRandomIntCounterLarge <= 15)
+	{
+		fRandomInt = (fRandomInt * 2);
+		new fRandomInt2 = GetRandomInt(90, 180);
+		final_ca_dur = (final_ca_dur + fRandomInt2);
+		largeCounterEnabled = true;
+		
+	}
 	// Set counter attack duration to server
 	new Handle:cvar_ca_dur;
 	
@@ -2894,7 +2973,11 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 		SetConVarInt(cvar, 0, true, false);
 		cvar = FindConVar("mp_checkpoint_counterattack_always");
 		SetConVarInt(cvar, 1, true, false);
-		
+		if (largeCounterEnabled)
+		{
+			PrintHintTextToAll("[INTEL]: Enemy forces are sending a large counter-attack your way!  Get ready to defend!");
+			PrintToChatAll("[INTEL]: Enemy forces are sending a large counter-attack your way!  Get ready to defend!");
+		}
 		// Call music timer
 		//CreateTimer(COUNTER_ATTACK_MUSIC_DURATION, Timer_CounterAttackSound);
 		
@@ -3062,7 +3145,15 @@ public Action:Event_ObjectDestroyed_Pre(Handle:event, const String:name[], bool:
 
 	// Get random duration
 	new fRandomInt = GetRandomInt(g_counterAttack_min_dur_sec, g_counterAttack_max_dur_sec);
-	
+	new fRandomIntCounterLarge = GetRandomInt(1, 100);
+	new largeCounterEnabled = false;
+	if (fRandomIntCounterLarge <= 15)
+	{
+		fRandomInt = (fRandomInt * 2);
+		new fRandomInt2 = GetRandomInt(90, 180);
+		final_ca_dur = (final_ca_dur + fRandomInt2);
+		largeCounterEnabled = true;
+	}
 	// Set counter attack duration to server
 	new Handle:cvar_ca_dur;
 	
@@ -3094,7 +3185,11 @@ public Action:Event_ObjectDestroyed_Pre(Handle:event, const String:name[], bool:
 		SetConVarInt(cvar, 0, true, false);
 		cvar = FindConVar("mp_checkpoint_counterattack_always");
 		SetConVarInt(cvar, 1, true, false);
-		
+		if (largeCounterEnabled)
+		{
+			PrintHintTextToAll("[INTEL]: Enemy forces are sending a large counter-attack your way!  Get ready to defend!");
+			PrintToChatAll("[INTEL]: Enemy forces are sending a large counter-attack your way!  Get ready to defend!");
+		}
 		// Call music timer
 		//CreateTimer(COUNTER_ATTACK_MUSIC_DURATION, Timer_CounterAttackSound);
 		
@@ -5731,7 +5826,22 @@ void SetPlayerScore(client, iScore)
 	SetEntData(iPlayerManager, m_iPlayerScore + (4 * client), iScore, _, true);
 }
 
+//Find Valid Antenna
+public FindValid_Antenna()
+{
+	new prop;
+	while ((prop = FindEntityByClassname(prop, "prop_dynamic_override")) != INVALID_ENT_REFERENCE)
+	{
+		new String:propModelName[128];
+		GetEntPropString(prop, Prop_Data, "m_ModelName", propModelName, 128);
+		if (StrEqual(propModelName, "models/static_fittings/antenna02b.mdl"))
+		{
+			return prop;
+		}
 
+	}
+	return -1;
+}
 //### - UNCOMMENT BELOW TO USE CODE BELOW - ###
 
 // ================================================================================

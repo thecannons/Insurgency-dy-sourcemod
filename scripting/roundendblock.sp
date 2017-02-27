@@ -201,6 +201,7 @@ public OnMapStart()
 
 	g_announceTick = g_max_AnnounceTime;
 	CreateTimer(1.0, Timer_AnnounceSaves, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	
 
 }
 public Action:Timer_AnnounceSaves(Handle:timer, any:data)
@@ -306,10 +307,17 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 	g_iIsRoundStarted = 1;
 	g_iIsRoundStartedPost = 0;
 	g_iRoundStatus = 0;
-	g_iRoundBlockCount = g_iRoundEndBlockTimes;
+	if (g_iRoundEndBlockResetRound == 1)
+		g_iRoundBlockCount = g_iRoundEndBlockTimes;
 	
+	new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
+
+	if (ncp < 6)
+	{
+		if (g_iRoundBlockCount > 1)
+			g_iRoundBlockCount = 1;
+	}
 	//KickBlockerClient();
-	
 	if (g_iRoundEndBlockDebug)
 	{
 		PrintToServer("[RndEndBlock] Round started.");
@@ -364,6 +372,13 @@ public Action:Event_RoundEnd_Post(Handle:event, const String:name[], bool:dontBr
 	if (g_iRoundEndBlockResetRound == 1)
 		g_iRoundBlockCount = g_iRoundEndBlockTimes;
 	
+	new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
+
+	if (ncp < 6)
+	{
+		if (g_iRoundBlockCount > 1)
+			g_iRoundBlockCount = 1;
+	}
 	if (g_iRoundEndBlockDebug)
 	{
 		PrintToServer("[RndEndBlock] Round ended.");
