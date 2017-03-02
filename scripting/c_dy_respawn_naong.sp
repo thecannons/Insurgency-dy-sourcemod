@@ -2396,10 +2396,10 @@ public Action:Event_Spawn(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	//Redirect all bot spawns
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
-	new String:sNewNickname[64];
-	Format(sNewNickname, sizeof(sNewNickname), "%N", client);
-	if (StrEqual(sNewNickname, "[INS] RoundEnd Protector"))
-		return Plugin_Continue;
+	// new String:sNewNickname[64];
+	// Format(sNewNickname, sizeof(sNewNickname), "%N", client);
+	// if (StrEqual(sNewNickname, "[INS] RoundEnd Protector"))
+	// 	return Plugin_Continue;
 	
 	if (client > 0 && IsClientInGame(client))
 	{
@@ -2486,10 +2486,10 @@ public Action:Event_Spawn(Handle:event, const String:name[], bool:dontBroadcast)
 public Action:Event_SpawnPost(Handle:event, const String:name[], bool:dontBroadcast) {
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	////InsLog(DEBUG, "Event_Spawn called");
-	new String:sNewNickname[64];
-	Format(sNewNickname, sizeof(sNewNickname), "%N", client);
-	if (StrEqual(sNewNickname, "[INS] RoundEnd Protector"))
-		return Plugin_Continue;
+	// new String:sNewNickname[64];
+	// Format(sNewNickname, sizeof(sNewNickname), "%N", client);
+	// if (StrEqual(sNewNickname, "[INS] RoundEnd Protector"))
+	// 	return Plugin_Continue;
 
 	if (!IsFakeClient(client)) {
 		return Plugin_Continue;
@@ -2729,9 +2729,8 @@ public Action:Event_PlayerConnect(Handle:event, const String:name[], bool:dontBr
 public Action:Event_PlayerDisconnect(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
-	if (client > 0 && IsClientInGame(client))
+	if (client > 0)
 	{
-	
 		playerPickSquad[client] = 0;
 		// Reset player status
 		g_client_last_classstring[client] = ""; //reset his class model
@@ -5842,6 +5841,8 @@ public FindValid_Antenna()
 	}
 	return -1;
 }
+
+
 //### - UNCOMMENT BELOW TO USE CODE BELOW - ###
 
 // ================================================================================
