@@ -2916,6 +2916,7 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 	decl String:sGameMode[32];
 	GetConVarString(FindConVar("mp_gamemode"), sGameMode, sizeof(sGameMode));
 
+	
 	// Get the number of control points
 	new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
 	
@@ -2937,7 +2938,7 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 	if (fRandomIntCounterLarge <= 15)
 	{
 		fRandomInt = (fRandomInt * 2);
-		new fRandomInt2 = GetRandomInt(90, 180);
+		new fRandomInt2 = GetRandomInt(60, 90);
 		final_ca_dur = (final_ca_dur + fRandomInt2);
 		largeCounterEnabled = true;
 		
@@ -2948,6 +2949,30 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 	// Final counter attack
 	if ((acp+1) == ncp)
 	{
+		g_iRemaining_lives_team_ins = 0;
+		for (int i = 1; i <= MaxClients; i++)
+		{
+			if (i > 0 && IsClientInGame(i) && IsClientConnected(i))
+			{
+				if(IsFakeClient(i))
+					ForcePlayerSuicide(i);
+			}
+		}
+		new Handle:tCvar = FindConVar("mp_player_resupply_coop_delay_max");
+		SetConVarInt(tCvar, 800, true, false);
+		tCvar = FindConVar("mp_player_resupply_coop_delay_penalty");
+		SetConVarInt(tCvar, 800, true, false);
+		tCvar = FindConVar("mp_player_resupply_coop_delay_base");
+		SetConVarInt(tCvar, 800, true, false);
+		tCvar = FindConVar("bot_attackdelay_frac_difficulty_impossible");
+		SetConVarFloat(tCvar, 0.18, true, false);
+		tCvar = FindConVar("bot_attack_aimpenalty_amt_close");
+		SetConVarInt(tCvar, 15, true, false);
+		tCvar = FindConVar("bot_attack_aimpenalty_amt_far");
+		SetConVarInt(tCvar, 60, true, false);
+		tCvar = FindConVar("bot_attack_aimtolerance_newthreat_amt");
+		SetConVarFloat	(tCvar, 1.6, true, false);
+		SetConVarInt(cvar_ca_dur, final_ca_dur, true, false);
 		cvar_ca_dur = FindConVar("mp_checkpoint_counterattack_duration_finale");
 		SetConVarInt(cvar_ca_dur, final_ca_dur, true, false);
 		g_removeBotGrenadeChance = 0.2;
