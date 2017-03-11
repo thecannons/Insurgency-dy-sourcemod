@@ -2972,7 +2972,6 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 		SetConVarInt(tCvar, 60, true, false);
 		tCvar = FindConVar("bot_attack_aimtolerance_newthreat_amt");
 		SetConVarFloat	(tCvar, 1.6, true, false);
-		SetConVarInt(cvar_ca_dur, final_ca_dur, true, false);
 		cvar_ca_dur = FindConVar("mp_checkpoint_counterattack_duration_finale");
 		SetConVarInt(cvar_ca_dur, final_ca_dur, true, false);
 		g_removeBotGrenadeChance = 0.2;
