@@ -2958,20 +2958,20 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 					ForcePlayerSuicide(i);
 			}
 		}
-		new Handle:tCvar = FindConVar("mp_player_resupply_coop_delay_max");
-		SetConVarInt(tCvar, 800, true, false);
-		tCvar = FindConVar("mp_player_resupply_coop_delay_penalty");
-		SetConVarInt(tCvar, 800, true, false);
-		tCvar = FindConVar("mp_player_resupply_coop_delay_base");
-		SetConVarInt(tCvar, 800, true, false);
-		tCvar = FindConVar("bot_attackdelay_frac_difficulty_impossible");
-		SetConVarFloat(tCvar, 0.18, true, false);
-		tCvar = FindConVar("bot_attack_aimpenalty_amt_close");
-		SetConVarInt(tCvar, 15, true, false);
-		tCvar = FindConVar("bot_attack_aimpenalty_amt_far");
-		SetConVarInt(tCvar, 60, true, false);
-		tCvar = FindConVar("bot_attack_aimtolerance_newthreat_amt");
-		SetConVarFloat	(tCvar, 1.6, true, false);
+		// new Handle:tCvar = FindConVar("mp_player_resupply_coop_delay_max");
+		// SetConVarInt(tCvar, 800, true, false);
+		// tCvar = FindConVar("mp_player_resupply_coop_delay_penalty");
+		// SetConVarInt(tCvar, 800, true, false);
+		// tCvar = FindConVar("mp_player_resupply_coop_delay_base");
+		// SetConVarInt(tCvar, 800, true, false);
+		// tCvar = FindConVar("bot_attackdelay_frac_difficulty_impossible");
+		// SetConVarFloat(tCvar, 0.18, true, false);
+		// tCvar = FindConVar("bot_attack_aimpenalty_amt_close");
+		// SetConVarInt(tCvar, 15, true, false);
+		// tCvar = FindConVar("bot_attack_aimpenalty_amt_far");
+		// SetConVarInt(tCvar, 60, true, false);
+		// tCvar = FindConVar("bot_attack_aimtolerance_newthreat_amt");
+		// SetConVarFloat(tCvar, 1.6, true, false);
 		cvar_ca_dur = FindConVar("mp_checkpoint_counterattack_duration_finale");
 		SetConVarInt(cvar_ca_dur, final_ca_dur, true, false);
 		g_removeBotGrenadeChance = 0.2;
