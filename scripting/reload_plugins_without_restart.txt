@@ -1,5 +1,5 @@
-sm plugins unload all
-sm plugins reload all
-sm plugins refresh
+rcon sm plugins unload all
+rcon sm plugins reload all
+rcon sm plugins refresh
 
 Not sure if need refresh

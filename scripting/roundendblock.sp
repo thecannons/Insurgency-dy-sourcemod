@@ -115,6 +115,7 @@ new g_iAnnounceActive;
 new g_iReviveCount;
 new g_max_AnnounceTime = 480;
 new g_announceTick;
+new g_isReviving = 0;
 
 // Cvars for caupture point speed
 new Handle:g_hCvarCPSpeedUp;
@@ -395,14 +396,14 @@ public Action:Event_GameEnd(Handle:event, const String:name[], bool:dontBroadcas
 }
 public Action:Event_ObjectDestroyed_Post(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	g_iRoundEndBlockCapCount++; 
-	if (g_iRoundEndBlockMaxCapPoints > g_iRoundEndBlockMaxCapPoints)
-	{
-		PrintToChatAll("[RndEndBlock] Round Save Earned due to capturing %d objectives", g_iRoundEndBlockMaxCapPoints);
-		g_iRoundEndBlockCapCount = 0;
-		if (g_iRoundEndBlockResetRound == 1 && g_iRoundBlockCount < 1)
-			g_iRoundBlockCount++;
-	}
+	// g_iRoundEndBlockCapCount++; 
+	// if (g_iRoundEndBlockMaxCapPoints > g_iRoundEndBlockMaxCapPoints)
+	// {
+	// 	PrintToChatAll("[RndEndBlock] Round Save Earned due to capturing %d objectives", g_iRoundEndBlockMaxCapPoints);
+	// 	g_iRoundEndBlockCapCount = 0;
+	// 	if (g_iRoundEndBlockResetRound == 1 && g_iRoundBlockCount < 1)
+	// 		g_iRoundBlockCount++;
+	// }
 	new attacker = GetEventInt(event, "attacker");
 
 	if (attacker > 0 && IsValidClient(attacker))
@@ -471,14 +472,14 @@ public Action:Event_ControlPointCaptured_Post(Handle:event, const String:name[],
 {
 	decl String:cappers[256];
 	GetEventString(event, "cappers", cappers, sizeof(cappers));
-	g_iRoundEndBlockCapCount++; 
-	if (g_iRoundEndBlockMaxCapPoints > g_iRoundEndBlockMaxCapPoints)
-	{
-		PrintToChatAll("[RndEndBlock] Round Save Earned due to capturing %d objectives", g_iRoundEndBlockMaxCapPoints);
-		g_iRoundEndBlockCapCount = 0;
-		if (g_iRoundEndBlockResetRound == 1 && g_iRoundBlockCount < 1)
-			g_iRoundBlockCount++;
-	}
+	// g_iRoundEndBlockCapCount++; 
+	// if (g_iRoundEndBlockMaxCapPoints > g_iRoundEndBlockMaxCapPoints)
+	// {
+	// 	PrintToChatAll("[RndEndBlock] Round Save Earned due to capturing %d objectives", g_iRoundEndBlockMaxCapPoints);
+	// 	g_iRoundEndBlockCapCount = 0;
+	// 	if (g_iRoundEndBlockResetRound == 1 && g_iRoundBlockCount < 1)
+	// 		g_iRoundBlockCount++;
+	// }
 	new cappersLength = strlen(cappers);
 	for (new i = 0 ; i < cappersLength; i++)
 	{
@@ -503,7 +504,7 @@ public Action:Event_ControlPointCaptured_Post(Handle:event, const String:name[],
 
 public Action:Event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	// new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	 //new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	
 	// if (client > 0 && IsClientConnected(client) && IsClientInGame(client))
 	// {
@@ -525,6 +526,7 @@ public Action:Event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroa
 	// 		KickBlockerClient();
 	// 	}
 	// }
+
 }
 
 // When player disconnected server, intialize variables
@@ -806,6 +808,10 @@ void RevivePlayers()
 				// Get dead body
 				new clientRagdoll = GetEntPropEnt(client, Prop_Send, "m_hRagdoll");
 				
+				new primaryRemove = 0;
+				new secondaryRemove = 0; 
+				new grenadesRemove = 1;
+				RemoveWeapons(client, primaryRemove, secondaryRemove, grenadesRemove);
 				//This timer safely removes client-side ragdoll
 				if(clientRagdoll > 0 && IsValidEdict(clientRagdoll) && IsValidEntity(clientRagdoll))
 				{
@@ -924,4 +930,49 @@ stock set_rendering(index, FX:fx=FxNone, r=255, g=255, b=255, Render:render=Norm
 	SetEntData(index, offset + 1, g, 1, true);
 	SetEntData(index, offset + 2, b, 1, true);
 	SetEntData(index, offset + 3, amount, 1, true);
+}
+
+//Respawn Script Specific
+public RemoveWeapons(client, primaryRemove, secondaryRemove, grenadesRemove)
+{
+
+	new primaryWeapon = GetPlayerWeaponSlot(client, 0);
+	new secondaryWeapon = GetPlayerWeaponSlot(client, 1);
+	new playerGrenades = GetPlayerWeaponSlot(client, 3);
+
+	// Check and remove primaryWeapon
+	if (primaryWeapon != -1 && IsValidEntity(primaryWeapon) && primaryRemove == 1) // We need to figure out what slots are defined#define Slot_HEgrenade 11, #define Slot_Flashbang 12, #define Slot_Smokegrenade 13
+	{
+		// Remove primaryWeapon
+		decl String:weapon[32];
+		GetEntityClassname(primaryWeapon, weapon, sizeof(weapon));
+		RemovePlayerItem(client,primaryWeapon);
+		AcceptEntityInput(primaryWeapon, "kill");
+	}
+	// Check and remove secondaryWeapon
+	if (secondaryWeapon != -1 && IsValidEntity(secondaryWeapon) && secondaryRemove == 1) // We need to figure out what slots are defined#define Slot_HEgrenade 11, #define Slot_Flashbang 12, #define Slot_Smokegrenade 13
+	{
+		// Remove primaryWeapon
+		decl String:weapon[32];
+		GetEntityClassname(secondaryWeapon, weapon, sizeof(weapon));
+		RemovePlayerItem(client,secondaryWeapon);
+		AcceptEntityInput(secondaryWeapon, "kill");
+	}
+	// Check and remove grenades
+	if (playerGrenades != -1 && IsValidEntity(playerGrenades) && grenadesRemove == 1) // We need to figure out what slots are defined#define Slot_HEgrenade 11, #define Slot_Flashbang 12, #define Slot_Smokegrenade 13
+	{
+		while (playerGrenades != -1 && IsValidEntity(playerGrenades)) // since we only have 3 slots in current theate
+		{
+			playerGrenades = GetPlayerWeaponSlot(client, 3);
+			if (playerGrenades != -1 && IsValidEntity(playerGrenades)) // We need to figure out what slots are defined#define Slot_HEgrenade 11, #define Slot_Flashbang 12, #define Slot_Smokegrenade 1
+			{
+				// Remove grenades
+				decl String:weapon[32];
+				GetEntityClassname(playerGrenades, weapon, sizeof(weapon));
+				RemovePlayerItem(client,playerGrenades);
+				AcceptEntityInput(playerGrenades, "kill");
+				
+			}
+		}
+	}
 }
