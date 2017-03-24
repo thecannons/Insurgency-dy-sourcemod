@@ -5,7 +5,7 @@
 			"model"			"models/static_fortifications/sandbagwall02.mdl"
 			"height"		"-1"
 			"price"			"2"
-			"health"		"1000"
+			"health"		"1600"
 			"adminonly"     "0" //Means it's admin only if set to 1
 	}
 	"Sandbag Wall"
@@ -13,7 +13,7 @@
 			"model"			"models/static_fortifications/sandbagwall01.mdl"
 			"height"		"-1"
 			"price"			"2"
-			"health"		"1000"
+			"health"		"1600"
 			"adminonly"     "0" //Means it's admin only if set to 1
 	}
 	"Barbed Wire"
@@ -21,6 +21,14 @@
 			"model"			"models/fortifications/barbed_wire_02b.mdl"
 			"height"		"-1"
 			"price"			"2"
+			"health"		"1600"
+			"adminonly"     "0" //Means it's admin only if set to 1
+	}
+	"Engineer Ramp"
+	{
+			"model"			"models/static_afghan/prop_panj_stairs.mdl"
+			"height"		"-1"
+			"price"			"4"
 			"health"		"1000"
 			"adminonly"     "0" //Means it's admin only if set to 1
 	}

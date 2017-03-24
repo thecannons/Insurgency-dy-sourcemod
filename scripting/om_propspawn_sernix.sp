@@ -22,6 +22,9 @@
 //models\generic\ammocrate3.mdl
 //models\static_props\wcache_crate_01.mdl
  
+ //Ramp for engineer
+//\models\static_afghan\prop_panj_stairs.mdl
+
 // Include the neccesary files
 #include <sourcemod>
 #include <sdktools>
@@ -110,8 +113,8 @@ new Handle:hIntegDegrade = INVALID_HANDLE;
 new Handle:hDegradeMultiplier = INVALID_HANDLE;
 new Handle:hIntegRepair = INVALID_HANDLE;
 new Handle:ConstructTimers[MAXPLAYERS+1];
-new	g_integrityDegrade = 600;
-new	g_integrityRepair = 300;
+new	g_integrityDegrade = 400;
+new	g_integrityRepair = 200;
 new g_CvarYellChance;
 
 // Status
@@ -162,8 +165,8 @@ public OnPluginStart()
 	// Control ConVars. 1 Team Only, Public Enabled etc.
 	hTeamOnly = CreateConVar("om_prop_teamonly", "0", "0 is no team restrictions, 1 is Terrorist and 2 is CT. Default: 2");
 	hAdminOnly = CreateConVar("om_prop_public", "0", "0 means anyone can use this plugin. 1 means admins only (no credits used)");
-	hIntegDegrade = CreateConVar("om_integrity_degrade", "200", "This is the amount that degrades from the prop when enemy bots are near it per bot, per second");
-	hIntegRepair = CreateConVar("om_integrity_repair", "100", "When a engineer is repairing, this amount repairs per second.");
+	hIntegDegrade = CreateConVar("om_integrity_degrade", "200", "This is the amount that degrades from the prop when enemy bots are near it per bot, per 3 second");
+	hIntegRepair = CreateConVar("om_integrity_repair", "100", "When a engineer is repairing, this amount repairs per 3 second.");
 
 	// Create the version convar!
 	CreateConVar("om_propspawn_version", sVersion, "OM Prop Spawn Version",FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_UNLOGGED|FCVAR_DONTRECORD|FCVAR_REPLICATED|FCVAR_NOTIFY);
@@ -374,9 +377,8 @@ public GetPropType(entity)
 	else if (StrEqual(propModelName, "models/static_fortifications/sandbagwall01.mdl") || StrEqual(propModelName, "models/static_fortifications/sandbagwall02.mdl"))
 	{
 		propType = 1;
-
 	}
-	else if (StrEqual(propModelName, "models/static_fittings/antenna02b.mdl"))
+	else if (StrEqual(propModelName, "models/static_fittings/antenna02b.mdl") || StrEqual(propModelName, "models/static_afghan/prop_panj_stairs.mdl"))
 	{
 		propType = 3;
 	}
@@ -548,7 +550,7 @@ public Action:Timer_Monitor_Props(Handle:Timer)
 									}
 
 									new propType = GetPropType(prop);
-									if (propType == 3) //Max health 500 for antenna
+									if (propType == 3) //Max health 500 for antenna / ramp
 									{
 										if (propIntegrity > 500)
 										{
@@ -1082,7 +1084,7 @@ PopLoop(Handle:kv, client)
 		while (KvGotoNextKey(kv));
 		CloseHandle(kv);
 	}
-	AddMenuItem(om_public_prop_menu, "decontruct", "Decontruct All (no refund)");
+	AddMenuItem(om_public_prop_menu, "deconstruct", "Deconstruct All (no refund)");
 	//AddMenuItem(om_public_prop_menu, "fastexit", "Fast-Exit Menu");
 }
 
@@ -1170,7 +1172,7 @@ public Public_Prop_Menu_Handler(Handle:menu, MenuAction:action, param1, param2)
  
 		/* Get item info */
 		//menu.GetItem(param2, info, sizeof(info))
-		if (param2 == 5)
+		if (param2 == 7)
 		{
 			KillProps(param1);
 			PrintHintText(param1, "Deployables Deconstructed");
@@ -1359,10 +1361,7 @@ public PropSpawn(client, param2)
 
 	//TR_GetEndPosition(FurnitureOrigin, INVALID_HANDLE);
 	
-	FurnitureOrigin[0] = (ClientOrigin[0] + (50 * Cosine(DegToRad(EyeAngles[1]))));
-	FurnitureOrigin[1] = (ClientOrigin[1] + (50 * Sine(DegToRad(EyeAngles[1]))));
-	FurnitureOrigin[2] = (ClientOrigin[2] + KvGetNum(kv, "height", 100));
-	EyeAngles[0] = 0;
+	
 
 	new Health = KvGetNum(kv, "health", 0);
 	if(Health > 0)
@@ -1370,14 +1369,32 @@ public PropSpawn(client, param2)
 		SetEntProp(Ent, Prop_Data, "m_takedamage", DAMAGE_YES, 1);
 		SetEntProp(Ent, Prop_Data, "m_iHealth", Health);
 	}
-	//FurnitureOriginBackup = FurnitureOrigin;
-	TeleportEntity(Ent, FurnitureOrigin, EyeAngles, NULL_VECTOR);
-	//Check if ent is stuck in a player prop, kill
-	// if (CheckStuckInEntity(Ent))
-	// {
+
+
 	new String:propModelName[128];
 	GetEntPropString(Ent, Prop_Data, "m_ModelName", propModelName, 128);
 	PrintToServer("MODEL NAME: %s", propModelName);
+
+	//FurnitureOriginBackup = FurnitureOrigin;
+    if (StrEqual(propModelName, "models/static_afghan/prop_panj_stairs.mdl"))
+    {
+    	FurnitureOrigin[0] = (ClientOrigin[0] + (1 * Cosine(DegToRad(EyeAngles[1]))));
+		FurnitureOrigin[1] = (ClientOrigin[1] + (1 * Sine(DegToRad(EyeAngles[1]))));
+		FurnitureOrigin[2] = (ClientOrigin[2] + KvGetNum(kv, "height", 100));
+		EyeAngles[0] = 0;
+		TeleportEntity(Ent, FurnitureOrigin, EyeAngles, NULL_VECTOR);
+    }
+    else
+    {
+    	FurnitureOrigin[0] = (ClientOrigin[0] + (50 * Cosine(DegToRad(EyeAngles[1]))));
+		FurnitureOrigin[1] = (ClientOrigin[1] + (50 * Sine(DegToRad(EyeAngles[1]))));
+		FurnitureOrigin[2] = (ClientOrigin[2] + KvGetNum(kv, "height", 100));
+		EyeAngles[0] = 0;
+		TeleportEntity(Ent, FurnitureOrigin, EyeAngles, NULL_VECTOR);
+    }
+	//Check if ent is stuck in a player prop, kill
+	// if (CheckStuckInEntity(Ent))
+	// {
 	// 	PrintToChat(client, "A person is in the way!");
 	// 	PrintHintText(client, "A player in the way!");
 	// 	if(Ent != -1)
@@ -1394,7 +1411,6 @@ public PropSpawn(client, param2)
 	// 	FurnitureOrigin[2] = FurnitureOrigin[2] - PropDistGround;
 	// 	TeleportEntity(Ent, FurnitureOrigin, EyeAngles, NULL_VECTOR);
 	// }
-    
 	SetEntityMoveType(Ent, MOVETYPE_NONE);   
 	CloseHandle(kv);
 	
