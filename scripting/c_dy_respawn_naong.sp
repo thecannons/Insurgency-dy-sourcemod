@@ -382,7 +382,6 @@ new
 	Float:g_flMaxObjectiveDistanceNav,
 	Float:g_flSpawnAttackDelay,
 	Float:g_flMinCounterattackDistance,
-	Float:g_tMinPlayerDistMult,
 
 	//Elite bots Counters
 	g_ins_bot_count_checkpoint_max_org,
@@ -2250,6 +2249,14 @@ CheckSpawnPoint(Float:vecSpawn[3],client,Float:tObjectiveDistance,Int:m_nActiveP
 	new Float:distance,Float:furthest,Float:closest=-1.0;
 	new Float:vecOrigin[3];
 	GetClientAbsOrigin(client,vecOrigin);
+	new Float:tMinPlayerDistMult = 0;
+
+	// new acp = (Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex") - 1);
+	// new acp2 = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
+	// new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
+	// if (acp == (acp2 - 1))
+	// 	tMinPlayerDistMult = 2000;
+
 	//Update player spawns before we check against them
 	UpdatePlayerOrigins();
 	//Lets go through checks to find a valid spawn point
@@ -2272,7 +2279,7 @@ CheckSpawnPoint(Float:vecSpawn[3],client,Float:tObjectiveDistance,Int:m_nActiveP
 		
 		if (GetClientTeam(iTarget) != m_iTeam) {
 			// If we are too close
-			if (distance < (g_flMinPlayerDistance + g_tMinPlayerDistMult)) {
+			if (distance < (g_flMinPlayerDistance + tMinPlayerDistMult)) {
 				 return 0;
 			}
 			// If the player can see the spawn point (divided CanSeeVector to slightly reduce strictness)
@@ -2419,35 +2426,35 @@ public GetPushPointIndex(Float:fRandomFloat)
 	//new Float:distance = GetVectorDistance(vecSpawn,m_vCPPositions[m_nActivePushPointIndex]);
 	//Check last point	
  		
-
- 	g_tMinPlayerDistMult = 0; 
-	if (((acp+1) == ncp) || (Ins_InCounterAttack()) || (m_nActivePushPointIndex > 1))
+	if (((acp+1) >= ncp) || (Ins_InCounterAttack()) || (m_nActivePushPointIndex > 1))
  	{
  		//PrintToServer("###POINT_MOD### | fRandomFloat: %f | g_dynamicSpawnCounter_Perc %f ",fRandomFloat, g_dynamicSpawnCounter_Perc);
- 		if ((acp+1) == ncp)
+ 		if ((acp+1) >= ncp)
  			m_nActivePushPointIndex--;
- 		else if (Ins_InCounterAttack() && (acp+1) != ncp)
+ 		else
  		{
- 			if (fRandomFloat <= 0.5 && m_nActivePushPointIndex > 1)
- 				m_nActivePushPointIndex--;
- 			else
- 				m_nActivePushPointIndex++;
- 		}
- 		else if (!Ins_InCounterAttack())
- 		{
- 			if (m_nActivePushPointIndex > 1)
- 			{
- 				if (fRandomFloat <= 0.5)
- 				{
- 					m_nActivePushPointIndex-=2;
- 				}
- 				else
- 				{
- 					m_nActivePushPointIndex--; //We increase the minplayer distance if this happens
- 					g_tMinPlayerDistMult = 2000; 
- 				}
- 			}
- 		}
+	 		if (Ins_InCounterAttack() && (acp+1) != ncp)
+	 		{
+	 			if (fRandomFloat <= 0.5 && m_nActivePushPointIndex > 1)
+	 				m_nActivePushPointIndex--;
+	 			else
+	 				m_nActivePushPointIndex++;
+	 		}
+	 		else if (!Ins_InCounterAttack())
+	 		{
+	 			if (m_nActivePushPointIndex > 1)
+	 			{
+	 				//if (fRandomFloat <= 0.5)
+	 				//{
+	 					m_nActivePushPointIndex = m_nActivePushPointIndex - 2;
+	 				//}
+	 				//else
+	 				//{
+	 				//	m_nActivePushPointIndex--; //We increase the minplayer distance if this happens
+	 				//}
+	 			}
+	 		}
+	 	}
 
  	}
  	return m_nActivePushPointIndex;
@@ -3215,7 +3222,7 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 			EnableDisableEliteBotCvars(1, 0);
 			new tCvar = FindConVar("ins_bot_count_checkpoint_max");
 			new tCvarIntValue = GetConVarInt(FindConVar("ins_bot_count_checkpoint_max"));
-			tCvarIntValue += 4;
+			tCvarIntValue += 5;
 			SetConVarInt(tCvar, tCvarIntValue, true, false);
 		}
 	}
