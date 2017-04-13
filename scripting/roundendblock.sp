@@ -126,6 +126,11 @@ new g_iCPSpeedUpMax;
 new g_iCPSpeedUpRate;
 new g_bIsCounterAttackTimerActive = false;
 
+new g_isConquer,
+	g_isOutpost,
+	g_isCheckpoint,
+	g_isHunt;
+
 public void OnPluginStart() {
 	// cvars
 	sm_roundendblock_enabled = CreateConVar("sm_roundendblock_enabled", "1", "Coop bot Enabled", FCVAR_NOTIFY);
@@ -201,6 +206,37 @@ public OnMapStart()
 	g_iCPSpeedUpRate = GetConVarInt(g_hCvarCPSpeedUpRate);
 
 	g_announceTick = g_max_AnnounceTime;
+	g_isConquer = 0;
+	g_isHunt = 0;
+	g_isCheckpoint = 0;
+	g_isOutpost = 0;
+	
+	// Check gamemode
+	decl String:sGameMode[32];
+	GetConVarString(FindConVar("mp_gamemode"), sGameMode, sizeof(sGameMode));
+	if (StrEqual(sGameMode,"hunt")) // if Hunt?
+	{
+		g_isHunt = 1;
+	   	//SetConVarFloat(sm_respawn_fatal_chance, 0.1, true, false);
+	   	//SetConVarFloat(sm_respawn_fatal_head_chance, 0.2, true, false);
+	}
+	if (StrEqual(sGameMode,"conquer")) // if conquer?
+	{
+		g_isConquer = 1;
+	   	//SetConVarFloat(sm_respawn_fatal_chance, 0.4, true, false);
+	   	//SetConVarFloat(sm_respawn_fatal_head_chance, 0.4, true, false);
+	}
+	if (StrEqual(sGameMode,"outpost")) // if conquer?
+	{
+		g_isOutpost = 1;
+	   	//SetConVarFloat(sm_respawn_fatal_chance, 0.4, true, false);
+	   	//SetConVarFloat(sm_respawn_fatal_head_chance, 0.4, true, false);
+	}
+	if (StrEqual(sGameMode,"checkpoint")) // if Hunt?
+	{
+		g_isCheckpoint = 1;
+	}
+
 	CreateTimer(1.0, Timer_AnnounceSaves, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 	
 
@@ -313,7 +349,7 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 	
 	new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
 
-	if (ncp < 6)
+	if (ncp < 6 || g_isConquer == 1 || g_isHunt == 1 || g_isOutpost == 1)
 	{
 		if (g_iRoundBlockCount > 1)
 			g_iRoundBlockCount = 1;
