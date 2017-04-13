@@ -2251,11 +2251,11 @@ CheckSpawnPoint(Float:vecSpawn[3],client,Float:tObjectiveDistance,Int:m_nActiveP
 	GetClientAbsOrigin(client,vecOrigin);
 	new Float:tMinPlayerDistMult = 0;
 
-	// new acp = (Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex") - 1);
-	// new acp2 = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
-	// new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
-	// if (acp == (acp2 - 1))
-	// 	tMinPlayerDistMult = 2000;
+	new acp = (Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex") - 1);
+	new acp2 = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
+	//new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
+	if (acp == (acp2 - 1))
+		tMinPlayerDistMult = 2000;
 
 	//Update player spawns before we check against them
 	UpdatePlayerOrigins();
@@ -2374,10 +2374,10 @@ CheckSpawnPointPlayers(Float:vecSpawn[3],client) {
 
 
 	// Get the number of control points
-	new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
+	//new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
 	
 	// Get active push point
-	new acp = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
+	//new acp = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
 
 	//If any player is too far
 	if (closest > g_flMaxPlayerDistance) {
@@ -2444,14 +2444,14 @@ public GetPushPointIndex(Float:fRandomFloat)
 	 		{
 	 			if (m_nActivePushPointIndex > 1)
 	 			{
-	 				//if (fRandomFloat <= 0.5)
-	 				//{
-	 					m_nActivePushPointIndex = m_nActivePushPointIndex - 2;
-	 				//}
-	 				//else
-	 				//{
-	 				//	m_nActivePushPointIndex--; //We increase the minplayer distance if this happens
-	 				//}
+	 				if (fRandomFloat <= 0.5)
+	 				{
+	 					m_nActivePushPointIndex++;
+	 				}
+	 				else
+	 				{
+	 					m_nActivePushPointIndex--; //We increase the minplayer distance if this happens
+	 				}
 	 			}
 	 		}
 	 	}
@@ -2466,6 +2466,7 @@ float GetSpawnPoint_SpawnPoint(client) {
 	int m_iTeamNum;
 	float vecSpawn[3];
 	float vecOrigin[3];
+	new distance;
 	GetClientAbsOrigin(client,vecOrigin);
 	new Float:fRandomFloat = GetRandomFloat(0, 1.0);
 
@@ -2484,7 +2485,7 @@ float GetSpawnPoint_SpawnPoint(client) {
 		if (m_iTeamNum == m_iTeam) {
 			GetEntPropVector(point, Prop_Send, "m_vecOrigin", vecSpawn);
 			Ins_ObjectiveResource_GetPropVector("m_vCPPositions",m_vCPPositions[m_nActivePushPointIndex],m_nActivePushPointIndex);
-			new distance = GetVectorDistance(vecSpawn,m_vCPPositions[m_nActivePushPointIndex]);
+			distance = GetVectorDistance(vecSpawn,m_vCPPositions[m_nActivePushPointIndex]);
 			if (CheckSpawnPoint(vecSpawn,client,tObjectiveDistance,m_nActivePushPointIndex)) {
 				vecSpawn = GetInsSpawnGround(point, vecSpawn);
 				//new m_nActivePushPointIndex = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
@@ -2508,7 +2509,7 @@ float GetSpawnPoint_SpawnPoint(client) {
 			GetEntPropVector(point2, Prop_Send, "m_vecOrigin", vecSpawn);
 
 			Ins_ObjectiveResource_GetPropVector("m_vCPPositions",m_vCPPositions[m_nActivePushPointIndex],m_nActivePushPointIndex);
-			new distance = GetVectorDistance(vecSpawn,m_vCPPositions[m_nActivePushPointIndex]);
+			distance = GetVectorDistance(vecSpawn,m_vCPPositions[m_nActivePushPointIndex]);
 			if (CheckSpawnPoint(vecSpawn,client,tObjectiveDistance,m_nActivePushPointIndex)) {
 				vecSpawn = GetInsSpawnGround(point2, vecSpawn);
 				//new m_nActivePushPointIndex = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
@@ -2531,7 +2532,7 @@ float GetSpawnPoint_SpawnPoint(client) {
 		if (m_iTeamNum == m_iTeam) {
 			GetEntPropVector(point3, Prop_Send, "m_vecOrigin", vecSpawn);
 			Ins_ObjectiveResource_GetPropVector("m_vCPPositions",m_vCPPositions[m_nActivePushPointIndex],m_nActivePushPointIndex);
-			new distance = GetVectorDistance(vecSpawn,m_vCPPositions[m_nActivePushPointIndex]);
+			distance = GetVectorDistance(vecSpawn,m_vCPPositions[m_nActivePushPointIndex]);
 			if (CheckSpawnPoint(vecSpawn,client,tObjectiveDistance,m_nActivePushPointIndex)) {
 				vecSpawn = GetInsSpawnGround(point3, vecSpawn);
 				//new m_nActivePushPointIndex = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
@@ -2549,28 +2550,31 @@ float GetSpawnPoint_SpawnPoint(client) {
 	new pointFinal = FindEntityByClassname(-1, "ins_spawnpoint");
 	tObjectiveDistance = ((g_flMaxObjectiveDistance + 100) * 4);
 	m_nActivePushPointIndex = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
+	//m_nActivePushPointIndex = GetPushPointIndex(fRandomFloat);
+	if (m_nActivePushPointIndex > 1)
+	{	
+		if ((acp+1) >= ncp)
+			m_nActivePushPointIndex--;
+		else
+		{
+			m_nActivePushPointIndex++;
+			// if (fRandomFloat <= 0.3)
+			// {
+			// 	m_nActivePushPointIndex -= 1;
+			// }
+			// else
+			// {
+			// 	m_nActivePushPointIndex++; //We increase the minplayer distance if this happens
+			// }
+		}
+	}
 	while (pointFinal != -1) {
 		m_iTeamNum = GetEntProp(pointFinal, Prop_Send, "m_iTeamNum");
 		if (m_iTeamNum == m_iTeam) {
 			GetEntPropVector(pointFinal, Prop_Send, "m_vecOrigin", vecSpawn);
-			//m_nActivePushPointIndex = GetPushPointIndex(fRandomFloat);
-			if (m_nActivePushPointIndex > 1)
- 			{	if ((acp+1) >= ncp)
- 					m_nActivePushPointIndex -= 2;
- 				else
- 				{
-	 				if (fRandomFloat <= 0.3)
-	 				{
-	 					m_nActivePushPointIndex -= 2;
-	 				}
-	 				else
-	 				{
-	 					m_nActivePushPointIndex++; //We increase the minplayer distance if this happens
-	 				}
-	 			}
- 			}
+			
 			Ins_ObjectiveResource_GetPropVector("m_vCPPositions",m_vCPPositions[m_nActivePushPointIndex],m_nActivePushPointIndex);
-			new distance = GetVectorDistance(vecSpawn,m_vCPPositions[m_nActivePushPointIndex]);
+			distance = GetVectorDistance(vecSpawn,m_vCPPositions[m_nActivePushPointIndex]);
 			if (CheckSpawnPoint(vecSpawn,client,tObjectiveDistance,m_nActivePushPointIndex)) {
 				vecSpawn = GetInsSpawnGround(pointFinal, vecSpawn);
 				//new m_nActivePushPointIndex = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
@@ -7242,7 +7246,7 @@ public Action:FireScreamCheckTimer(Handle:timer, any:entity)
 				PlayerFireScreamRand(client);
 				new fRandomInt = GetRandomInt(20, 30);
 				g_plyrFireScreamCoolDown[client] = fRandomInt;
-				//CloseHandle(trace); 
+				//CloseHandle(trace);  
 			}
 		}
 	}

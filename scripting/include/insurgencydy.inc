@@ -635,7 +635,7 @@ stock PlayerGrenadeScreamRand(client)
 
 stock PlayerFireScreamRand(client)
 {
-	PrintToServer("SCREAM FIRE");
+	//PrintToServer("SCREAM FIRE");
 	
 	switch(GetRandomInt(1, 5))
 	{
