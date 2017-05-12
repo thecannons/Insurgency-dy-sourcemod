@@ -19,7 +19,8 @@
 #define UPDATE_URL    ""
 
 #define MAX_FILE_LEN 80
-
+#define DMG_GENERIC	2056
+#define DMG_GRENADE_IMPACT	1
 new Handle:cvarVersion = INVALID_HANDLE; // version cvar!
 new Handle:cvarEnabled = INVALID_HANDLE; // are we enabled?
 new Handle:cvarDeathChance = INVALID_HANDLE; //global death chance
@@ -30,7 +31,6 @@ new Handle:cvar_yelling_delay = INVALID_HANDLE; //Yelling delay time
 new Handle:cvar_jammer_range = INVALID_HANDLE; //Range of jammer
 new Handle:cvar_jammer_chance = INVALID_HANDLE; //Chance jammer has to jam bomber
 new g_ClientBombs[MAXPLAYERS+1];
-new Float:g_BomberLastPos[MAXPLAYERS+1][3];
 new String:g_client_last_classstring[MAXPLAYERS+1][64];
 //new bool:bEnabled = false;
 new g_isDetonating[MAXPLAYERS+1];
@@ -228,7 +228,7 @@ public Action:Timer_BomberLoop(Handle:timer) //this controls bomber loop to chec
 									
 									PrintToServer("[SUICIDE] BOOM");
 									g_isDetonating[bomber] = 1;
-									CheckExplodeHurt(bomber);
+									CheckExplodeHurt(bomber, true);
 								}
 							}
 							else
@@ -237,7 +237,7 @@ public Action:Timer_BomberLoop(Handle:timer) //this controls bomber loop to chec
 									
 								PrintToServer("[SUICIDE] BOOM");
 								g_isDetonating[bomber] = 1;
-								CheckExplodeHurt(bomber);
+									CheckExplodeHurt(bomber, true);
 							}
 						}
 						else
@@ -259,7 +259,7 @@ public FindValidProp_InDistance(client)
 	{
 		new String:propModelName[128];
 		GetEntPropString(prop, Prop_Data, "m_ModelName", propModelName, 128);
-		if (StrEqual(propModelName, "models/static_fittings/antenna02b.mdl"))
+		if (StrEqual(propModelName, "models/sernix/ied_jammer/ied_jammer.mdl"))
 		{
 			new Float:tDistance = (GetEntitiesDistance(client, prop));
 			if (tDistance <= (GetConVarInt(cvar_jammer_range) / 2))
@@ -331,6 +331,38 @@ stock Float:GetEntitiesDistance(ent1, ent2)
 
 	return GetVectorDistance(orig1, orig2);
 } 
+public OnClientPutInServer(client) 
+{ 
+	if (IsFakeClient(client))
+    	SDKHook(client, SDKHook_OnTakeDamage, Hook_OnTakeDamage); 
+} 
+
+public Action:Hook_OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damagetype) 
+{ 
+	 	//PrintToServer("damagetype = %d", damagetype);
+
+	if (IsClientInGame(victim) && IsFakeClient(victim) && (StrContains(g_client_last_classstring[victim], "juggernaut") > -1)) 
+	{ 
+		new ActiveWeapon = GetEntPropEnt(attacker, Prop_Data, "m_hActiveWeapon");
+		if (ActiveWeapon < 0)
+			return Plugin_Continue;
+
+		decl String:sWeapon[32];
+		GetEdictClassname(ActiveWeapon, sWeapon, sizeof(sWeapon));
+		if(IsPlayerAlive(victim) && ((damagetype & DMG_GENERIC) || (damagetype & DMG_GRENADE_IMPACT) || (StrContains(sWeapon, "weapon_defib") > -1) || (StrContains(sWeapon, "weapon_knife") > -1)))
+		{
+			//PrintToServer("PRE: damage: %f", damage);
+			//VICTIM
+			//new Float:locDamage = damage;
+			damage = damage * 0.04; //Reverse damage by 97%
+			//PrintToServer("POST: damage: %f", damage);
+			return Plugin_Changed;
+		}
+	}
+	
+	return Plugin_Continue;
+}
+
 
 public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
 {
@@ -339,7 +371,8 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 	////PrintToServer("[SUICIDE] Victim ID is %d, g_isDetonating: %i",victimId, g_isDetonating);
 	
 	new victim = GetClientOfUserId(victimId);
-	if (!(StrContains(g_client_last_classstring[victim], "bomber") > -1)) //make sure its a bot bomber
+
+	if (!(StrContains(g_client_last_classstring[victim], "bomber") > -1)) 
 	{
 		return;
 	}
@@ -356,7 +389,7 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 		//new Int:victimHealth = GetEventInt(event, "health");
 		GetEventString(event, "weapon", weapon, sizeof(weapon));
 		//PrintToServer("[SUICIDE] victimHealth is: %i, Damage Taken: %i | RETURNING",victimHealth, dmg_taken);
-		
+
 		new Float:fRandom = GetRandomFloat(0.0, 1.0);
 		//PrintToServer("[SUICIDE] Weapon used: %s, Damage done: %i",weapon, dmg_taken);
 
@@ -366,12 +399,13 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 			//incens
 			//grenade_molotov, grenade_anm14
 			//grenade_m67, grenade_f1, grenade_ied, grenade_c4, rocket_rpg7, rocket_at4, grenade_gp25_he, grenade_m203_he
-			if (StrEqual(weapon, "grenade_anm14", false) || StrEqual(weapon, "grenade_molotov", false))
+			if (StrEqual(weapon, "grenade_anm14", false) || StrEqual(weapon, "grenade_molotov", false) ||
+				StrEqual(weapon, "grenade_m79_incen", false))
 			{
 				//PrintToServer("[SUICIDE] incen/molotov DETECTED!");
 				if (fRandom < fIncenDeathChance)
 				{
-					CheckExplodeHurt(victim);
+					CheckExplodeHurt(victim, false);
 				}
 			}
 			else if (StrEqual(weapon, "grenade_m67", false) || 
@@ -380,7 +414,8 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 				StrEqual(weapon, "grenade_c4", false) || 
 				StrEqual(weapon, "rocket_rpg7", false) || 
 				StrEqual(weapon, "rocket_at4", false) || 
-				StrEqual(weapon, "grenade_gp25_he", false) || 
+				StrEqual(weapon, "rocket_law", false) || 
+				StrEqual(weapon, "grenade_m79", false) || 
 				StrEqual(weapon, "grenade_m203_he", false))
 			{
 				//PrintToServer("[SUICIDE] Explosive DETECTED!");
@@ -388,14 +423,14 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 				{
 					if (fRandom < fExplosiveDeathChance)
 					{
-						CheckExplodeHurt(victim);
-					}
+						CheckExplodeHurt(victim, false);
+					} 
 				}
 				else if (dmg_taken < 50.0) 
 				{
 					if (fRandom < 0.10) //10% chance
 					{
-						CheckExplodeHurt(victim);
+						CheckExplodeHurt(victim, false);
 					}
 				}
 			}
@@ -407,20 +442,20 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 		}
 		else if (hitgroup == 2 || hitgroup == 3)
 		{
-			if (dmg_taken >= 50.0)
+				if (dmg_taken >= 30.0)
 				{
 					//if (fRandom < 0.75) // To compensate for higher caliber rifles that may kill target in 1-2 shots we raise chance o 75%
 					if (fRandom < fChestStomachDeathChance)
 					{
-						CheckExplodeHurt(victim);
+						CheckExplodeHurt(victim, false);
 					}
 				}
-				else if (dmg_taken < 50.0) 
+				else if (dmg_taken < 30.0) 
 				{
 					//PrintToServer("[SUICIDE] Chest/Stomach shot");
-					if (fRandom < fChestStomachDeathChance)
+					if (fRandom < (fChestStomachDeathChance - 0.1))
 					{
-						CheckExplodeHurt(victim);
+						CheckExplodeHurt(victim, false);
 					}
 				}
 		}
@@ -428,9 +463,10 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 		{
 			if (fRandom < 0.25) //25% chance if shot in legs/arms to panic detonate
 			{
-				CheckExplodeHurt(victim);
+				CheckExplodeHurt(victim, true);
 			}
 		}
+		
 	}
 	//PrintToServer("[SUICIDE] EventDeath: Victim ID is %d, g_isDetonating: %i",victimId, g_isDetonating);
 	
@@ -466,7 +502,7 @@ public Action:Timer_DetonatePeriod(Handle:timer, any:client)
 	
 	return Plugin_Continue;
 }
-public CheckExplodeHurt(client) {
+public CheckExplodeHurt(client, yellBool) {
 	g_isDetonating[client] = 1;
 	//new m_iSquad = GetEntProp(client, Prop_Send, "m_iSquad");
 	//new m_iSquadSlot = GetEntProp(client, Prop_Send, "m_iSquadSlot");
@@ -497,7 +533,8 @@ public CheckExplodeHurt(client) {
         // WritePackCell(bomberPack, ent);
 
 		if (DispatchSpawn(ent)) {
-			YellDetonateSound(client);
+			if (yellBool == true)
+				YellDetonateSound(client);
 			//PrintToChatAll("\x05Suicide Bomber detonated bomb.");
 			
 			DealDamage(ent,280,client,DMG_BLAST,"weapon_c4_ied");

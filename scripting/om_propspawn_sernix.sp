@@ -19,9 +19,10 @@
 // \insurgency\insurgency_models.vpk\models\static_afghan\prop_fortification_hesco_large.mdl   Large hesco
 // insurgency2\insurgency\insurgency_models.vpk\models\iraq\ir_hesco_basket_01_row.mdl  Large 4 Hesco (need to engineers 10 points each)
 //Ammo crates
-//models\generic\ammocrate3.mdl
-//models\static_props\wcache_crate_01.mdl
- 
+//models/static_fittings/antenna02b.mdl //Old jammer
+//models/static_props/wcache_crate_01.mdl //Old Ammo cache
+//models/sernix/ied_jammer/ied_jammer.mdl //New jammer
+//models/sernix/ammo_cache/ammo_cache_small.mdl //New Cache
  //Ramp for engineer
 //\models\static_afghan\prop_panj_stairs.mdl
 
@@ -113,8 +114,8 @@ new Handle:hIntegDegrade = INVALID_HANDLE;
 new Handle:hDegradeMultiplier = INVALID_HANDLE;
 new Handle:hIntegRepair = INVALID_HANDLE;
 new Handle:ConstructTimers[MAXPLAYERS+1];
-new	g_integrityDegrade = 400;
-new	g_integrityRepair = 200;
+new	g_integrityDegrade = 4000;
+new	g_integrityRepair = 1000;
 new g_CvarYellChance;
 
 // Status
@@ -165,8 +166,8 @@ public OnPluginStart()
 	// Control ConVars. 1 Team Only, Public Enabled etc.
 	hTeamOnly = CreateConVar("om_prop_teamonly", "0", "0 is no team restrictions, 1 is Terrorist and 2 is CT. Default: 2");
 	hAdminOnly = CreateConVar("om_prop_public", "0", "0 means anyone can use this plugin. 1 means admins only (no credits used)");
-	hIntegDegrade = CreateConVar("om_integrity_degrade", "200", "This is the amount that degrades from the prop when enemy bots are near it per bot, per 3 second");
-	hIntegRepair = CreateConVar("om_integrity_repair", "100", "When a engineer is repairing, this amount repairs per 3 second.");
+	hIntegDegrade = CreateConVar("om_integrity_degrade", "4000", "This is the amount that degrades from the prop when enemy bots are near it per bot, per 3 second");
+	hIntegRepair = CreateConVar("om_integrity_repair", "1000", "When a engineer is repairing, this amount repairs per 3 second.");
 
 	// Create the version convar!
 	CreateConVar("om_propspawn_version", sVersion, "OM Prop Spawn Version",FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_UNLOGGED|FCVAR_DONTRECORD|FCVAR_REPLICATED|FCVAR_NOTIFY);
@@ -232,7 +233,7 @@ public OnMapStart()
 }
 public Action:Timer_MapStart(Handle:Timer)
 {
-	CreateTimer(3.0, Timer_Monitor_Props,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(2.0, Timer_Monitor_Props,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 }
 
 
@@ -350,12 +351,12 @@ public Action:Timer_MonitorAntennas(Handle:Timer)
 //Find Valid Prop
 public FindValidAntenna()
 {
-	new prop;
+	new prop = -1;
 	while ((prop = FindEntityByClassname(prop, "prop_dynamic_override")) != INVALID_ENT_REFERENCE)
 	{
-		new String:propModelName[128];
+		decl String:propModelName[128];
 		GetEntPropString(prop, Prop_Data, "m_ModelName", propModelName, 128);
-		if (StrEqual(propModelName, "models/static_fittings/antenna02b.mdl"))
+		if (StrEqual(propModelName, "models/sernix/ied_jammer/ied_jammer.mdl"))
 		{
 			return prop;
 		}
@@ -367,7 +368,7 @@ public FindValidAntenna()
 public GetPropType(entity)
 {
 	new propType = 0; //1 == Sandbag, 2 == Barbwire, 3 == other
-	new String:propModelName[128];
+	decl String:propModelName[128];
 	GetEntPropString(entity, Prop_Data, "m_ModelName", propModelName, 128);
 	//PrintToServer("MODEL NAME: %s", propModelName);
 	if (StrEqual(propModelName, "models/fortifications/barbed_wire_02b.mdl"))
@@ -378,13 +379,17 @@ public GetPropType(entity)
 	{
 		propType = 1;
 	}
-	else if (StrEqual(propModelName, "models/static_fittings/antenna02b.mdl") || StrEqual(propModelName, "models/static_afghan/prop_panj_stairs.mdl"))
+	else if (StrEqual(propModelName, "models/sernix/ied_jammer/ied_jammer.mdl"))
 	{
 		propType = 3;
 	}
-	else if (StrEqual(propModelName, "models/static_props/wcache_crate_01.mdl"))
+	else if (StrEqual(propModelName, "models/sernix/ammo_cache/ammo_cache_small.mdl"))
 	{
 		propType = 4;
+	}
+	else if (StrEqual(propModelName, "models/static_afghan/prop_panj_stairs.mdl")) //Ramp
+	{
+		propType = 5;
 	}
 	return propType;
 
@@ -401,15 +406,14 @@ public Action:Timer_Monitor_Props(Handle:Timer)
 			//PrintToServer("DEBUG 2");
 			for(new i=0; i<=iPropNo[client]; i++)
 			{
-				new String:EntName[MAX_NAME_LENGTH+5];
+				decl String:EntName[MAX_NAME_LENGTH+5];
 				Format(EntName, sizeof(EntName), "OMPropSpawnProp%d_number%d", client, i);
 				new prop = Entity_FindByName(EntName);
 				if(prop != -1)
 				{	
+					//Check bots near engineer props and reduce integrity
 					new isNearby = Check_NearbyBots(prop);
 					new propType = GetPropType(prop);
-
-
 					if (isNearby == true)
 					{
 						//PrintToServer("g_integrityDegrade %d", g_integrityDegrade);
@@ -418,7 +422,7 @@ public Action:Timer_Monitor_Props(Handle:Timer)
 							g_propIntegrity[i] = g_propIntegrity[i] - (g_integrityDegrade / 6);
 							//Hurt_NearbyBots(prop, client);
 						}
-						else if (propType == 1 || propType == 3) //Degrade normal for defense fortifications
+						else if (propType !=  2) //Degrade normal for defense fortifications
 						{
 							g_propIntegrity[i] = g_propIntegrity[i] - g_integrityDegrade;
 						}
@@ -431,14 +435,14 @@ public Action:Timer_Monitor_Props(Handle:Timer)
 
 							//Refund for prop
 							new propParam = g_engineerParam[iPropNo[i]];
-							new String:prop_choice[255];
+							decl String:prop_choice[255];
 							GetMenuItem(om_public_prop_menu, propParam, prop_choice, sizeof(prop_choice));
-							new String:name[255];
+							decl String:name[255];
 							GetClientName(client, name, sizeof(name));
 
 							decl String:modelname[255];
 							new Price;
-							new String:file[255];
+							decl String:file[255];
 							BuildPath(Path_SM, file, 255, "configs/om_public_props.txt");
 							new Handle:kv = CreateKeyValues("Props");
 							FileToKeyValues(kv, file);
@@ -479,12 +483,13 @@ public Action:Timer_Monitor_Props(Handle:Timer)
 					//PrintToServer("DEBUG 6");
 					for(new i=0; i<=iPropNo[engineerCheck]; i++)
 					{
-						new String:EntName[MAX_NAME_LENGTH+5];
+						decl String:EntName[MAX_NAME_LENGTH+5];
 						Format(EntName, sizeof(EntName), "OMPropSpawnProp%d_number%d", engineerCheck, i);
 						new prop = Entity_FindByName(EntName);
 						//Need another engineer to test
 						if(prop != -1)
 						{	
+							
 							//PrintToServer("DEBUG 7");
 							//Get position of bot and prop
 							new Float:plyrOrigin[3];
@@ -496,21 +501,6 @@ public Action:Timer_Monitor_Props(Handle:Timer)
 							
 							//determine distance from the two
 							fDistance = GetVectorDistance(propOrigin,plyrOrigin);
-
-							isStuck[client] = false;
-							isStuck[client] = IsStuckInEnt(client, prop); // Check if player stuck in prop
-							
-							if (fDistance <= 250 && isStuck[client] == true)
-							{
-								if (g_isSolid[iPropNo[i]] == true)
-								{
-									//PrintToChatAll("Object = NOT SOLID");
-									//DispatchKeyValue(prop, "Solid", "0");  
-									g_isSolid[iPropNo[i]] = false;
-									//PrintToServer("DEBUG 8");
-								}
-							}
-
 
 							// Target is prop
 							new tPropTarget = GetClientAimTarget(client, false);
@@ -552,26 +542,34 @@ public Action:Timer_Monitor_Props(Handle:Timer)
 									new propType = GetPropType(prop);
 									if (propType == 3) //Max health 500 for antenna / ramp
 									{
-										if (propIntegrity > 500)
+										if (propIntegrity > 3750)
 										{
-											propIntegrity = 500;
-											g_propIntegrity[i] = 500;
+											propIntegrity = 3750;
+											g_propIntegrity[i] = 3750;
 										}
 									}
 									else if (propType == 4) //Max health 250 for ammoboxes
 									{
-										if (propIntegrity > 250)
+										if (propIntegrity > 1875)
 										{
-											propIntegrity = 250;
-											g_propIntegrity[i] = 250;
+											propIntegrity = 1875;
+											g_propIntegrity[i] = 1875;
+										}
+									}
+									else if (propType == 5) //ramp
+									{
+										if (propIntegrity > 7500)
+										{
+											propIntegrity = 7500;
+											g_propIntegrity[i] = 7500;
 										}
 									}
 									else
 									{
-										if (propIntegrity > 1000)
+										if (propIntegrity > 12000)
 										{
-											propIntegrity = 1000;
-											g_propIntegrity[i] = 1000;
+											propIntegrity = 12000;
+											g_propIntegrity[i] = 12000;
 										}
 									}
 									decl String:sBuf[255];
@@ -859,7 +857,7 @@ public Action:Event_PlayerPickSquad( Handle:event, const String:name[], bool:don
 	if (client > 0 && !IsFakeClient(client))
 	{	
 		// Get class name
-		decl String:class_template[64];
+		new String:class_template[64];
 		GetEventString(event, "class_template", class_template, sizeof(class_template));
 		
 		// Set class string
@@ -922,7 +920,7 @@ stock KillProps(client)
 	for(new i=0; i<=iPropNo[client]; i++)
 	{
 		g_propIntegrity[i] = 0;
-		new String:EntName[MAX_NAME_LENGTH+5];
+		decl String:EntName[MAX_NAME_LENGTH+5];
 		Format(EntName, sizeof(EntName), "OMPropSpawnProp%d_number%d", client, i);
 		new prop = Entity_FindByName(EntName);
 		if(prop != -1)
@@ -1039,7 +1037,7 @@ public Action:PropCommand(client, args)
 	// 	}
 	// }
 	
-	new String:textPath[255];
+	decl String:textPath[255];
 	BuildPath(Path_SM, textPath, sizeof(textPath), "configs/om_public_props.txt");
 	new Handle:kv = CreateKeyValues("Props");
 	FileToKeyValues(kv, textPath);
@@ -1058,25 +1056,25 @@ PopLoop(Handle:kv, client)
 	{
 		do
 		{
-			new String:buffer[256];
+			decl String:buffer[256];
 			KvGetSectionName(kv, buffer, sizeof(buffer));
 			new admin = KvGetNum(kv, "adminonly", 0);	//New, Allows for admin only props
 			if(admin == 1)
 			{
 				if(Client_IsAdmin(client))
 				{
-					new String:price[256];
+					decl String:price[256];
 					KvGetString(kv, "price", price, sizeof(price), "0");
-					new String:MenuItem[256];
+					decl String:MenuItem[256];
 					Format(MenuItem, sizeof(MenuItem), "%s - Cost: %s", buffer, price);
 					AddMenuItem(om_public_prop_menu, buffer, MenuItem);
 				}
 			}
 			else
 			{
-				new String:price[256];
+				decl String:price[256];
 				KvGetString(kv, "price", price, sizeof(price), "0");
-				new String:MenuItem[256];
+				decl String:MenuItem[256];
 				Format(MenuItem, sizeof(MenuItem), "%s - Cost: %s", buffer, price);
 				AddMenuItem(om_public_prop_menu, buffer, MenuItem);
 			}
@@ -1125,7 +1123,7 @@ public Action:Timer_Construct(Handle timer, Handle pack)
 	{
 		g_ConstructRemainingTime[client] = g_ConstructDeployTime;
 		PropSpawn(client, target);
-		new String:textPath[255];
+		decl String:textPath[255];
 		BuildPath(Path_SM, textPath, sizeof(textPath), "configs/om_public_props.txt");
 		new Handle:kv = CreateKeyValues("Props");
 		FileToKeyValues(kv, textPath);
@@ -1172,7 +1170,7 @@ public Public_Prop_Menu_Handler(Handle:menu, MenuAction:action, param1, param2)
  
 		/* Get item info */
 		//menu.GetItem(param2, info, sizeof(info))
-		if (param2 == 7)
+		if (param2 == 6)
 		{
 			KillProps(param1);
 			PrintHintText(param1, "Deployables Deconstructed");
@@ -1180,7 +1178,7 @@ public Public_Prop_Menu_Handler(Handle:menu, MenuAction:action, param1, param2)
 			 g_ConstructRemainingTime[param1] = g_ConstructDeployTime;
 
 			g_engInMenu[param1] = false;
-			// new String:textPath[255];
+			// decl String:textPath[255];
 			// BuildPath(Path_SM, textPath, sizeof(textPath), "configs/om_public_props.txt");
 			// new Handle:kv = CreateKeyValues("Props");
 			// FileToKeyValues(kv, textPath);
@@ -1196,13 +1194,13 @@ public Public_Prop_Menu_Handler(Handle:menu, MenuAction:action, param1, param2)
 		// 	return Plugin_Stop;
 		// }
 		
-		new String:prop_choice[255];
+		decl String:prop_choice[255];
 	
 		GetMenuItem(om_public_prop_menu, param2, prop_choice, sizeof(prop_choice));
 
 		decl String:modelname[255];
 		new Price;
-		new String:file[255];
+		decl String:file[255];
 		BuildPath(Path_SM, file, 255, "configs/om_public_props.txt");
 		new Handle:kv = CreateKeyValues("Props");
 		FileToKeyValues(kv, file);
@@ -1284,7 +1282,7 @@ public PropSpawn(client, param2)
 	new String:name[255];
 	GetClientName(client, name, sizeof(name));
 	
-	decl String:modelname[255];
+	new String:modelname[255];
 	new Price;
 	new String:file[255];
 	BuildPath(Path_SM, file, 255, "configs/om_public_props.txt");
@@ -1294,7 +1292,7 @@ public PropSpawn(client, param2)
 	KvGetString(kv, "model", modelname, sizeof(modelname),"");
 	Price = KvGetNum(kv, "price", 0);
 	new ClientCredits = iCredits[client];
-	decl String:textToPrintChat[64];
+	new String:textToPrintChat[64];
 
 	if (Price > 0)
 	{
@@ -1514,7 +1512,7 @@ public Action:OnTakeDamagePre(victim, &attacker, &inflictor, &Float:damage, &dam
 				//PrintToServer("DEBUG 6");
 				for(new i=0; i<=iPropNo[engineerCheck]; i++)
 				{
-					new String:EntName[MAX_NAME_LENGTH+5];
+					decl String:EntName[MAX_NAME_LENGTH+5];
 					Format(EntName, sizeof(EntName), "OMPropSpawnProp%d_number%d", engineerCheck, i);
 					new prop = Entity_FindByName(EntName);
 					//Need another engineer to test
@@ -1606,7 +1604,7 @@ OnButtonPress(client, button, buttons)
 		// 	}
 		// }
 		
-		new String:textPath[255];
+		decl String:textPath[255];
 		BuildPath(Path_SM, textPath, sizeof(textPath), "configs/om_public_props.txt");
 		new Handle:kv = CreateKeyValues("Props");
 		FileToKeyValues(kv, textPath);

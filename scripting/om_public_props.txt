@@ -5,7 +5,7 @@
 			"model"			"models/static_fortifications/sandbagwall02.mdl"
 			"height"		"-1"
 			"price"			"2"
-			"health"		"1600"
+			"health"		"12000"
 			"adminonly"     "0" //Means it's admin only if set to 1
 	}
 	"Sandbag Wall"
@@ -13,7 +13,7 @@
 			"model"			"models/static_fortifications/sandbagwall01.mdl"
 			"height"		"-1"
 			"price"			"2"
-			"health"		"1600"
+			"health"		"12000"
 			"adminonly"     "0" //Means it's admin only if set to 1
 	}
 	"Barbed Wire"
@@ -21,7 +21,7 @@
 			"model"			"models/fortifications/barbed_wire_02b.mdl"
 			"height"		"-1"
 			"price"			"2"
-			"health"		"1600"
+			"health"		"12000"
 			"adminonly"     "0" //Means it's admin only if set to 1
 	}
 	"Engineer Ramp"
@@ -29,23 +29,23 @@
 			"model"			"models/static_afghan/prop_panj_stairs.mdl"
 			"height"		"-1"
 			"price"			"4"
-			"health"		"1000"
+			"health"		"7500"
 			"adminonly"     "0" //Means it's admin only if set to 1
 	}
 	"IED Jammer"
 	{
-			"model"			"models/static_fittings/antenna02b.mdl"
+			"model"			"models/sernix/ied_jammer/ied_jammer.mdl"
 			"height"		"-1"
 			"price"			"6"
-			"health"		"500"
+			"health"		"3750"
 			"adminonly"     "0" //Means it's admin only if set to 1
 	}
 	"Ammo Cache"
 	{
-			"model"			"models/static_props/wcache_crate_01.mdl"
+			"model"			"models/sernix/ammo_cache/ammo_cache_small.mdl"
 			"height"		"-1"
-			"price"			"6"
-			"health"		"250"
+			"price"			"8"
+			"health"		"1875"
 			"adminonly"     "0" //Means it's admin only if set to 1
 	}
 		

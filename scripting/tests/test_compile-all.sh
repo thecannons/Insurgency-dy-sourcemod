@@ -3,7 +3,7 @@
 # Bash immediate exit and verbosity
 set -ev
 
-SMPATTERN="http:.*sourcemod-.*-linux.*"
+SMPATTERN="http:.*sourcemod-.*-linux\..*"
 SMURL="http://www.sourcemod.net/smdrop/$SMVERSION/"
 SMPACKAGE=`lynx -dump "$SMURL" | egrep -o "$SMPATTERN" | tail -1`
 TEST_SCRIPT="tests/test_compile-all.sp"
@@ -34,6 +34,6 @@ done <<< "$functions"
 set -e
 
 
-./spcomp -\; "$TEST_SCRIPT"
+./spcomp "$TEST_SCRIPT"
 
 ls *.smx

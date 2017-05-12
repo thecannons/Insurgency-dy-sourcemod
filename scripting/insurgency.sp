@@ -16,7 +16,7 @@ public Plugin:myinfo = {
 #include <sourcemod>
 #include <regex>
 #include <sdktools>
-#include <insurgency>
+#include <insurgencydy>
 #include <loghelper>
 #undef REQUIRE_PLUGIN
 #include <updater>
@@ -74,6 +74,8 @@ public APLRes:Plugin_Setup_natives() {
 	CreateNative("Ins_GetWeaponGetMaxClip1", Native_Weapon_GetMaxClip1);
 	CreateNative("Ins_GetMaxClip1", Native_Weapon_GetMaxClip1);
 	CreateNative("Ins_GetDefaultClip1", Native_Weapon_GetDefaultClip1);
+	CreateNative("Ins_DecrementAmmo", Native_Weapon_DecrementAmmo);
+	CreateNative("Ins_AddMags", Native_Player_AddMags);
 	CreateNative("Ins_GetWeaponName", Native_Weapon_GetWeaponName);
 	CreateNative("Ins_GetWeaponId", Native_Weapon_GetWeaponId);
 
@@ -270,7 +272,7 @@ public OnPluginStart() {
 //	LoadTranslations("insurgency.phrases");
 
 	//UpdateAllDataSources();
-	HookUpdater();
+	//HookUpdater();
 }
 
 public OnCvarLogLevelChange(Handle:cvar, const String:oldVal[], const String:newVal[])
@@ -340,9 +342,9 @@ public GetStatus()
 //}
 //CloseHandle(fileHandle);
 }
-public OnLibraryAdded(const String:name[]) {
-	HookUpdater();
-}
+// public OnLibraryAdded(const String:name[]) {
+// 	HookUpdater();
+// }
 OnPlayerDisconnect(client)
 {
 	if(client > 0 && IsClientInGame(client))
@@ -712,7 +714,29 @@ Weapon_GetDefaultClip1(weapon) {
 	CloseHandle(hCall);
 	return value;
 }
-
+Weapon_DecrementAmmo(weapon, value) {
+	StartPrepSDKCall(SDKCall_Entity);
+	if(!PrepSDKCall_SetFromConf(hGameConf, SDKConf_Virtual, "CINSWeapon::DecrementAmmo")) {
+		SetFailState("PrepSDKCall_SetFromConf CINSWeapon::DecrementAmmo failed"); 
+	}
+	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
+	//PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_ByValue);
+	new Handle:hCall = EndPrepSDKCall();
+	SDKCall(hCall, weapon, value);
+	CloseHandle(hCall);
+}
+Weapon_Player_AddMags(client, ammo) {
+		
+	StartPrepSDKCall(SDKCall_Player);  
+	if(!PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "AddMags")) {
+		SetFailState("PrepSDKCall_SetFromConf CINSWeapon::DecrementAmmo failed"); 
+	}
+	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
+	//PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_ByValue);
+	new Handle:hCall = EndPrepSDKCall();
+	SDKCall(hCall, client, ammo);
+	CloseHandle(hCall);
+}
 public Native_Weapon_GetMaxClip1(Handle:plugin, numParams) {
 	new weapon = GetNativeCell(1);
 	return Weapon_GetMaxClip1(weapon);
@@ -722,6 +746,18 @@ public Native_Weapon_GetDefaultClip1(Handle:plugin, numParams) {
 	new weapon = GetNativeCell(1);
 	return Weapon_GetDefaultClip1(weapon);
 }
+
+public Native_Weapon_DecrementAmmo(Handle:plugin, numParams) {
+	new weapon = GetNativeCell(1);
+	new ammo = GetNativeCell(2);
+	Weapon_DecrementAmmo(weapon, ammo);
+}
+public Native_Player_AddMags(Handle:plugin, numParams) {
+	new client = GetNativeCell(1);
+	new ammo = GetNativeCell(2);
+	Weapon_Player_AddMags(client, ammo);
+}
+
 
 public Native_ObjectiveResource_GetProp(Handle:plugin, numParams)
 {
