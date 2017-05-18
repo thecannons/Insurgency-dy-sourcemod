@@ -87,7 +87,7 @@ new
 	g_AIDir_TeamStatus = 50,
 	g_AIDir_TeamStatus_min = 0,
 	g_AIDir_TeamStatus_max = 100,
-	g_AIDir_BotsKilledReq_mult = 3, 
+	g_AIDir_BotsKilledReq_mult = 4, 
 	g_AIDir_BotsKilledCount = 0,
 	g_AIDir_AnnounceCounter = 0,
 	g_AIDir_AnnounceTrig = 5,
@@ -102,7 +102,7 @@ new
 	g_AIDir_ChangeCond_Rand = 180,
 	g_AIDir_ReinforceTimer_Orig,
 	g_AIDir_ReinforceTimer_SubOrig,
-	g_AIDir_CurrDiff = 0,
+	g_AIDir_RandomDiff = 0,
 	g_AIDir_DiffChanceBase = 0,
 	bool:g_AIDir_BotReinforceTriggered = false;
 
@@ -123,7 +123,6 @@ new
 	g_resupplyDeath[MAXPLAYERS+1],
 	g_ammoResupplyAmt[MAX_ENTITIES+1],
 	g_trackKillDeaths[MAXPLAYERS+1],
-	Float:g_badSpawnPos_Track[MAXPLAYERS+1][3],
 	g_iRespawnCount[4],
 	g_huntReinforceCacheAdd = 120,
 	bool:g_huntCacheDestroyed = false,
@@ -155,9 +154,6 @@ new
 
 new Handle:g_donorTagRemove_Array;
 new Handle:g_playerArrayList;
-
-//Bot Spawning 
-new Handle:g_badSpawnPos_Array;
 
 // Navmesh Init
 new
@@ -559,7 +555,6 @@ public OnPluginStart()
     RegConsoleCmd("sm_serverhelp", serverhelp); 
 	//Create player array list
 	g_playerArrayList = CreateArray();
-	//g_badSpawnPos_Array = CreateArray();
 	RegConsoleCmd("kill", cmd_kill);
 
 
@@ -1024,13 +1019,6 @@ void UpdateRespawnCvars()
 		PrintToChatAll("************EASTER EGG ROUND************");
 	}
 
-
-	// Type of resetting respawn token, Non-checkpoint modes get set to 0 automatically
-	g_iCvar_respawn_reset_type = GetConVarInt(sm_respawn_reset_type);
-
-	if(g_isCheckpoint == 0)
-		g_iCvar_respawn_reset_type = 0;
-
 	// Update Cvars
 	g_iCvar_respawn_enable = GetConVarInt(sm_respawn_enabled);
 	g_iCvar_revive_enable = GetConVarInt(sm_revive_enabled);
@@ -1047,6 +1035,8 @@ void UpdateRespawnCvars()
 	g_iCvar_respawn_type_team_ins = GetConVarInt(sm_respawn_type_team_ins);
 	g_iCvar_respawn_type_team_sec = GetConVarInt(sm_respawn_type_team_sec);
 	
+	// Type of resetting respawn token
+	g_iCvar_respawn_reset_type = GetConVarInt(sm_respawn_reset_type);
 	
 	//Dynamic Respawns
 	g_DynamicRespawn_Distance_mult = GetConVarFloat(sm_respawn_dynamic_distance_multiplier);
@@ -1217,10 +1207,10 @@ public OnMapStart()
 	//g_easterEggRound = false;
 	//Clear player array
 	ClearArray(g_playerArrayList);
+
 	//Dynamic Loadouts
 	g_iCvar_bombers_only = GetConVarInt(sm_bombers_only);
 	g_iCvar_multi_loadout_enabled = GetConVarInt(sm_multi_loadout_enabled);
-
 
 	//Load Dynamic Loadouts?
 	//if (g_iCvar_multi_loadout_enabled == 1)
@@ -1416,8 +1406,6 @@ public Action:Timer_MapStart(Handle:Timer)
 	{
 		g_isHunt = 1;
 		g_iCvar_SpawnMode = 0;
-
-		//Lives given at beginning, change respawn type.
 	   	//SetConVarFloat(sm_respawn_fatal_chance, 0.1, true, false);
 	   	//SetConVarFloat(sm_respawn_fatal_head_chance, 0.2, true, false);
 	}
@@ -1425,8 +1413,6 @@ public Action:Timer_MapStart(Handle:Timer)
 	{
 		g_isConquer = 1;
 		g_iCvar_SpawnMode = 0;
-
-		//Lives given at beginning, change respawn type.
 	   	//SetConVarFloat(sm_respawn_fatal_chance, 0.4, true, false);
 	   	//SetConVarFloat(sm_respawn_fatal_head_chance, 0.4, true, false);
 	}
@@ -1434,8 +1420,6 @@ public Action:Timer_MapStart(Handle:Timer)
 	{
 		g_isOutpost = 1;
 		g_iCvar_SpawnMode = 0;
-
-		//Lives given at beginning, change respawn type.
 	   	//SetConVarFloat(sm_respawn_fatal_chance, 0.4, true, false);
 	   	//SetConVarFloat(sm_respawn_fatal_head_chance, 0.4, true, false);
 	}
@@ -1487,8 +1471,7 @@ public Action:Timer_MapStart(Handle:Timer)
 	CreateTimer(1.0, Timer_AmmoResupply, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 
 	// AI Director Tick
-	if (g_isCheckpoint)
-		CreateTimer(1.0, Timer_AIDirector_Main, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(1.0, Timer_AIDirector_Main, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 
 	// Squad Spawn Notify Leader
 	//if (GetConVarInt(sm_enable_squad_spawning) == 1)
@@ -1508,8 +1491,8 @@ public Action:Timer_MapStart(Handle:Timer)
 	g_bot_attack_aimpenalty_amt_close_mult = 15;
 	g_bot_attack_aimpenalty_amt_far_mult = 40;
 	g_bot_attackdelay_frac_difficulty_impossible_mult = 0.03;
-	g_bot_attack_aimpenalty_time_close_mult = 0.15;
-	g_bot_attack_aimpenalty_time_far_mult = 2;
+	g_bot_attack_aimpenalty_time_close_mult = 0.45;
+	g_bot_attack_aimpenalty_time_far_mult = 4;
 	g_coop_delay_penalty_base = 800;
 	//Get Originals
 	g_ins_bot_count_checkpoint_max_org = GetConVarInt(FindConVar("ins_bot_count_checkpoint_max"));
@@ -2215,13 +2198,11 @@ public Action:Timer_CheckEnemyStatic(Handle:Timer)
 						// If enemy position is static, kill him
 						if (tDistance <= 4 && (capDistance > 800 || g_botStaticGlobal[enemyBot] > 120)) 
 						{
+							//PrintToServer("ENEMY STATIC - KILLING");
+							
 							RemoveWeapons(enemyBot, primaryRemove, secondaryRemove, grenadesRemove);
 							ForcePlayerSuicide(enemyBot);
 							AddLifeForStaticKilling(enemyBot);
-							PrintToServer("ENEMY STATIC - KILLING");
-							g_badSpawnPos_Track[enemyBot] = enemyPos;
-							//PrintToServer("Add to g_badSpawnPos_Array | enemyPos: (%f, %f, %f) | g_badSpawnPos_Array Size: %d", enemyPos[0],enemyPos[1],enemyPos[2], GetArraySize(g_badSpawnPos_Array));
-							//PushArrayArray(g_badSpawnPos_Array, enemyPos, sizeof(enemyPos));
 						}
 						// Update current position
 						else
@@ -2592,8 +2573,6 @@ CheckSpawnPoint(Float:vecSpawn[3],client,Float:tObjectiveDistance,Int:m_nActiveP
 	new m_iTeam = GetClientTeam(client);
 	new Float:distance,Float:furthest,Float:closest=-1.0;
 	new Float:vecOrigin[3];
-	new Float:tBadPos[3];
-
 	GetClientAbsOrigin(client,vecOrigin);
 	new Float:tMinPlayerDistMult = 0;
 
@@ -2654,29 +2633,7 @@ CheckSpawnPoint(Float:vecSpawn[3],client,Float:tObjectiveDistance,Int:m_nActiveP
 		 return 0;
 	}
 
-
-	//Check against bad spawn positions
-	// if (Ins_InCounterAttack())
-	// {
-	// 	for (new client = 0; client < MaxClients; client++) {
-	// 		if (!IsValidClient(client) || client <= 0)
-	// 			continue;
-	// 		if (!IsClientInGame(client))
-	// 			continue;
-	// 		int m_iTeam = GetClientTeam(client);
-	// 		if (IsFakeClient(client) && m_iTeam == TEAM_2)
-	// 		{
-	// 			distance = GetVectorDistance(vecOrigin,g_badSpawnPos_Track[client]);
-	// 		}
-			
-	// 		//GetArrayArray(g_badSpawnPos_Array, badPos, tBadPos, sizeof(tBadPos));
-
-	// 		if (distance <= 600) {
-	// 				PrintToServer("BAD POS DETECTED: (%f, %f, %f)", g_badSpawnPos_Track[client][0], g_badSpawnPos_Track[client][1], g_badSpawnPos_Track[client][2]);
-	// 				return 0;
-	// 			}
-	// 	} 
-	// }
+	
 	//Check distance to point in counterattack
 	// if (Ins_InCounterAttack() || ((acp+1) == ncp)) {
 	// 	new m_nActivePushPointIndex2 = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
@@ -2776,28 +2733,6 @@ CheckSpawnPointPlayers(Float:vecSpawn[3],client) {
 			 return 0;
 
 		} 
-
-	// if (Ins_InCounterAttack())
-	// {
-	// 	for (new client = 0; client < MaxClients; client++) {
-	// 		if (!IsValidClient(client) || client <= 0)
-	// 			continue;
-	// 		if (!IsClientInGame(client))
-	// 			continue;
-	// 		int m_iTeam = GetClientTeam(client);
-	// 		if (IsFakeClient(client) && m_iTeam == TEAM_2)
-	// 		{
-	// 			distance = GetVectorDistance(vecOrigin,g_badSpawnPos_Track[client]);
-	// 		}
-			
-	// 		//GetArrayArray(g_badSpawnPos_Array, badPos, tBadPos, sizeof(tBadPos));
-
-	// 		if (distance <= 600) {
-	// 				PrintToServer("BAD POS DETECTED: (%f, %f, %f)", g_badSpawnPos_Track[client][0], g_badSpawnPos_Track[client][1], g_badSpawnPos_Track[client][2]);
-	// 				return 0;
-	// 			}
-	// 	} 
-	// }
 	 // 	else if (distance > (g_flMaxObjectiveDistance * g_DynamicRespawn_Distance_mult)) {
 	 // 		 return 0;
 	 // }
@@ -3355,8 +3290,6 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 {
 
 
-	//Clear bad spawn array
-	//ClearArray(g_badSpawnPos_Array);
 
 	//Round_Start CVAR Sets ------------------ START -- vs using HookConVarChange
 
@@ -3604,22 +3537,6 @@ public Action:Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadca
 // Check occouring counter attack when control point captured
 public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	//Clear bad spawn array
-	//ClearArray(g_badSpawnPos_Array);
-	for (new client = 0; client < MaxClients; client++) {
-		if (!IsValidClient(client) || client <= 0)
-				continue;
-		if (!IsClientInGame(client))
-			continue;
-		int m_iTeam = GetClientTeam(client);
-		if (IsFakeClient(client) && m_iTeam == TEAM_2)
-		{
-			g_badSpawnPos_Track[client][0] = 0;
-			g_badSpawnPos_Track[client][1] = 0;
-			g_badSpawnPos_Track[client][2] = 0;
-		}
-	} 
-
 	g_checkStaticAmt = GetConVarInt(sm_respawn_check_static_enemy);
 	g_checkStaticAmtCntr = GetConVarInt(sm_respawn_check_static_enemy_counter);
 	// Return if conquer
@@ -3900,24 +3817,6 @@ public Action:Event_ControlPointCaptured_Post(Handle:event, const String:name[],
 // When ammo cache destroyed, update respawn position and reset variables
 public Action:Event_ObjectDestroyed_Pre(Handle:event, const String:name[], bool:dontBroadcast)
 {
-
-
-	//Clear bad spawn array
-	//ClearArray(g_badSpawnPos_Array);
-	for (new client = 0; client < MaxClients; client++) {
-		if (!IsValidClient(client) || client <= 0)
-				continue;
-		if (!IsClientInGame(client))
-			continue;
-		int m_iTeam = GetClientTeam(client);
-		if (IsFakeClient(client) && m_iTeam == TEAM_2)
-		{
-			g_badSpawnPos_Track[client][0] = 0;
-			g_badSpawnPos_Track[client][1] = 0;
-			g_badSpawnPos_Track[client][2] = 0;
-		}
-	} 
-
 	g_checkStaticAmt = GetConVarInt(sm_respawn_check_static_enemy);
 	g_checkStaticAmtCntr = GetConVarInt(sm_respawn_check_static_enemy_counter);
 	// Return if conquer
@@ -4523,12 +4422,6 @@ public Action:cmd_kill(client, args) {
 // When counter-attack end, reset reinforcement time
 public Action:Timer_CounterAttackEnd(Handle:Timer)
 {
-
-
-	//Clear bad spawn array
-	//ClearArray(g_badSpawnPos_Array);
-
-	
 	//g_bIsCounterAttackTimerActive = false;
 	// If round end, exit
 	// if (g_iRoundStatus == 0)
@@ -4569,20 +4462,6 @@ public Action:Timer_CounterAttackEnd(Handle:Timer)
 		cvar = FindConVar("mp_checkpoint_counterattack_always");
 		SetConVarInt(cvar, 0, true, false);
 		
-		for (new client = 0; client < MaxClients; client++) {
-			if (!IsValidClient(client) || client <= 0)
-				continue;
-			if (!IsClientInGame(client))
-				continue;
-			int m_iTeam = GetClientTeam(client);
-			if (IsFakeClient(client) && m_iTeam == TEAM_2)
-			{
-				g_badSpawnPos_Track[client][0] = 0;
-				g_badSpawnPos_Track[client][1] = 0;
-				g_badSpawnPos_Track[client][2] = 0;
-			}
-		} 
-
 		//PrintToServer("[RESPAWN] Counter-attack is over.");
 		return Plugin_Stop;
 	//}
@@ -4609,12 +4488,7 @@ void ResetSecurityLives()
 {
 	// Disable if counquer
 	//if (g_isConquer == 1 || g_isOutpost == 1) return;
-		// The number of control points
-	new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
-	// Active control poin
-	new acp = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
-
-
+	
 	// Return if respawn is disabled
 	if (!g_iCvar_respawn_enable) return;
 	
@@ -4643,20 +4517,7 @@ void ResetSecurityLives()
 				if (g_isConquer == 1 || g_isOutpost == 1 || g_isHunt == 1)
 					g_iSpawnTokens[client] = g_iRespawnCount[iTeam] + 10;
 				else
-				{
-					if (StrContains(g_client_last_classstring[client], "medic") > -1)
-						g_iSpawnTokens[client] = g_iRespawnCount[iTeam] + 1;
-					else
-						{
-							// Final counter attack
-							if ((acp+1) == ncp)
-							{
-								g_iRespawnCount[iTeam] = 1;
-							}
-							else
-								g_iSpawnTokens[client] = g_iRespawnCount[iTeam];
-						}
-				}
+					g_iSpawnTokens[client] = g_iRespawnCount[iTeam];
 			}
 		}
 	}
@@ -5765,15 +5626,15 @@ public Action:Timer_PlayerRespawn(Handle:Timer, any:client)
 					if (g_squadSpawnEnabled[client] == 1)
 					{
 						if (g_squadLeader[client] == -1)
-							Format(sRemainingTime, sizeof(sRemainingTime),"[SQUAD_SPAWN_ENABLED|Type /ss to toggle] This is your first time joining. Squad has no leader! Reinforcing normally in %d second%s (%d lives left) ", g_iRespawnTimeRemaining[client], (g_iRespawnTimeRemaining[client] > 1 ? "s" : ""), g_iSpawnTokens[client]);
+							Format(sRemainingTime, sizeof(sRemainingTime),"[SQUAD_SPAWN_ENABLED|Type /ss to toggle] This is your first time joining. Squad has no leader! You will reinforce normally in %d second%s (%d lives left) ", g_iRespawnTimeRemaining[client], (g_iRespawnTimeRemaining[client] > 1 ? "s" : ""), g_iSpawnTokens[client]);
 						else if (IsValidClient(g_squadLeader[client]) && IsClientInGame(g_squadLeader[client]) && playerPickSquad[g_squadLeader[client]] == 1)
 						{	
 							if (Ins_InCounterAttack())
-								Format(sRemainingTime, sizeof(sRemainingTime),"[SQUAD_SPAWN_ENABLED|Type /ss to toggle] This is your first time joining. Counter-attack in Progress! Reinforcing normally in %d second%s (%d lives left) ", g_iRespawnTimeRemaining[client], (g_iRespawnTimeRemaining[client] > 1 ? "s" : ""), g_iSpawnTokens[client]);
+								Format(sRemainingTime, sizeof(sRemainingTime),"[SQUAD_SPAWN_ENABLED|Type /ss to toggle] This is your first time joining. Counter-attack in Progress! You will reinforce normally in %d second%s (%d lives left) ", g_iRespawnTimeRemaining[client], (g_iRespawnTimeRemaining[client] > 1 ? "s" : ""), g_iSpawnTokens[client]);
 							else if (IsPlayerAlive(g_squadLeader[client]))
 								Format(sRemainingTime, sizeof(sRemainingTime),"[SQUAD_SPAWN_ENABLED|Type /ss to toggle] This is your first time joining. You will squad reinforce on %N in %d second%s (%d lives left) ", g_squadLeader[client], g_iRespawnTimeRemaining[client], (g_iRespawnTimeRemaining[client] > 1 ? "s" : ""), g_iSpawnTokens[client]);
 							else
-								Format(sRemainingTime, sizeof(sRemainingTime),"[SQUAD_SPAWN_ENABLED|Type /ss to toggle] This is your first time joining. Squad leader %N is dead! Reinforcing normally in %d second%s (%d lives left) ", g_squadLeader[client], g_iRespawnTimeRemaining[client], (g_iRespawnTimeRemaining[client] > 1 ? "s" : ""), g_iSpawnTokens[client]);
+								Format(sRemainingTime, sizeof(sRemainingTime),"[SQUAD_SPAWN_ENABLED|Type /ss to toggle] This is your first time joining. Squad leader %N is dead! You will reinforce normally in %d second%s (%d lives left) ", g_squadLeader[client], g_iRespawnTimeRemaining[client], (g_iRespawnTimeRemaining[client] > 1 ? "s" : ""), g_iSpawnTokens[client]);
 						}
 
 					}
@@ -5808,16 +5669,16 @@ public Action:Timer_PlayerRespawn(Handle:Timer, any:client)
 					if (g_squadSpawnEnabled[client] == 1)
 					{
 						if (g_squadLeader[client] == -1)
-								Format(sRemainingTime, sizeof(sRemainingTime),"[SQUAD_SPAWN_ENABLED|Type /ss to toggle] %s for %d damage | If wounded, wait patiently for a medic..do NOT mic/chat spam!\n\n                Squad has no leader! Reinforcing normally in %d second%s (%d lives left) ", woundType, g_clientDamageDone[client], g_iRespawnTimeRemaining[client], (g_iRespawnTimeRemaining[client] > 1 ? "s" : ""), g_iSpawnTokens[client]);
+								Format(sRemainingTime, sizeof(sRemainingTime),"[SQUAD_SPAWN_ENABLED|Type /ss to toggle] %s for %d damage | If wounded, wait patiently for a medic..do NOT mic/chat spam!\n\n                Squad has no leader! You will reinforce normally in %d second%s (%d lives left) ", woundType, g_clientDamageDone[client], g_iRespawnTimeRemaining[client], (g_iRespawnTimeRemaining[client] > 1 ? "s" : ""), g_iSpawnTokens[client]);
 						else if (IsValidClient(g_squadLeader[client]) && IsClientInGame(g_squadLeader[client]) && playerPickSquad[g_squadLeader[client]] == 1)
 						{
 
 							if (Ins_InCounterAttack())
-								Format(sRemainingTime, sizeof(sRemainingTime),"[SQUAD_SPAWN_ENABLED|Type /ss to toggle] %s for %d damage | If wounded, wait patiently for a medic..do NOT mic/chat spam!\n\n                Counter-attack in progress! Reinforcing normally in %d second%s (%d lives left)  ", woundType, g_clientDamageDone[client], g_iRespawnTimeRemaining[client], (g_iRespawnTimeRemaining[client] > 1 ? "s" : ""), g_iSpawnTokens[client]);
+								Format(sRemainingTime, sizeof(sRemainingTime),"[SQUAD_SPAWN_ENABLED|Type /ss to toggle] %s for %d damage | If wounded, wait patiently for a medic..do NOT mic/chat spam!\n\n                Counter-attack in progress! You will reinforce normally in %d second%s (%d lives left)  ", woundType, g_clientDamageDone[client], g_iRespawnTimeRemaining[client], (g_iRespawnTimeRemaining[client] > 1 ? "s" : ""), g_iSpawnTokens[client]);
 							else if (IsPlayerAlive(g_squadLeader[client]))
-								Format(sRemainingTime, sizeof(sRemainingTime),"[SQUAD_SPAWN_ENABLED|Type /ss to toggle] %s for %d damage | If wounded, wait patiently for a medic..do NOT mic/chat spam!\n\n                Squad reinforcing on %N in %d second%s (%d lives left) ", woundType, g_clientDamageDone[client], g_squadLeader[client], g_iRespawnTimeRemaining[client], (g_iRespawnTimeRemaining[client] > 1 ? "s" : ""), g_iSpawnTokens[client]);
+								Format(sRemainingTime, sizeof(sRemainingTime),"[SQUAD_SPAWN_ENABLED|Type /ss to toggle] %s for %d damage | If wounded, wait patiently for a medic..do NOT mic/chat spam!\n\n                You will squad reinforce on %N in %d second%s (%d lives left) ", woundType, g_clientDamageDone[client], g_squadLeader[client], g_iRespawnTimeRemaining[client], (g_iRespawnTimeRemaining[client] > 1 ? "s" : ""), g_iSpawnTokens[client]);
 							else
-								Format(sRemainingTime, sizeof(sRemainingTime),"[SQUAD_SPAWN_ENABLED|Type /ss to toggle] %s for %d damage | If wounded, wait patiently for a medic..do NOT mic/chat spam!\n\n                Squad leader %N is dead! Reinforcing normally in %d second%s (%d lives left) ", woundType, g_clientDamageDone[client], g_squadLeader[client], g_iRespawnTimeRemaining[client], (g_iRespawnTimeRemaining[client] > 1 ? "s" : ""), g_iSpawnTokens[client]);
+								Format(sRemainingTime, sizeof(sRemainingTime),"[SQUAD_SPAWN_ENABLED|Type /ss to toggle] %s for %d damage | If wounded, wait patiently for a medic..do NOT mic/chat spam!\n\n                Squad leader %N is dead! You will reinforce normally in %d second%s (%d lives left) ", woundType, g_clientDamageDone[client], g_squadLeader[client], g_iRespawnTimeRemaining[client], (g_iRespawnTimeRemaining[client] > 1 ? "s" : ""), g_iSpawnTokens[client]);
 						}
 
 					}
@@ -5826,11 +5687,11 @@ public Action:Timer_PlayerRespawn(Handle:Timer, any:client)
 					{
 						if (tIsFatal)
 						{
-							Format(sRemainingTime, sizeof(sRemainingTime),"[SQUAD_SPAWN_DISABLED|Type /ss to toggle] %s for %d damage\n\n                Reinforcing in %d second%s (%d lives left) ", woundType, g_clientDamageDone[client], g_iRespawnTimeRemaining[client], (g_iRespawnTimeRemaining[client] > 1 ? "s" : ""), g_iSpawnTokens[client]);
+							Format(sRemainingTime, sizeof(sRemainingTime),"[SQUAD_SPAWN_DISABLED|Type /ss to toggle] %s for %d damage\n\n                You will reinforce in %d second%s (%d lives left) ", woundType, g_clientDamageDone[client], g_iRespawnTimeRemaining[client], (g_iRespawnTimeRemaining[client] > 1 ? "s" : ""), g_iSpawnTokens[client]);
 						}
 						else
 						{
-							Format(sRemainingTime, sizeof(sRemainingTime),"[SQUAD_SPAWN_DISABLED|Type /ss to toggle] %s for %d damage | wait patiently for a medic..do NOT mic/chat spam!\n\n                Reinforcing in %d second%s (%d lives left) ", woundType, g_clientDamageDone[client], g_iRespawnTimeRemaining[client], (g_iRespawnTimeRemaining[client] > 1 ? "s" : ""), g_iSpawnTokens[client]);
+							Format(sRemainingTime, sizeof(sRemainingTime),"[SQUAD_SPAWN_DISABLED|Type /ss to toggle] %s for %d damage | wait patiently for a medic..do NOT mic/chat spam!\n\n                You will reinforce in %d second%s (%d lives left) ", woundType, g_clientDamageDone[client], g_iRespawnTimeRemaining[client], (g_iRespawnTimeRemaining[client] > 1 ? "s" : ""), g_iSpawnTokens[client]);
 						}
 					}
 					PrintCenterText(client, sRemainingTime);
@@ -6661,22 +6522,13 @@ public Action:Timer_AIDirector_Main(Handle:timer, any:data)
 	g_AIDir_AnnounceCounter++;
 	g_AIDir_ChangeCond_Counter++;
 	g_AIDir_AmbushCond_Counter++;
-	
-	//Ambush Reinforcement Chance
-	new tAmbushChance = GetRandomInt(0, 100);
 
 	//AI Director DEBUG
 	if (g_AIDir_AnnounceCounter >= g_AIDir_AnnounceTrig)
 	{
 		g_AIDir_AnnounceCounter = 0;
 		g_AIDir_AnnounceTrig = 5;
-		new tIsInCounter = 0;
-		if (Ins_InCounterAttack())
-			tIsInCounter = 1;
-
-		PrintToServer("[AI_DIRECTOR] STATUS: %i | g_AIDir_CurrDiff %d | InCounter: %d ", g_AIDir_TeamStatus, g_AIDir_CurrDiff, tIsInCounter);
-		PrintToServer("[AI_DIRECTOR]: g_AIDir_AmbushCond_Rand: %d | tAmbushChance: %d | g_AIDir_AmbushCond_Chance %d",g_AIDir_AmbushCond_Rand, tAmbushChance, g_AIDir_AmbushCond_Chance);
-			
+		PrintToServer("[AI_DIRECTOR] STATUS: %i | g_AIDir_RandomDiff: %d ", g_AIDir_TeamStatus, g_AIDir_RandomDiff);
 	}
 
 	//AI Director Set Difficulty
@@ -6688,6 +6540,8 @@ public Action:Timer_AIDirector_Main(Handle:timer, any:data)
 		AI_Director_SetDifficulty(g_AIDir_TeamStatus, g_AIDir_TeamStatus_max);
 	}
 
+	//Ambush Reinforcement Chance
+	new tAmbushChance = GetRandomInt(0, 100);
 	if (g_AIDir_AmbushCond_Counter >= g_AIDir_AmbushCond_Rand)
 	{
 		if (tAmbushChance <= g_AIDir_AmbushCond_Chance)
@@ -9034,9 +8888,9 @@ public AI_Director_SetDifficulty(g_AIDir_TeamStatus, g_AIDir_TeamStatus_max)
 	new tTeamSecCount = GetTeamSecCount();
 	if (tTeamSecCount <= 6)
 	{
-		AID_ReinfAdj_pScale = 8;
-		AID_SpecDelayAdj_pScale = 4;
-		AID_AmbChance_pScale = 10;
+		AID_ReinfAdj_pScale = 6;
+		AID_SpecDelayAdj_pScale = 2;
+		AID_AmbChance_pScale = 5;
 	}
 	else if (tTeamSecCount >= 7 && tTeamSecCount <= 12)
 	{
@@ -9077,8 +8931,8 @@ public AI_Director_SetDifficulty(g_AIDir_TeamStatus, g_AIDir_TeamStatus_max)
 		//Mod specialized bot spawn interval
 		g_fCvar_respawn_delay_team_ins_spec = ((cvarSpecDelay - AID_SpecDelayAdj_high) - AID_SpecDelayAdj_pScale);
 
-		//DEBUG: Track Current Difficulty setting
-		g_AIDir_CurrDiff = 5;
+		//Track when AI Dir sets this to max difficult
+		g_AIDir_RandomDiff = 1;
 
 		//Set Ambush Chance
 		g_AIDir_AmbushCond_Chance = AID_AmbChance_high + AID_AmbChance_pScale;
@@ -9087,14 +8941,14 @@ public AI_Director_SetDifficulty(g_AIDir_TeamStatus, g_AIDir_TeamStatus_max)
 	else if (g_AIDir_TeamStatus < (g_AIDir_TeamStatus_max / 4))
 	{
 		//Set Reinforce Time
-		g_iReinforceTime_AD_Temp = ((g_AIDir_ReinforceTimer_Orig + AID_ReinfAdj_high) + AID_ReinfAdj_pScale);
-		g_iReinforceTimeSubsequent_AD_Temp = ((g_AIDir_ReinforceTimer_SubOrig + AID_ReinfAdj_high) + AID_ReinfAdj_pScale);
+		g_iReinforceTime_AD_Temp = ((g_AIDir_ReinforceTimer_Orig + AID_ReinfAdj_med) + AID_ReinfAdj_pScale);
+		g_iReinforceTimeSubsequent_AD_Temp = ((g_AIDir_ReinforceTimer_SubOrig + AID_ReinfAdj_med) + AID_ReinfAdj_pScale);
 
 		//Mod specialized bot spawn interval
-		g_fCvar_respawn_delay_team_ins_spec = ((cvarSpecDelay + AID_SpecDelayAdj_high) + AID_SpecDelayAdj_pScale);
+		g_fCvar_respawn_delay_team_ins_spec = ((cvarSpecDelay - AID_SpecDelayAdj_med) + AID_SpecDelayAdj_pScale);
 
-		//DEBUG: Track Current Difficulty setting
-		g_AIDir_CurrDiff = 1;
+		//Track when AI Dir sets this to max difficult
+		g_AIDir_RandomDiff = 0;
 
 		//Set Ambush Chance
 		g_AIDir_AmbushCond_Chance = AID_AmbChance_vlow + AID_AmbChance_pScale;
@@ -9114,8 +8968,8 @@ public AI_Director_SetDifficulty(g_AIDir_TeamStatus, g_AIDir_TeamStatus_max)
 			//Mod specialized bot spawn interval
 			g_fCvar_respawn_delay_team_ins_spec = ((cvarSpecDelay + AID_SpecDelayAdj_low) + AID_SpecDelayAdj_pScale);
 
-			//DEBUG: Track Current Difficulty setting
-			g_AIDir_CurrDiff = 2;
+			//Track when AI Dir sets this to max difficult
+			g_AIDir_RandomDiff = 0;
 
 			//Set Ambush Chance
 			g_AIDir_AmbushCond_Chance = AID_AmbChance_low + AID_AmbChance_pScale;
@@ -9129,8 +8983,8 @@ public AI_Director_SetDifficulty(g_AIDir_TeamStatus, g_AIDir_TeamStatus_max)
 			//Mod specialized bot spawn interval
 			g_fCvar_respawn_delay_team_ins_spec = cvarSpecDelay;
 
-			//DEBUG: Track Current Difficulty setting
-			g_AIDir_CurrDiff = 2;
+			//Track when AI Dir sets this to max difficult
+			g_AIDir_RandomDiff = 0;
 
 			//Set Ambush Chance
 			g_AIDir_AmbushCond_Chance = AID_AmbChance_low + AID_AmbChance_pScale;
@@ -9149,8 +9003,8 @@ public AI_Director_SetDifficulty(g_AIDir_TeamStatus, g_AIDir_TeamStatus_max)
 		//Mod specialized bot spawn interval
 		g_fCvar_respawn_delay_team_ins_spec = ((cvarSpecDelay - AID_SpecDelayAdj_med) - AID_SpecDelayAdj_pScale);
 
-		//DEBUG: Track Current Difficulty setting
-		g_AIDir_CurrDiff = 3;
+		//Track when AI Dir sets this to max difficult
+		g_AIDir_RandomDiff = 0;
 
 		//Set Ambush Chance
 		g_AIDir_AmbushCond_Chance = AID_AmbChance_med + AID_AmbChance_pScale;
@@ -9167,8 +9021,8 @@ public AI_Director_SetDifficulty(g_AIDir_TeamStatus, g_AIDir_TeamStatus_max)
 		//Mod specialized bot spawn interval
 		g_fCvar_respawn_delay_team_ins_spec = ((cvarSpecDelay - AID_SpecDelayAdj_high) - AID_SpecDelayAdj_pScale);
 
-		//DEBUG: Track Current Difficulty setting
-		g_AIDir_CurrDiff = 4;
+		//Track when AI Dir sets this to max difficult
+		g_AIDir_RandomDiff = 0;
 
 		//Set Ambush Chance
 		g_AIDir_AmbushCond_Chance = AID_AmbChance_high + AID_AmbChance_pScale;
