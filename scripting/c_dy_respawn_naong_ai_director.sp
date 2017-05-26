@@ -2663,18 +2663,22 @@ CheckSpawnPoint(Float:vecSpawn[3],client,Float:tObjectiveDistance,Int:m_nActiveP
 	// 			continue;
 	// 		if (!IsClientInGame(client))
 	// 			continue;
+	// 		if (g_badSpawnPos_Track[client][0] == 0 && g_badSpawnPos_Track[client][1] == 0 && g_badSpawnPos_Track[client][2] == 0)
+	// 			continue;
+
 	// 		int m_iTeam = GetClientTeam(client);
 	// 		if (IsFakeClient(client) && m_iTeam == TEAM_2)
 	// 		{
-	// 			distance = GetVectorDistance(vecOrigin,g_badSpawnPos_Track[client]);
-	// 		}
-			
-	// 		//GetArrayArray(g_badSpawnPos_Array, badPos, tBadPos, sizeof(tBadPos));
+	// 			distance = GetVectorDistance(vecSpawn,g_badSpawnPos_Track[client]);
 
-	// 		if (distance <= 600) {
-	// 				PrintToServer("BAD POS DETECTED: (%f, %f, %f)", g_badSpawnPos_Track[client][0], g_badSpawnPos_Track[client][1], g_badSpawnPos_Track[client][2]);
-	// 				return 0;
-	// 			}
+	// 			//GetArrayArray(g_badSpawnPos_Array, badPos, tBadPos, sizeof(tBadPos));
+
+	// 			if (distance <= 240) {
+	// 					PrintToServer("BAD POS DETECTED: (%f, %f, %f)", g_badSpawnPos_Track[client][0], g_badSpawnPos_Track[client][1], g_badSpawnPos_Track[client][2]);
+	// 					return 0;
+	// 				}
+	// 		}
+
 	// 	} 
 	// }
 	//Check distance to point in counterattack
@@ -2689,10 +2693,16 @@ CheckSpawnPoint(Float:vecSpawn[3],client,Float:tObjectiveDistance,Int:m_nActiveP
 
 	// 	distance = GetVectorDistance(vecSpawn,m_vCPPositions[m_nActivePushPointIndex2]);
 
-
-	// 	// if (distance < g_flMinCounterattackDistance) {
-	// 	// 	 return 0;
-	// 	// }
+	// Get the number of control points
+	// new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
+	
+	// // Get active push point
+	// new acp3 = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
+	// if (Ins_InCounterAttack() || ((acp3+1) == ncp)) {
+	// 	if (distance < g_flMinCounterattackDistance) {
+	// 		 return 0;
+	// 	}
+	// }
 	// 	if (distance > (tObjectiveDistance * g_DynamicRespawn_Distance_mult) || (fRandomFloat <= g_dynamicSpawnCounter_Perc)) {
 	// 		 return 0;
 
@@ -2768,15 +2778,23 @@ CheckSpawnPointPlayers(Float:vecSpawn[3],client) {
 
 	// 	distance = GetVectorDistance(vecSpawn,m_vCPPositions[m_nActivePushPointIndex]);
 
-	// 	if (distance < g_flMinCounterattackDistance) { 
+	// Get the number of control points
+	// new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
+	
+	// // Get active push point
+	// new acp3 = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
+	// if (Ins_InCounterAttack() || ((acp3+1) == ncp)) {
+	// 	if (distance < g_flMinCounterattackDistance) {
 	// 		 return 0;
 	// 	}
-	 	new fRandomInt = GetRandomInt(1, 100);
-		if (distance > g_flMaxObjectiveDistance && fRandomInt < 50) {
-			 return 0;
+	// }
+	 // 	new fRandomInt = GetRandomInt(1, 100);
+		// if (distance > g_flMaxObjectiveDistance && fRandomInt < 50) {
+		// 	 return 0;
 
-		} 
+		// } 
 
+	//Check against bad spawn positions
 	// if (Ins_InCounterAttack())
 	// {
 	// 	for (new client = 0; client < MaxClients; client++) {
@@ -2784,23 +2802,24 @@ CheckSpawnPointPlayers(Float:vecSpawn[3],client) {
 	// 			continue;
 	// 		if (!IsClientInGame(client))
 	// 			continue;
+	// 		if (g_badSpawnPos_Track[client][0] == 0 && g_badSpawnPos_Track[client][1] == 0 && g_badSpawnPos_Track[client][2] == 0)
+	// 			continue;
+
 	// 		int m_iTeam = GetClientTeam(client);
 	// 		if (IsFakeClient(client) && m_iTeam == TEAM_2)
 	// 		{
-	// 			distance = GetVectorDistance(vecOrigin,g_badSpawnPos_Track[client]);
-	// 		}
-			
-	// 		//GetArrayArray(g_badSpawnPos_Array, badPos, tBadPos, sizeof(tBadPos));
+	// 			distance = GetVectorDistance(vecSpawn,g_badSpawnPos_Track[client]);
 
-	// 		if (distance <= 600) {
-	// 				PrintToServer("BAD POS DETECTED: (%f, %f, %f)", g_badSpawnPos_Track[client][0], g_badSpawnPos_Track[client][1], g_badSpawnPos_Track[client][2]);
-	// 				return 0;
-	// 			}
+	// 			//GetArrayArray(g_badSpawnPos_Array, badPos, tBadPos, sizeof(tBadPos));
+
+	// 			if (distance <= 240) {
+	// 					PrintToServer("BAD POS DETECTED: (%f, %f, %f)", g_badSpawnPos_Track[client][0], g_badSpawnPos_Track[client][1], g_badSpawnPos_Track[client][2]);
+	// 					return 0;
+	// 				}
+	// 		}
+
 	// 	} 
 	// }
-	 // 	else if (distance > (g_flMaxObjectiveDistance * g_DynamicRespawn_Distance_mult)) {
-	 // 		 return 0;
-	 // }
 		
 		
 	//  }
@@ -2820,10 +2839,10 @@ public GetPushPointIndex(Float:fRandomFloat, client)
 	//new Float:distance = GetVectorDistance(vecSpawn,m_vCPPositions[m_nActivePushPointIndex]);
 	//Check last point	
  		
-	if (((acp+1) >= ncp && Ins_InCounterAttack()) || g_spawnFrandom[client] < g_dynamicSpawnCounter_Perc || (Ins_InCounterAttack()) || (m_nActivePushPointIndex > 1))
+	if (((acp+1) == ncp && Ins_InCounterAttack()) || g_spawnFrandom[client] < g_dynamicSpawnCounter_Perc || (Ins_InCounterAttack()) || (m_nActivePushPointIndex > 1))
  	{
  		//PrintToServer("###POINT_MOD### | fRandomFloat: %f | g_dynamicSpawnCounter_Perc %f ",fRandomFloat, g_dynamicSpawnCounter_Perc);
- 		if ((acp+1) >= ncp && Ins_InCounterAttack())
+ 		if ((acp+1) == ncp && Ins_InCounterAttack())
  			m_nActivePushPointIndex--;
  		else
  		{
@@ -2865,8 +2884,9 @@ float GetSpawnPoint_SpawnPoint(client) {
 	new acp = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
 
 	new m_nActivePushPointIndex = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
-	if ((Ins_InCounterAttack() && g_spawnFrandom[client] < g_dynamicSpawnCounter_Perc) || (!Ins_InCounterAttack() && g_spawnFrandom[client] < g_dynamicSpawn_Perc && acp > 1))
+	if (((acp+1) == ncp) || (Ins_InCounterAttack() && g_spawnFrandom[client] < g_dynamicSpawnCounter_Perc) || (!Ins_InCounterAttack() && g_spawnFrandom[client] < g_dynamicSpawn_Perc && acp > 1))
 		m_nActivePushPointIndex = GetPushPointIndex(fRandomFloat, client);
+
 	new point = FindEntityByClassname(-1, "ins_spawnpoint");
 	new Float:tObjectiveDistance = g_flMinObjectiveDistance;
 	while (point != -1) {
@@ -6669,13 +6689,13 @@ public Action:Timer_AIDirector_Main(Handle:timer, any:data)
 	if (g_AIDir_AnnounceCounter >= g_AIDir_AnnounceTrig)
 	{
 		g_AIDir_AnnounceCounter = 0;
-		g_AIDir_AnnounceTrig = 5;
 		new tIsInCounter = 0;
 		if (Ins_InCounterAttack())
 			tIsInCounter = 1;
 
-		PrintToServer("[AI_DIRECTOR] STATUS: %i | g_AIDir_CurrDiff %d | InCounter: %d ", g_AIDir_TeamStatus, g_AIDir_CurrDiff, tIsInCounter);
-		PrintToServer("[AI_DIRECTOR]: g_AIDir_AmbushCond_Rand: %d | tAmbushChance: %d | g_AIDir_AmbushCond_Chance %d",g_AIDir_AmbushCond_Rand, tAmbushChance, g_AIDir_AmbushCond_Chance);
+		PrintToServer("[AI_DIRECTOR] STATUS: %i | g_AIDir_CurrDiff %d | InCounter: %d | DiffChanceBase: %d", g_AIDir_TeamStatus, g_AIDir_CurrDiff, tIsInCounter, g_AIDir_DiffChanceBase);
+		PrintToServer("[AI_DIRECTOR]: Ambush_Counter: %d | tAmbushChance: %d | AmbushCond_Chance %d",g_AIDir_AmbushCond_Counter, tAmbushChance, g_AIDir_AmbushCond_Chance);
+		PrintToServer("[AI_DIRECTOR]: AmbushCond_Chance: %d | ChangeCond_Counter: %d | ChangeCond_Rand %d",g_AIDir_AmbushCond_Rand, g_AIDir_ChangeCond_Counter, g_AIDir_ChangeCond_Rand);
 			
 	}
 
@@ -9036,19 +9056,20 @@ public AI_Director_SetDifficulty(g_AIDir_TeamStatus, g_AIDir_TeamStatus_max)
 	{
 		AID_ReinfAdj_pScale = 8;
 		AID_SpecDelayAdj_pScale = 4;
-		AID_AmbChance_pScale = 10;
 	}
 	else if (tTeamSecCount >= 7 && tTeamSecCount <= 12)
 	{
 		AID_ReinfAdj_pScale = 4;
 		AID_SpecDelayAdj_pScale = 2;
 		AID_AmbChance_pScale = 5;
+		AID_SetDiffChance_pScale = 5;
 	}
 	else if (tTeamSecCount >= 13)
 	{
 		AID_ReinfAdj_pScale = 8;
 		AID_SpecDelayAdj_pScale = 4;
 		AID_AmbChance_pScale = 10;
+		AID_SetDiffChance_pScale = 10;
 	}
 
 	// Get the number of control points
@@ -9058,9 +9079,13 @@ public AI_Director_SetDifficulty(g_AIDir_TeamStatus, g_AIDir_TeamStatus_max)
 
 	new tAmbScaleMult = 2;
 	if (ncp <= 5)
+	{
 		tAmbScaleMult = 3;
+		AID_SetDiffChance_pScale += 5;
+	}
 	//Add More to Ambush chance based on what point we are at. 
 	AID_AmbChance_pScale += (acp * tAmbScaleMult);
+	AID_SetDiffChance_pScale += (acp * tAmbScaleMult);
 
 	new Float:cvarSpecDelay = GetConVarFloat(sm_respawn_delay_team_ins_special);
 	new fRandomInt = GetRandomInt(0, 100);
