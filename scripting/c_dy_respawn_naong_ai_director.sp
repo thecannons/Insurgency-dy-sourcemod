@@ -4523,35 +4523,35 @@ void EnableDisableEliteBotCvars(tEnabled, isFinale)
 		SetConVarFloat(tCvar, tCvarFloatValue, true, false);
 
 		tCvar = FindConVar("bot_attack_aimtolerance_newthreat_amt");
-		tCvarFloatValue = GetConVarInt(FindConVar("bot_attack_aimtolerance_newthreat_amt"));
-		tCvarFloatValue = tCvarFloatValue - g_bot_attack_aimtolerance_newthreat_amt_mult;
-		SetConVarFloat(tCvar, tCvarFloatValue, true, false);
+		tCvarIntValue = GetConVarInt(FindConVar("bot_attack_aimtolerance_newthreat_amt"));
+		tCvarIntValue = tCvarIntValue - g_bot_attack_aimtolerance_newthreat_amt_mult;
+		SetConVarFloat(tCvar, tCvarIntValue, true, false);
 
 		tCvar = FindConVar("bot_aim_aimtracking_base");
-		tCvarFloatValue = GetConVarInt(FindConVar("bot_aim_aimtracking_base"));
+		tCvarFloatValue = GetConVarFloat(FindConVar("bot_aim_aimtracking_base"));
 		tCvarFloatValue = tCvarFloatValue - g_bot_aim_aimtracking_base;
 		SetConVarFloat(tCvar, tCvarFloatValue, true, false);
 
 		tCvar = FindConVar("bot_aim_aimtracking_frac_impossible");
-		tCvarFloatValue = GetConVarInt(FindConVar("bot_aim_aimtracking_frac_impossible"));
+		tCvarFloatValue = GetConVarFloat(FindConVar("bot_aim_aimtracking_frac_impossible"));
 		tCvarFloatValue = tCvarFloatValue - g_bot_aim_aimtracking_frac_impossible;
 		SetConVarFloat(tCvar, tCvarFloatValue, true, false);
 
 		tCvar = FindConVar("bot_aim_angularvelocity_frac_impossible");
-		tCvarFloatValue = GetConVarInt(FindConVar("bot_aim_angularvelocity_frac_impossible"));
-		tCvarFloatValue = tCvarFloatValue - g_bot_aim_angularvelocity_frac_impossible;
+		tCvarFloatValue = GetConVarFloat(FindConVar("bot_aim_angularvelocity_frac_impossible"));
+		tCvarFloatValue = tCvarFloatValue + g_bot_aim_angularvelocity_frac_impossible;
 		SetConVarFloat(tCvar, tCvarFloatValue, true, false);
 
 		tCvar = FindConVar("bot_aim_angularvelocity_frac_sprinting_target");
-		tCvarFloatValue = GetConVarInt(FindConVar("bot_aim_angularvelocity_frac_sprinting_target"));
-		tCvarFloatValue = tCvarFloatValue - g_bot_aim_angularvelocity_frac_sprinting_target;
+		tCvarFloatValue = GetConVarFloat(FindConVar("bot_aim_angularvelocity_frac_sprinting_target"));
+		tCvarFloatValue = tCvarFloatValue + g_bot_aim_angularvelocity_frac_sprinting_target;
 		SetConVarFloat(tCvar, tCvarFloatValue, true, false);
 
 		tCvar = FindConVar("bot_aim_attack_aimtolerance_frac_impossible");
-		tCvarFloatValue = GetConVarInt(FindConVar("bot_aim_attack_aimtolerance_frac_impossible"));
+		tCvarFloatValue = GetConVarFloat(FindConVar("bot_aim_attack_aimtolerance_frac_impossible"));
 		tCvarFloatValue = tCvarFloatValue - g_bot_aim_attack_aimtolerance_frac_impossible;
 		SetConVarFloat(tCvar, tCvarFloatValue, true, false);
-		//Make sure to check for FLOATS vs INTS!
+		//Make sure to check for FLOATS vs INTS and +/-!
 	}
 	else
 	{
