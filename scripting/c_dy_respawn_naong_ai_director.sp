@@ -446,6 +446,11 @@ new
 	g_bot_attack_aimpenalty_amt_far_org,
 	g_bot_attack_aimpenalty_time_close_org,
 	g_bot_attack_aimpenalty_time_far_org,
+	g_bot_aim_aimtracking_base_org,
+	g_bot_aim_aimtracking_frac_impossible_org,
+	g_bot_aim_angularvelocity_frac_impossible_org,
+	g_bot_aim_angularvelocity_frac_sprinting_target_org,
+	g_bot_aim_attack_aimtolerance_frac_impossible_org,
 	Float:g_bot_attackdelay_frac_difficulty_impossible_org,
 	Float:g_bot_attack_aimtolerance_newthreat_amt_org,
 	Float:g_bot_attack_aimtolerance_newthreat_amt_mult,
@@ -454,6 +459,11 @@ new
 	Float:g_bot_attackdelay_frac_difficulty_impossible_mult,
 	Float:g_bot_attack_aimpenalty_time_close_mult,
 	Float:g_bot_attack_aimpenalty_time_far_mult,
+	Float:g_bot_aim_aimtracking_base,
+	Float:g_bot_aim_aimtracking_frac_impossible,
+	Float:g_bot_aim_angularvelocity_frac_impossible,
+	Float:g_bot_aim_angularvelocity_frac_sprinting_target,
+	Float:g_bot_aim_attack_aimtolerance_frac_impossible,
 	g_coop_delay_penalty_base,
 	g_isEliteCounter,
 
@@ -1511,6 +1521,12 @@ public Action:Timer_MapStart(Handle:Timer)
 	g_bot_attack_aimpenalty_time_close_mult = 0.15;
 	g_bot_attack_aimpenalty_time_far_mult = 2;
 	g_coop_delay_penalty_base = 800;
+	g_bot_aim_aimtracking_base = 0.05;
+	g_bot_aim_aimtracking_frac_impossible =  0.05;
+	g_bot_aim_angularvelocity_frac_impossible =  0.05;
+	g_bot_aim_angularvelocity_frac_sprinting_target =  0.05;
+	g_bot_aim_attack_aimtolerance_frac_impossible =  0.05;
+
 	//Get Originals
 	g_ins_bot_count_checkpoint_max_org = GetConVarInt(FindConVar("ins_bot_count_checkpoint_max"));
 	g_mp_player_resupply_coop_delay_max_org = GetConVarInt(FindConVar("mp_player_resupply_coop_delay_max"));
@@ -1522,6 +1538,11 @@ public Action:Timer_MapStart(Handle:Timer)
 	g_bot_attack_aimpenalty_time_far_org = GetConVarFloat(FindConVar("bot_attack_aimpenalty_time_far"));
 	g_bot_attack_aimtolerance_newthreat_amt_org = GetConVarFloat(FindConVar("bot_attack_aimtolerance_newthreat_amt"));
 	g_bot_attackdelay_frac_difficulty_impossible_org = GetConVarFloat(FindConVar("bot_attackdelay_frac_difficulty_impossible"));
+	g_bot_aim_aimtracking_base_org = GetConVarFloat(FindConVar("bot_aim_aimtracking_base"));
+	g_bot_aim_aimtracking_frac_impossible_org = GetConVarFloat(FindConVar("bot_aim_aimtracking_frac_impossible"));
+	g_bot_aim_angularvelocity_frac_impossible_org = GetConVarFloat(FindConVar("bot_aim_angularvelocity_frac_impossible"));
+	g_bot_aim_angularvelocity_frac_sprinting_target_org = GetConVarFloat(FindConVar("bot_aim_angularvelocity_frac_sprinting_target"));
+	g_bot_aim_attack_aimtolerance_frac_impossible_org = GetConVarFloat(FindConVar("bot_aim_attack_aimtolerance_frac_impossible"));
 
 	CreateTimer(1.0, Timer_CheckEnemyStatic,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 	if (g_isCheckpoint)
@@ -4505,6 +4526,32 @@ void EnableDisableEliteBotCvars(tEnabled, isFinale)
 		tCvarFloatValue = GetConVarInt(FindConVar("bot_attack_aimtolerance_newthreat_amt"));
 		tCvarFloatValue = tCvarFloatValue - g_bot_attack_aimtolerance_newthreat_amt_mult;
 		SetConVarFloat(tCvar, tCvarFloatValue, true, false);
+
+		tCvar = FindConVar("bot_aim_aimtracking_base");
+		tCvarFloatValue = GetConVarInt(FindConVar("bot_aim_aimtracking_base"));
+		tCvarFloatValue = tCvarFloatValue - g_bot_aim_aimtracking_base;
+		SetConVarFloat(tCvar, tCvarFloatValue, true, false);
+
+		tCvar = FindConVar("bot_aim_aimtracking_frac_impossible");
+		tCvarFloatValue = GetConVarInt(FindConVar("bot_aim_aimtracking_frac_impossible"));
+		tCvarFloatValue = tCvarFloatValue - g_bot_aim_aimtracking_frac_impossible;
+		SetConVarFloat(tCvar, tCvarFloatValue, true, false);
+
+		tCvar = FindConVar("bot_aim_angularvelocity_frac_impossible");
+		tCvarFloatValue = GetConVarInt(FindConVar("bot_aim_angularvelocity_frac_impossible"));
+		tCvarFloatValue = tCvarFloatValue - g_bot_aim_angularvelocity_frac_impossible;
+		SetConVarFloat(tCvar, tCvarFloatValue, true, false);
+
+		tCvar = FindConVar("bot_aim_angularvelocity_frac_sprinting_target");
+		tCvarFloatValue = GetConVarInt(FindConVar("bot_aim_angularvelocity_frac_sprinting_target"));
+		tCvarFloatValue = tCvarFloatValue - g_bot_aim_angularvelocity_frac_sprinting_target;
+		SetConVarFloat(tCvar, tCvarFloatValue, true, false);
+
+		tCvar = FindConVar("bot_aim_attack_aimtolerance_frac_impossible");
+		tCvarFloatValue = GetConVarInt(FindConVar("bot_aim_attack_aimtolerance_frac_impossible"));
+		tCvarFloatValue = tCvarFloatValue - g_bot_aim_attack_aimtolerance_frac_impossible;
+		SetConVarFloat(tCvar, tCvarFloatValue, true, false);
+		//Make sure to check for FLOATS vs INTS!
 	}
 	else
 	{
@@ -4525,11 +4572,23 @@ void EnableDisableEliteBotCvars(tEnabled, isFinale)
 		tCvar = FindConVar("bot_attack_aimpenalty_amt_far");
 		SetConVarInt(tCvar, g_bot_attack_aimpenalty_amt_far_org, true, false);
 		tCvar = FindConVar("bot_attack_aimpenalty_time_close");
-		SetConVarInt(tCvar, g_bot_attack_aimpenalty_time_close_org, true, false);
+		SetConVarFloat(tCvar, g_bot_attack_aimpenalty_time_close_org, true, false);
 		tCvar = FindConVar("bot_attack_aimpenalty_time_far");
-		SetConVarInt(tCvar, g_bot_attack_aimpenalty_time_far_org, true, false);
+		SetConVarFloat(tCvar, g_bot_attack_aimpenalty_time_far_org, true, false);
 		tCvar = FindConVar("bot_attack_aimtolerance_newthreat_amt");
 		SetConVarFloat(tCvar, g_bot_attack_aimtolerance_newthreat_amt_org, true, false);
+
+		tCvar = FindConVar("bot_aim_aimtracking_base");
+		SetConVarFloat(tCvar, g_bot_aim_aimtracking_base_org, true, false);
+		tCvar = FindConVar("bot_aim_aimtracking_frac_impossible");
+		SetConVarFloat(tCvar, g_bot_aim_aimtracking_frac_impossible_org, true, false);
+		tCvar = FindConVar("bot_aim_angularvelocity_frac_impossible");
+		SetConVarFloat(tCvar, g_bot_aim_angularvelocity_frac_impossible_org, true, false);
+		tCvar = FindConVar("bot_aim_angularvelocity_frac_sprinting_target");
+		SetConVarFloat(tCvar, g_bot_aim_angularvelocity_frac_sprinting_target_org, true, false);
+		tCvar = FindConVar("bot_aim_attack_aimtolerance_frac_impossible");
+		SetConVarFloat(tCvar, g_bot_aim_attack_aimtolerance_frac_impossible_org, true, false);
+
 	}
 }
 
