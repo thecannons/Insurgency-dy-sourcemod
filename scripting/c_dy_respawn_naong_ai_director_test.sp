@@ -26,6 +26,7 @@
 #include <cstrike>
 #include <tf2>
 #include <tf2_stocks>
+#include <navmesh>
 #define REQUIRE_EXTENSIONS
 
 //#include <navmesh>
@@ -124,6 +125,7 @@ new
 	g_ammoResupplyAmt[MAX_ENTITIES+1],
 	g_trackKillDeaths[MAXPLAYERS+1],
 	Float:g_badSpawnPos_Track[MAXPLAYERS+1][3],
+	hPositions[MAXPLAYERS+1],
 	g_iRespawnCount[4],
 	g_huntReinforceCacheAdd = 120,
 	bool:g_huntCacheDestroyed = false,
@@ -573,7 +575,7 @@ public OnPluginStart()
 	g_playerArrayList = CreateArray();
 	//g_badSpawnPos_Array = CreateArray();
 	RegConsoleCmd("kill", cmd_kill);
-
+	RegConsoleCmd("sm_test", cmd_test);
 
 	CreateConVar("sm_respawn_version", PLUGIN_VERSION, PLUGIN_DESCRIPTION, FCVAR_NOTIFY | FCVAR_DONTRECORD);
 	sm_respawn_enabled = CreateConVar("sm_respawn_enabled", "1", "Automatically respawn players when they die; 0 - disabled, 1 - enabled");
@@ -4604,6 +4606,79 @@ public Action:cmd_kill(client, args) {
 	g_trackKillDeaths[client] += 1;
 	PrintToChatAll("\x05%N\x01 has used the kill command! | Times Used: %d | Abusing for ammo = ban", client, g_trackKillDeaths[client]);
 	PrintToChat(client, "\x04[SERNIX RULES] %t", "Abusing kill command is not allowed! | Times used %d | Abusing for ammo = ban", g_trackKillDeaths[client]);
+	return Plugin_Handled;
+}
+public Action:cmd_test(client, args) {
+	PrintToChat(client, "TEST ACTIVATE");
+new Float:EntityPos[3]; 
+//GetEntPropVector(client, Prop_Data, "m_vecAbsOrigin", EntityPos); 
+GetClientAbsOrigin(client, EntityPos); 
+
+    new Float:TargetPos[3]; 
+    //GetClientAbsOrigin(target, TargetPos); 
+TargetPos = GetSpawnPoint_SpawnPoint(client);
+//if(target != -1) 
+//{ 
+    new iClosestAreaIndex = 0; 
+    new bool:bBuiltPath = NavMesh_BuildPath(NavMesh_GetNearestArea(EntityPos), NavMesh_GetNearestArea(TargetPos), TargetPos, NavMeshShortestPathCost, _, iClosestAreaIndex, 0.0); 
+    if(bBuiltPath) 
+    { 
+        new iTempAreaIndex = iClosestAreaIndex; 
+        new iParentAreaIndex = NavMeshArea_GetParent(iTempAreaIndex); 
+        new iNavDirection; 
+        new Float:flHalfWidth; 
+        new Float:flCenterPortal[3]; 
+        new Float:flClosestPoint[3]; 
+        hPositions[client] = CreateArray(3); 
+        PushArrayArray(hPositions[client], TargetPos, 3); 
+        while(iParentAreaIndex != -1) 
+        { 
+            new Float:flTempAreaCenter[3]; 
+            new Float:flParentAreaCenter[3]; 
+            NavMeshArea_GetCenter(iTempAreaIndex, flTempAreaCenter); 
+            NavMeshArea_GetCenter(iParentAreaIndex, flParentAreaCenter); 
+            iNavDirection = NavMeshArea_ComputeDirection(iTempAreaIndex, flParentAreaCenter); 
+            NavMeshArea_ComputePortal(iTempAreaIndex, iParentAreaIndex, iNavDirection, flCenterPortal, flHalfWidth); 
+            NavMeshArea_ComputeClosestPointInPortal(iTempAreaIndex, iParentAreaIndex, iNavDirection, flCenterPortal, flClosestPoint); 
+            flClosestPoint[2] = NavMeshArea_GetZ(iTempAreaIndex, flClosestPoint); 
+            PushArrayArray(hPositions[client], flClosestPoint, 3); 
+            iTempAreaIndex = iParentAreaIndex; 
+            iParentAreaIndex = NavMeshArea_GetParent(iTempAreaIndex); 
+        } 
+        PushArrayArray(hPositions[client], EntityPos, 3); 
+        new Float:flFromPos[3]; 
+        GetArrayArray(hPositions[client], GetArraySize(hPositions[client])-2, flFromPos, 3); 
+        decl Float:vecDistance[3]; 
+        for (new j = 0; j < 3; j++) 
+        { 
+            vecDistance[j] = flFromPos[j] - EntityPos[j]; 
+        } 
+        new Float:angles[3]; 
+        GetVectorAngles(vecDistance, angles); 
+        NormalizeVector(vecDistance, vecDistance); 
+        ScaleVector(vecDistance, 1000.0 * GetTickInterval()); 
+        AddVectors(vecDistance, EntityPos, vecDistance); 
+        angles[0] = 0.0; 
+        TeleportEntity(client, vecDistance, angles, NULL_VECTOR); 
+		new Float:totalDist = 0;
+        for(new i = GetArraySize(hPositions[client]) - 1; i > 0; i--) 
+        { 
+            decl Float:flFromPos2[3], Float:flToPos[3]; 
+            GetArrayArray(hPositions[client], i, flFromPos2, 3); 
+            GetArrayArray(hPositions[client], i - 1, flToPos, 3); 
+            new laser = PrecacheModel("materials/sprites/laserbeam.vmt"); 
+
+			new fDistance = GetVectorDistance(flFromPos2,flToPos);
+			PrintToChat(client, "fDistance: %f ", fDistance);
+			totalDist = totalDist + fDistance;
+            //Maybe get distance flFromPos2 to flToPos then ++ to a max distance to verify distance of path?
+            TE_SetupBeamPoints(flFromPos2, flToPos, laser, laser, 0, 30, 0.1, 5.0, 5.0, 5, 0.0, {0, 255, 0, 255}, 30); 
+            TE_SendToAll(); 
+        } 
+        new totalDistInt = RoundFloat(totalDist);
+		PrintToChat(client, "totalDistInt: %d ", totalDistInt);
+    } 
+//}  
 	return Plugin_Handled;
 }
 
