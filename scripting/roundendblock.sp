@@ -351,7 +351,8 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 
 	if (ncp < 6 || g_isConquer == 1 || g_isHunt == 1 || g_isOutpost == 1)
 	{
-		if (g_iRoundBlockCount > 1)
+			g_iRoundBlockCount -= 1;
+		if (g_iRoundBlockCount < 1)
 			g_iRoundBlockCount = 1;
 	}
 	//KickBlockerClient();
@@ -409,15 +410,7 @@ public Action:Event_RoundEnd_Post(Handle:event, const String:name[], bool:dontBr
 	if (g_iRoundEndBlockResetRound == 1)
 		g_iRoundBlockCount = g_iRoundEndBlockTimes;
 	
-	new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
 
-	if (ncp < 6)
-	{
-		if (g_iRoundBlockCount > 1)
-			g_iRoundBlockCount = 1;
-		else
-			g_iRoundBlockCount = 0;
-	}
 	if (g_iRoundEndBlockDebug)
 	{
 		PrintToServer("[RndEndBlock] Round ended.");

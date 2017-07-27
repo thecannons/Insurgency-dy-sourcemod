@@ -83,7 +83,7 @@ new String:sVersion[5] = "3.0.2";
 new String:sPrefix[256] = "\x01\x03[\x04PropSpawn\x03]\x01";
 
 //Player properties (credits)
-new iDefCredits = 18;
+new iDefCredits = 20;
 new iCredits[MAXPLAYERS+1];
 new iPropNo[MAXPLAYERS+1];//Stores the number of props a player has
 new Handle:hCredits = INVALID_HANDLE;

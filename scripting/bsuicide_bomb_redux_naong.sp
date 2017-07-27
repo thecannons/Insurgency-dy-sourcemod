@@ -354,7 +354,7 @@ public Action:Hook_OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &d
 			//PrintToServer("PRE: damage: %f", damage);
 			//VICTIM
 			//new Float:locDamage = damage;
-			damage = damage * 0.05; //Reverse damage by 97%
+			damage = damage * 0.055; //Reverse damage by 97%
 			//PrintToServer("POST: damage: %f", damage);
 			return Plugin_Changed;
 		}
