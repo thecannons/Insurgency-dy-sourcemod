@@ -87,7 +87,7 @@ new
 	g_AIDir_TeamStatus = 50,
 	g_AIDir_TeamStatus_min = 0,
 	g_AIDir_TeamStatus_max = 100,
-	g_AIDir_BotsKilledReq_mult = 3, 
+	g_AIDir_BotsKilledReq_mult = 4, 
 	g_AIDir_BotsKilledCount = 0,
 	g_AIDir_AnnounceCounter = 0,
 	g_AIDir_AnnounceTrig = 5,
