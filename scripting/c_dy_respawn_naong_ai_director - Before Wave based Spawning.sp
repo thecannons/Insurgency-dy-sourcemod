@@ -190,10 +190,6 @@ new
 	g_playerNonMedicRevive[MAXPLAYERS+1],
 	g_playerWoundType[MAXPLAYERS+1],
 	g_playerWoundTime[MAXPLAYERS+1],
-
-	//Wave Based Arrays 
-	g_WaveSpawnActive[MAXPLAYERS+1],
-
 	g_playerFirstJoin[MAXPLAYERS+1];
 
 // Player Distance Plugin //Credits to author = "Popoklopsi", url = "http://popoklopsi.de"
@@ -231,14 +227,6 @@ new
 	Handle:sm_respawn_delay_team_sec_player_count_17 = INVALID_HANDLE,
 	Handle:sm_respawn_delay_team_sec_player_count_18 = INVALID_HANDLE,
 	
-	// Respawn Mode (individual or wave based)
-	Handle:sm_respawn_mode_team_sec = INVALID_HANDLE,
-	Handle:sm_respawn_mode_team_ins = INVALID_HANDLE,
-	//Wave interval
-	//Handle:sm_respawn_wave_int_team_sec = INVALID_HANDLE,
-	Handle:sm_respawn_wave_int_team_ins = INVALID_HANDLE,
-
-
 	// Respawn type
 	Handle:sm_respawn_type_team_ins = INVALID_HANDLE,
 	Handle:sm_respawn_type_team_sec = INVALID_HANDLE,
@@ -402,11 +390,6 @@ new
 	g_iCvar_bombers_only,
 	g_iCvar_multi_loadout_enabled,
 
-	//Respawn Mode (wave based)
-	g_respawn_mode_team_sec,
-	g_respawn_mode_team_ins,
-	g_respawn_wave_int_team_ins,
-
 	g_checkStaticAmt,
 	g_checkStaticAmtCntr,
 	g_checkStaticAmtAway,
@@ -423,7 +406,6 @@ new
 	g_iRespawn_lives_team_ins,
 	g_iReviveSeconds,
 	g_iRespawnSeconds,
-	g_secWave_Timer,
 	g_iHeal_amount_paddles,
 	g_iHeal_amount_medPack,
 	g_nonMedicHeal_amount,
@@ -614,8 +596,6 @@ public OnPluginStart()
 		"1.0", "How many seconds to delay the respawn (bots)");
 	sm_respawn_delay_team_ins_special = CreateConVar("sm_respawn_delay_team_ins_special", 
 		"20.0", "How many seconds to delay the respawn (special bots)");
-
-
 	sm_respawn_delay_team_sec = CreateConVar("sm_respawn_delay_team_sec", 
 		"30.0", "How many seconds to delay the respawn (If not set 'sm_respawn_delay_team_sec_player_count_XX' uses this value)");
 	sm_respawn_delay_team_sec_player_count_01 = CreateConVar("sm_respawn_delay_team_sec_player_count_01", 
@@ -790,15 +770,7 @@ public OnPluginStart()
 	sm_enable_squad_spawning = CreateConVar("sm_enable_squad_spawning", "0", "Enable squad spawning SERNIX SPECIFIC? 1|0");
 	//AI Director cvars
 	sm_ai_director_setdiff_chance_base = CreateConVar("sm_ai_director_setdiff_chance_base", "10", "Base AI Director Set Hard Difficulty Chance");
-
-	//Respawn Modes
-	sm_respawn_mode_team_sec = CreateConVar("sm_respawn_mode_team_sec", "1", "Security: 0 = Individual spawning | 1 = Wave based spawning");
-	sm_respawn_mode_team_ins = CreateConVar("sm_respawn_mode_team_ins", "0", "Insurgents: 0 = Individual spawning | 1 = Wave based spawning");
-
-	//Wave interval for insurgents only
-	sm_respawn_wave_int_team_ins = CreateConVar("sm_respawn_wave_int_team_ins", "3", "Time in seconds bots will respawn in waves");
 	
-
 	//if (GetConVarInt(sm_enable_squad_spawning) == 1)
     	RegConsoleCmd("sm_ss", SquadSpawn); 
 
@@ -912,9 +884,6 @@ public OnPluginStart()
 	HookConVarChange(sm_elite_counter_attacks, CvarChange);
 	HookConVarChange(sm_finale_counter_spec_enabled, CvarChange);
 	HookConVarChange(sm_ai_director_setdiff_chance_base, CvarChange);
-	HookConVarChange(sm_respawn_mode_team_sec, CvarChange);
-	HookConVarChange(sm_respawn_mode_team_ins, CvarChange);
-	HookConVarChange(sm_respawn_wave_int_team_ins, CvarChange);
 
 	//HookConVarChange(sm_finale_counter_spec_percent, CvarChange);
 	// Init respawn function
@@ -1040,11 +1009,6 @@ void UpdateRespawnCvars()
 
 	//Ai Director UpdateCvar
 	g_AIDir_DiffChanceBase = GetConVarInt(sm_ai_director_setdiff_chance_base);
-
-	//Wave Based Spawning
-	g_respawn_mode_team_sec = GetConVarInt(sm_respawn_mode_team_sec);
-	g_respawn_mode_team_ins = GetConVarInt(sm_respawn_mode_team_ins);
-	g_respawn_wave_int_team_ins = GetConVarInt(sm_respawn_wave_int_team_ins);
 	
 	// Respawn type 1 //TEAM_1 == Index 2 and TEAM_2 == Index 3
 	g_iRespawnCount[2] = GetConVarInt(sm_respawn_lives_team_sec);
@@ -1171,7 +1135,7 @@ void UpdateRespawnCvars()
 	if (g_iRespawnSeconds == -1)
 		g_iRespawnSeconds = GetConVarInt(sm_respawn_delay_team_sec);
 	
-
+	
 
 	// Respawn type 2 for players
 	if (g_iCvar_respawn_type_team_sec == 2)
@@ -1518,11 +1482,6 @@ public Action:Timer_MapStart(Handle:Timer)
 		if (g_iCvar_respawn_reset_type == 1)
 			CreateTimer(1.0, Timer_DynLivesPerPoint,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 	}
-
-	//Enable WAVE BASED SPAWNING
-	if (g_respawn_mode_team_sec || g_respawn_mode_team_ins)
-		CreateTimer(1.0, Timer_WaveSpawning,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
-
 	// Player status check timer
 	CreateTimer(1.0, Timer_PlayerStatus,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 	
@@ -1770,118 +1729,7 @@ void ForceRespawnPlayer(client, target)
 	}
 }
 
-// Wave Based Spawning Timer
-public Action:Timer_WaveSpawning(Handle:Timer)
-{
-	if (g_iRoundStatus == 0) return Plugin_Continue;
 
-	if (g_respawn_mode_team_sec)
-	{
-		g_secWave_Timer--;
-		//Announce every X seconds
-		if (g_secWave_Timer % 30 == 0 ||
-			g_secWave_Timer == 10 ||
-			g_secWave_Timer <= 3)
-		{
-			decl String:textToPrintChat[64];
-			decl String:textToPrint[64];
-			Format(textToPrintChat, sizeof(textToPrintChat), "[INTEL]Team wave reinforce in %d seconds", g_secWave_Timer);
-			//Format(textToPrint, sizeof(textToPrint), "[INTEL]Team wave reinforce in %d seconds", g_secWave_Timer);
-			//PrintHintTextToAll(textToPrint);
-			PrintToChatAll(textToPrintChat);
-		}
-
-		//Reset Wave SEC timer and announce respawn
-		if (g_secWave_Timer <= 0)
-		{
-			PrintHintTextToAll("[INTEL]Team Wave Reinforced!");
-			PrintToChatAll("[INTEL]Team Wave Reinforced!");
-
-			new validAntenna = -1;
-			validAntenna = FindValid_Antenna();
-
-			// Reduce wave timer on valid antenna
-			if (validAntenna != -1)
-			{
-				new jammerSpawnReductionAmt = (g_iRespawnSeconds / (GetTeamSecCount() / 3));
-				g_secWave_Timer = (g_iRespawnSeconds - jammerSpawnReductionAmt);
-			}
-			else
-				g_secWave_Timer = g_iRespawnSeconds;
-		}
-	}
-
-	//Bots custom wave spawns
-	if (g_respawn_mode_team_ins)
-	{
-		//for (new client = 1; client <= MaxClients; client++)
-		//{
-		//	new team = GetClientTeam(client);
-		//	// Check enables
-		//	if (g_iCvar_respawn_enable)
-		//	{
-				
-		//		// The number of control points
-		//		new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
-				
-		//		// Active control poin
-		//		new acp = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
-
-		//		if (team == TEAM_2 && g_respawn_mode_team_ins)
-		//		{
-					
-		//			// Do not decrease life in counterattack
-		//			if (g_isCheckpoint == 1 && Ins_InCounterAttack() && 
-		//				(((acp+1) == ncp &&  g_iCvar_final_counterattack_type == 2) || 
-		//				((acp+1) != ncp && g_iCvar_counterattack_type == 2))
-		//			)
-		//			{
-		//				// Respawn type 1 bots
-		//				if ((g_iCvar_respawn_type_team_ins == 1 && team == TEAM_2))
-		//				{
-		//					if ((g_iSpawnTokens[client] < g_iRespawnCount[team]))
-		//						g_iSpawnTokens[client] = (g_iRespawnCount[team] + 1);
-							
-		//					// Call respawn timer
-		//					CreateBotRespawnTimer(client);
-		//				}
-		//				// Respawn type 2 for bots
-		//				else if (team == TEAM_2 && g_iCvar_respawn_type_team_ins == 2 && g_iRespawn_lives_team_ins > 0)
-		//				{
-		//					g_iRemaining_lives_team_ins = g_iRespawn_lives_team_ins + 1;
-							
-		//					// Call respawn timer
-		//					CreateBotRespawnTimer(client);
-		//				}
-		//			}
-		//			// Normal respawn
-		//			else if (g_iCvar_respawn_type_team_ins == 1 && team == TEAM_2)
-		//			{
-		//				if (g_iSpawnTokens[client] > 0)
-		//				{
-		//					if (team == TEAM_2)
-		//					{
-		//						CreateBotRespawnTimer(client);
-		//					}
-		//				}
-		//				else if (g_iSpawnTokens[client] <= 0 && g_iRespawnCount[team] > 0)
-		//				{
-		//					// Cannot respawn anymore
-		//					decl String:sChat[128];
-		//					Format(sChat, 128,"You cannot be respawned anymore. (out of lives)");
-		//					PrintToChat(client, "%s", sChat);
-		//				}
-		//			}
-		//			// Respawn type 2 for bots
-		//			else if (g_iCvar_respawn_type_team_ins == 2 && g_iRemaining_lives_team_ins >  0 && team == TEAM_2)
-		//			{
-		//				CreateBotRespawnTimer(client);
-		//			}
-		//		}
-		//	}
-		//}
-	}
-}
 
 // Check and inform player status
 public Action:Timer_PlayerStatus(Handle:Timer)
@@ -3584,7 +3432,7 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 	g_checkStaticAmt = GetConVarInt(sm_respawn_check_static_enemy);
 	g_checkStaticAmtCntr = GetConVarInt(sm_respawn_check_static_enemy_counter);
 
-	g_secWave_Timer = g_iRespawnSeconds;
+
 	//Round_Start CVAR Sets ------------------ END -- vs using HookConVarChange
 
 
@@ -5467,8 +5315,8 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 	if (g_iCvar_respawn_enable)
 	{
 		
-		// Client should be TEAM_1 = HUMANS or TEAM_2 = BOTS
-		if ((team == TEAM_1) || (team == TEAM_2))
+		// Client should be TEAM_1 or TEAM_2
+		if (team == TEAM_1 || team == TEAM_2)
 		{
 			// The number of control points
 			new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
@@ -5723,10 +5571,7 @@ public CreateCounterRespawnTimer(client)
 // Respawn bot
 public CreateBotRespawnTimer(client)
 {	
-	if ((g_cqc_map_enabled == 1 && Ins_InCounterAttack() && ((StrContains(g_client_last_classstring[client], "bomber") > -1) || 
-		(StrContains(g_client_last_classstring[client], "juggernaut") > -1))) || 
-		(!Ins_InCounterAttack() && ((StrContains(g_client_last_classstring[client], "bomber") > -1) || 
-			(StrContains(g_client_last_classstring[client], "juggernaut") > -1)))) //make sure its a bot bomber
+	if ((g_cqc_map_enabled == 1 && Ins_InCounterAttack() && ((StrContains(g_client_last_classstring[client], "bomber") > -1) || (StrContains(g_client_last_classstring[client], "juggernaut") > -1))) || (!Ins_InCounterAttack() && ((StrContains(g_client_last_classstring[client], "bomber") > -1) || (StrContains(g_client_last_classstring[client], "juggernaut") > -1)))) //make sure its a bot bomber
 	{
 		new fRandomFloat = GetRandomFloat(0, 1);
 		new tSpecRespawnDelay = 0;
@@ -5777,7 +5622,6 @@ public CreatePlayerRespawnTimer(client)
 		if (validAntenna != -1)
 		{
 			new jammerSpawnReductionAmt = (g_iRespawnSeconds / (GetTeamSecCount() / 3));
-
 			g_iRespawnTimeRemaining[client] = (g_iRespawnSeconds - jammerSpawnReductionAmt);
 			if (g_iRespawnTimeRemaining[client] < 5)
 				g_iRespawnTimeRemaining[client] = 5;
@@ -5785,10 +5629,6 @@ public CreatePlayerRespawnTimer(client)
 		else
 			g_iRespawnTimeRemaining[client] = g_iRespawnSeconds;
 		
-		//Sync wave based timer if enabled
-		if (g_respawn_mode_team_sec)
-			g_iRespawnTimeRemaining[client] = g_secWave_Timer;
-
 		// Call respawn timer
 		CreateTimer(1.0, Timer_PlayerRespawn, client, TIMER_REPEAT);
 	}
@@ -6179,14 +6019,12 @@ public Action:Timer_PlayerRespawn(Handle:Timer, any:client)
 			//CreateTimer(0.0, RespawnPlayerPost, client);
 			RespawnPlayerPost(INVALID_HANDLE, client);
 			
-			// Announce respawn if not wave based (to avoid spam)
-			if (!g_respawn_mode_team_sec)
-			{
-				if (g_squadSpawnEnabled[client] == 1 && tSquadSpawned == true)
-					PrintToChatAll("\x05%N\x01 squad reinforced on %N", client, g_squadLeader[client]);
-				else
-					PrintToChatAll("\x05%N\x01 reinforced..", client);
-			}
+			// Announce respawn
+			if (g_squadSpawnEnabled[client] == 1 && tSquadSpawned == true)
+				PrintToChatAll("\x05%N\x01 squad reinforced on %N", client, g_squadLeader[client]);
+			else
+				PrintToChatAll("\x05%N\x01 reinforced..", client);
+			
 			// Reset variable
 			g_iPlayerRespawnTimerActive[client] = 0;
 			
@@ -9437,8 +9275,8 @@ public AI_Director_SetDifficulty(g_AIDir_TeamStatus, g_AIDir_TeamStatus_max)
 		if (g_AIDir_TeamStatus >= (g_AIDir_TeamStatus_max / 4) && g_AIDir_TeamStatus < (g_AIDir_TeamStatus_max / 3) && GetTeamSecCount() <= 9)
 		{
 			//Set Reinforce Time
-			g_iReinforceTime_AD_Temp = ((g_AIDir_ReinforceTimer_Orig + AID_ReinfAdj_med) + AID_ReinfAdj_pScale);
-			g_iReinforceTimeSubsequent_AD_Temp = ((g_AIDir_ReinforceTimer_SubOrig + AID_ReinfAdj_med) + AID_ReinfAdj_pScale);
+			g_iReinforceTime_AD_Temp = ((g_AIDir_ReinforceTimer_Orig + AID_ReinfAdj_low) + AID_ReinfAdj_pScale);
+			g_iReinforceTimeSubsequent_AD_Temp = ((g_AIDir_ReinforceTimer_SubOrig + AID_ReinfAdj_low) + AID_ReinfAdj_pScale);
 
 			//Mod specialized bot spawn interval
 			g_fCvar_respawn_delay_team_ins_spec = ((cvarSpecDelay + AID_SpecDelayAdj_low) + AID_SpecDelayAdj_pScale_Pro);
@@ -9492,8 +9330,8 @@ public AI_Director_SetDifficulty(g_AIDir_TeamStatus, g_AIDir_TeamStatus_max)
 	{
 		AI_Director_ResetReinforceTimers();
 		//Set Reinforce Time
-		g_iReinforceTime_AD_Temp = ((g_AIDir_ReinforceTimer_Orig - AID_ReinfAdj_high) - AID_ReinfAdj_pScale);
-		g_iReinforceTimeSubsequent_AD_Temp = ((g_AIDir_ReinforceTimer_SubOrig - AID_ReinfAdj_high) - AID_ReinfAdj_pScale);
+		g_iReinforceTime_AD_Temp = ((g_AIDir_ReinforceTimer_Orig - AID_ReinfAdj_med) - AID_ReinfAdj_pScale);
+		g_iReinforceTimeSubsequent_AD_Temp = ((g_AIDir_ReinforceTimer_SubOrig - AID_ReinfAdj_med) - AID_ReinfAdj_pScale);
 
 		//Mod specialized bot spawn interval
 		g_fCvar_respawn_delay_team_ins_spec = ((cvarSpecDelay - AID_SpecDelayAdj_high) - AID_SpecDelayAdj_pScale_Con);

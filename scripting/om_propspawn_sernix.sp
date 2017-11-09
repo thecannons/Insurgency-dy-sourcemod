@@ -83,7 +83,8 @@ new String:sVersion[5] = "3.0.2";
 new String:sPrefix[256] = "\x01\x03[\x04PropSpawn\x03]\x01";
 
 //Player properties (credits)
-new iDefCredits = 20;
+new iDefCredits = 30; //Default
+new iDefCreditsConst = 90; //Constant that never changes, Used to scaled iDefCredits
 new iCredits[MAXPLAYERS+1];
 new iPropNo[MAXPLAYERS+1];//Stores the number of props a player has
 new Handle:hCredits = INVALID_HANDLE;
@@ -266,9 +267,25 @@ public Action:Command_Credits(client, args)
 }
 
 public OnClientPutInServer(client) {
-
 	iCredits[client] = iDefCredits;
 	SDKHook(client, SDKHook_OnTakeDamage, OnTakeDamagePre);
+}
+
+public ScaleBuildPoints() {
+	
+	new tEngCount = 0;
+	//Calculate engineer points
+	for (new engineerCheck = 1; engineerCheck <= MaxClients; engineerCheck++)
+	{
+		if (engineerCheck > 0)
+		{
+			if (IsClientConnected(engineerCheck) && IsClientInGame(engineerCheck) && !IsFakeClient(engineerCheck) && (StrContains(g_client_last_classstring[engineerCheck], "engineer") > -1))
+			{
+				tEngCount++;
+			}
+		}
+	}
+	iDefCredits = (iDefCreditsConst / tEngCount);
 }
 
 public Action:Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadcast)
@@ -289,6 +306,8 @@ public Action:Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadca
 // When ammo cache destroyed, clear props refund credits
 public Action:Event_ObjectDestroyed(Handle:event, const String:name[], bool:dontBroadcast)
 {
+
+	ScaleBuildPoints();
 	//Clear props
 	for (new engineerCheck = 1; engineerCheck <= MaxClients; engineerCheck++)
 	{
@@ -307,7 +326,7 @@ public Action:Event_ObjectDestroyed(Handle:event, const String:name[], bool:dont
 // When control point captured, reset variables
 public Action:Event_ControlPointCaptured(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	
+	ScaleBuildPoints();
 	//Clear props
 	for (new engineerCheck = 1; engineerCheck <= MaxClients; engineerCheck++)
 	{
@@ -852,7 +871,6 @@ public Action:Event_PlayerPickSquad( Handle:event, const String:name[], bool:don
 	
 	// Get client ID
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
-	iCredits[client] = iDefCredits;
 	// Init variable
 	if (client > 0 && !IsFakeClient(client))
 	{	
@@ -864,6 +882,9 @@ public Action:Event_PlayerPickSquad( Handle:event, const String:name[], bool:don
 		g_client_last_classstring[client] = class_template;
 		KillProps(client);
 	}
+
+	ScaleBuildPoints();
+	iCredits[client] = iDefCredits;
 }
 public Event_PlayerDisconnect(Handle:event, const String:name[], bool:dontBroadcast)
 {
@@ -879,6 +900,8 @@ public Event_PlayerDisconnect(Handle:event, const String:name[], bool:dontBroadc
 
 public Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
 {
+
+	ScaleBuildPoints();
 	for(new i=0; i<=MaxClients; i++)
 	{
 		iPropNo[i] = 0;
@@ -1310,12 +1333,12 @@ public PropSpawn(client, param2)
 			else
 			{
 			
-			ClientCredits = ClientCredits - Price;
-			iCredits[client] = ClientCredits;
-			PrintToChat(client, "You have deployed a \x04%s for \x03%d credits!", prop_choice, Price);
-			PrintHintText(client, "You have deployed a %s for %d credits!", prop_choice, Price);
-			Format(textToPrintChat, 255,"\x05%N\x01 deployed a \x04%s", client, prop_choice);
-			PrintToChatAll("%s", textToPrintChat);
+				ClientCredits = ClientCredits - Price;
+				iCredits[client] = ClientCredits;
+				PrintToChat(client, "You have deployed a \x04%s for \x03%d credits!", prop_choice, Price);
+				PrintHintText(client, "You have deployed a %s for %d credits!", prop_choice, Price);
+				Format(textToPrintChat, 255,"\x05%N\x01 deployed a \x04%s", client, prop_choice);
+				PrintToChatAll("%s", textToPrintChat);
 			}
 		}
 		else
