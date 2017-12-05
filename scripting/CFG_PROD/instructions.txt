@@ -1,0 +1,3 @@
+specialized map configs go in your ..insurgency\cfg directory ad execute when a map loads.
+
+These sometimes help adjust spawns based on tighter maps and or finale counter attacks that have poor spawn placement.
