@@ -1785,7 +1785,7 @@ public Action:Timer_WaveSpawning(Handle:Timer)
 		{
 			decl String:textToPrintChat[64];
 			decl String:textToPrint[64];
-			Format(textToPrintChat, sizeof(textToPrintChat), "[INTEL]Team wave reinforce in %d seconds", g_secWave_Timer);
+			Format(textToPrintChat, sizeof(textToPrintChat), "[INTEL]Team reinforce in %d seconds", g_secWave_Timer);
 			//Format(textToPrint, sizeof(textToPrint), "[INTEL]Team wave reinforce in %d seconds", g_secWave_Timer);
 			//PrintHintTextToAll(textToPrint);
 			PrintToChatAll(textToPrintChat);
@@ -1794,8 +1794,8 @@ public Action:Timer_WaveSpawning(Handle:Timer)
 		//Reset Wave SEC timer and announce respawn
 		if (g_secWave_Timer <= 0)
 		{
-			PrintHintTextToAll("[INTEL]Team Wave Reinforced!");
-			PrintToChatAll("[INTEL]Team Wave Reinforced!");
+			PrintHintTextToAll("[INTEL]Team Reinforced!");
+			PrintToChatAll("[INTEL]Team Reinforced!");
 
 			new validAntenna = -1;
 			validAntenna = FindValid_Antenna();
@@ -1805,9 +1805,25 @@ public Action:Timer_WaveSpawning(Handle:Timer)
 			{
 				new jammerSpawnReductionAmt = (g_iRespawnSeconds / (GetTeamSecCount() / 3));
 				g_secWave_Timer = (g_iRespawnSeconds - jammerSpawnReductionAmt);
+				if (Ins_InCounterAttack())
+					g_secWave_Timer += (GetTeamSecCount() * 3); 
 			}
 			else
+			{
 				g_secWave_Timer = g_iRespawnSeconds;
+				// Get the number of control points
+				new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
+				
+				// Get active push point
+				new acp = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
+				// If last capture point
+				if (g_isCheckpoint == 1 && ((acp+1) == ncp))
+				{
+					g_secWave_Timer += (GetTeamSecCount() * 4);
+				}
+				else if (Ins_InCounterAttack())
+					g_secWave_Timer += (GetTeamSecCount() * 3);
+			}
 		}
 	}
 
@@ -4099,7 +4115,22 @@ public Action:Event_ControlPointCaptured_Post(Handle:event, const String:name[],
 	// Update cvars
 	UpdateRespawnCvars();
 
-	//PrintToServer("CONTROL POINT CAPTURED POST");
+
+	//Reset security team wave counter
+	g_secWave_Timer = g_iRespawnSeconds;
+	// Get the number of control points
+	new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
+	
+	// Get active push point
+	new acp = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
+	// If last capture point
+	if (g_isCheckpoint == 1 && ((acp+1) == ncp))
+	{
+		g_secWave_Timer = g_iRespawnSeconds;
+		g_secWave_Timer += (GetTeamSecCount() * 4);
+	}
+	else if (Ins_InCounterAttack())
+		g_secWave_Timer += (GetTeamSecCount() * 3);
 	
 	return Plugin_Continue;
 }
@@ -4391,7 +4422,21 @@ public Action:Event_ObjectDestroyed_Post(Handle:event, const String:name[], bool
 	// if (g_elite_counter_attacks == 1)
 	// 	CreateTimer(5.0, Timer_EliteBots);
 	//PrintToServer("CONTROL POINT CAPTURED POST");
+
+	// Get the number of control points
+	new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
 	
+	// Get active push point
+	new acp = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
+	// If last capture point
+	if (g_isCheckpoint == 1 && ((acp+1) == ncp))
+	{
+		g_secWave_Timer = g_iRespawnSeconds;
+		g_secWave_Timer += (GetTeamSecCount() * 4);
+	}
+	else if (Ins_InCounterAttack())
+		g_secWave_Timer += (GetTeamSecCount() * 3);
+
 	return Plugin_Continue;
 }
 
