@@ -210,8 +210,30 @@ native void PrintToServer(const char[] format, any ...);
  */
 native void PrintToConsole(int client, const char[] format, any ...);
 
+
 /**
- * Reples to a message in a command.
+ * Sends a message to every client's console.
+ *
+ * @param format		Formatting rules.
+ * @param ...			Variable number of format parameters.
+ */
+stock void PrintToConsoleAll(const char[] format, any ...)
+{
+	char buffer[254];
+	
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (IsClientInGame(i))
+		{
+			SetGlobalTransTarget(i);
+			VFormat(buffer, sizeof(buffer), format, 2);
+			PrintToConsole(i, "%s", buffer);
+		}
+	}
+}
+
+/**
+ * Replies to a message in a command.
  *
  * A client index of 0 will use PrintToServer().
  * If the command was from the console, PrintToConsole() is used.

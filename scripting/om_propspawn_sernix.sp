@@ -274,6 +274,13 @@ public OnClientPutInServer(client) {
 public ScaleBuildPoints() {
 	
 	new tEngCount = 0;
+
+	ConVar cvar_tokenBase = FindConVar("mp_supply_token_base");
+	new nSupplyTokenBase = GetConVarInt(cvar_tokenBase);
+	int nAvailableSupplyPoint = nSupplyTokenBase;
+	int nReceivedSupplyPoint = 0;
+
+	
 	//Calculate engineer points
 	for (new engineerCheck = 1; engineerCheck <= MaxClients; engineerCheck++)
 	{
@@ -282,10 +289,19 @@ public ScaleBuildPoints() {
 			if (IsClientConnected(engineerCheck) && IsClientInGame(engineerCheck) && !IsFakeClient(engineerCheck) && (StrContains(g_client_last_classstring[engineerCheck], "engineer") > -1))
 			{
 				tEngCount++;
+				nReceivedSupplyPoint = GetEntProp(engineerCheck, Prop_Send, "m_nRecievedTokens");
 			}
 		}
 	}
-	iDefCredits = (iDefCreditsConst / tEngCount);
+	nAvailableSupplyPoint += nReceivedSupplyPoint;
+	
+	if (nAvailableSupplyPoint <= 22)
+		nAvailableSupplyPoint = 22;
+	//Credits 
+	if (tEngCount > 0)
+		iDefCredits = ((nAvailableSupplyPoint * 3) / tEngCount);
+	else
+		iDefCredits = (nAvailableSupplyPoint * 3);
 }
 
 public Action:Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadcast)
@@ -883,8 +899,8 @@ public Action:Event_PlayerPickSquad( Handle:event, const String:name[], bool:don
 		KillProps(client);
 	}
 
-	ScaleBuildPoints();
-	iCredits[client] = iDefCredits;
+	//ScaleBuildPoints();
+	//iCredits[client] = iDefCredits;
 }
 public Event_PlayerDisconnect(Handle:event, const String:name[], bool:dontBroadcast)
 {

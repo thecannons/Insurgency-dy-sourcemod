@@ -63,8 +63,8 @@ new g_healthPack_Amount[2048] = {0, ...};
 // This will be used for checking which team the player is on before repsawning them
 #define SPECTATOR_TEAM	0
 #define TEAM_SPEC 	1
-#define TEAM_1		2
-#define TEAM_2		3
+#define TEAM_1_SEC	2
+#define TEAM_2_INS	3
 
 // Navmesh Init 
 #define MAX_OBJECTIVES 13
@@ -138,6 +138,7 @@ new
 	g_spawnFrandom[MAXPLAYERS+1],
 	g_squadSpawnEnabled[MAXPLAYERS+1] = 0,
 	g_squadLeader[MAXPLAYERS+1],
+	g_enemySpawnTimer[MAXPLAYERS+1],
 	Float:g_fRespawnPosition[3];
 
 //Ammo Amounts
@@ -237,6 +238,11 @@ new
 	//Wave interval
 	//Handle:sm_respawn_wave_int_team_sec = INVALID_HANDLE,
 	Handle:sm_respawn_wave_int_team_ins = INVALID_HANDLE,
+
+	//VIP Cvars
+	Handle:sm_vip_obj_time = INVALID_HANDLE,
+	Handle:sm_vip_min_sp_reward = INVALID_HANDLE,
+	Handle:sm_vip_max_sp_reward = INVALID_HANDLE,
 
 
 	// Respawn type
@@ -407,6 +413,28 @@ new
 	g_respawn_mode_team_ins,
 	g_respawn_wave_int_team_ins,
 
+	//NEW Respawn system globals (temporary)
+	//Grab directly from theater (3 scouts, 5 jugs, 4 bombers, All others 20)
+	g_maxbots_std = 0,
+	g_maxbots_light = 0,
+	g_maxbots_jug = 0,
+	g_maxbots_bomb = 0,
+	//Template of bots AI Director uses
+	g_bots_std = 0,
+	g_bots_light = 0,
+	g_bots_jug = 0,
+	g_bots_bomb = 0,
+
+	//VIP Globals
+	g_iCvar_vip_obj_time,
+	g_iCvar_vip_min_sp_reward,
+	g_iCvar_vip_max_sp_reward,
+	g_vip_obj_count,
+	g_vip_obj_ready,
+	g_vip_min_reward,
+	g_vip_max_reward,
+	g_nVIP_ID = 0,
+
 	g_checkStaticAmt,
 	g_checkStaticAmtCntr,
 	g_checkStaticAmtAway,
@@ -486,9 +514,28 @@ new
 	g_coop_delay_penalty_base,
 	g_isEliteCounter,
 
+	//Track enemy wave spawners
+	g_enemyStdMax = 4,
+	g_enemyFighterMax = 5,
+	g_enemyStrikerMax = 6,
+	g_enemyScoutMax = 3,
+	g_enemySapperMax = 4,
+	g_enemyJuggerMax = 5,
+	g_enemyBomberMax = 4,
+	//Count enemy currently alive
+	g_enemyStdAliveCount = 0,
+	g_enemyFighterAliveCount = 0,
+	g_enemyStrikerAliveCount = 0,
+	g_enemyScoutAliveCount = 0,
+	g_enemySapperAliveCount = 0,
+	g_enemyJuggerAliveCount = 0,
+	g_enemyBomberAliveCount = 0,
+
 	// Insurgency implements
 	g_iObjResEntity, String:g_iObjResEntityNetClass[32],
 	g_iLogicEntity, String:g_iLogicEntityNetClass[32];
+
+
 
 enum SpawnModes
 {
@@ -796,11 +843,18 @@ public OnPluginStart()
 	sm_respawn_mode_team_ins = CreateConVar("sm_respawn_mode_team_ins", "0", "Insurgents: 0 = Individual spawning | 1 = Wave based spawning");
 
 	//Wave interval for insurgents only
-	sm_respawn_wave_int_team_ins = CreateConVar("sm_respawn_wave_int_team_ins", "3", "Time in seconds bots will respawn in waves");
+	sm_respawn_wave_int_team_ins = CreateConVar("sm_respawn_wave_int_team_ins", "1", "Time in seconds bots will respawn in waves");
+	
+	//VIP Specific cvar
+	sm_vip_obj_time = CreateConVar("sm_vip_obj_time", "300", "VIP must reach new CPs in this amount of seconds");
+	sm_vip_min_sp_reward = CreateConVar("sm_vip_min_sp_reward", "1", "Minimum supply points awarded to team when VIP completes objective");
+	sm_vip_max_sp_reward = CreateConVar("sm_vip_max_sp_reward", "3", "Maximum supply points awarded to team when VIP completes objective");
+	
 	
 
 	//if (GetConVarInt(sm_enable_squad_spawning) == 1)
     	RegConsoleCmd("sm_ss", SquadSpawn); 
+    	RegConsoleCmd("vip", Cmd_VIP, "Check for info about VIP");
 
 	CreateConVar("Lua_Ins_Healthkit", PLUGIN_VERSION, PLUGIN_DESCRIPTION, FCVAR_NOTIFY | FCVAR_PLUGIN | FCVAR_DONTRECORD);
 	
@@ -915,7 +969,9 @@ public OnPluginStart()
 	HookConVarChange(sm_respawn_mode_team_sec, CvarChange);
 	HookConVarChange(sm_respawn_mode_team_ins, CvarChange);
 	HookConVarChange(sm_respawn_wave_int_team_ins, CvarChange);
-
+	HookConVarChange(sm_vip_obj_time, CvarChange);
+	HookConVarChange(sm_vip_min_sp_reward, CvarChange);
+	HookConVarChange(sm_vip_max_sp_reward, CvarChange);
 	//HookConVarChange(sm_finale_counter_spec_percent, CvarChange);
 	// Init respawn function
 	// Next 14 lines of text are taken from Andersso's DoDs respawn plugin. Thanks :)
@@ -1037,6 +1093,7 @@ void UpdateRespawnCvars()
 	g_jammerRequired = GetConVarInt(sm_jammer_required);
 	g_elite_counter_attacks = GetConVarInt(sm_elite_counter_attacks);
 	g_finale_counter_spec_enabled = GetConVarInt(sm_finale_counter_spec_enabled);
+	g_finale_counter_spec_percent = GetConVarInt(sm_finale_counter_spec_percent);
 
 	//Ai Director UpdateCvar
 	g_AIDir_DiffChanceBase = GetConVarInt(sm_ai_director_setdiff_chance_base);
@@ -1045,8 +1102,12 @@ void UpdateRespawnCvars()
 	g_respawn_mode_team_sec = GetConVarInt(sm_respawn_mode_team_sec);
 	g_respawn_mode_team_ins = GetConVarInt(sm_respawn_mode_team_ins);
 	g_respawn_wave_int_team_ins = GetConVarInt(sm_respawn_wave_int_team_ins);
+	g_iCvar_vip_obj_time = GetConVarInt(sm_vip_obj_time);
+	g_iCvar_vip_min_sp_reward = GetConVarInt(sm_vip_min_sp_reward);
+	g_iCvar_vip_max_sp_reward = GetConVarInt(sm_vip_max_sp_reward);
+
 	
-	// Respawn type 1 //TEAM_1 == Index 2 and TEAM_2 == Index 3
+	// Respawn type 1 //TEAM_1_SEC == Index 2 and TEAM_2_INS == Index 3
 	g_iRespawnCount[2] = GetConVarInt(sm_respawn_lives_team_sec);
 	g_iRespawnCount[3] = GetConVarInt(sm_respawn_lives_team_ins);
 
@@ -1260,6 +1321,12 @@ public TagsChanged(Handle:convar, const String:oldValue[], const String:newValue
 // On map starts, call initalizing function
 public OnMapStart()
 {	
+	//Supply points based on control points
+	int tsupply_base = 0;
+	new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
+	tsupply_base = (ncp * 2);
+	new Handle:hSupplyBase = FindConVar("mp_supply_token_base");
+	SetConVarInt(hSupplyBase, tsupply_base, true, false);
 
 	ServerCommand("exec betterbots.cfg");
 	//g_easterEggRound = false;
@@ -1369,11 +1436,11 @@ void Dynamic_Loadouts()
 	SetConVarString(hTheaterOverride, "dy_gnalvl_coop_usmc", true, false);	
 	
 	//Occurs counter attack
-	if (fRandom >= 0.0 && fRandom < 0.5)
-	{
-		SetConVarString(hTheaterOverride, "dy_gnalvl_coop_usmc_isis", true, false);
-		g_easterEggFlag = false;
-	}
+	//if (fRandom >= 0.0 && fRandom < 0.5)
+	//{
+	//	SetConVarString(hTheaterOverride, "dy_gnalvl_coop_usmc_isis", true, false);
+	//	g_easterEggFlag = false;
+	//}
 	// else if (fRandom >= 0.26 && fRandom < 0.50)
 	// {
 	// 	SetConVarString(hTheaterOverride, "dy_gnalvl_coop_usmc_isis", true, false);
@@ -1420,6 +1487,7 @@ public Action:Event_GameEnd(Handle:event, const String:name[], bool:dontBroadcas
 	g_iRoundStatus = 0;
 	g_botsReady = 0;
 	g_iEnableRevive = 0;
+	g_nVIP_ID = 0;
 }
 // Initializing
 public Action:Timer_MapStart(Handle:Timer)
@@ -1443,7 +1511,6 @@ public Action:Timer_MapStart(Handle:Timer)
 	g_iReinforceTimeSubsequent = GetConVarInt(sm_respawn_reinforce_time_subsequent);
 
 
-	g_finale_counter_spec_percent = GetConVarInt(sm_finale_counter_spec_percent);
 	g_cqc_map_enabled = GetConVarInt(sm_cqc_map_enabled);
 
 
@@ -1512,13 +1579,6 @@ public Action:Timer_MapStart(Handle:Timer)
 	if (g_isConquer != 1 && g_isOutpost != 1) 
 		CreateTimer(30.0, Timer_Enemies_Remaining,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 
-	if (g_isCheckpoint)
-	{
-		//If spawned per point, give more per-point lives based on team count.
-		if (g_iCvar_respawn_reset_type == 1)
-			CreateTimer(1.0, Timer_DynLivesPerPoint,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
-	}
-
 	//Enable WAVE BASED SPAWNING
 	if (g_respawn_mode_team_sec || g_respawn_mode_team_ins)
 		CreateTimer(1.0, Timer_WaveSpawning,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
@@ -1544,6 +1604,10 @@ public Action:Timer_MapStart(Handle:Timer)
 	// AI Director Tick
 	if (g_isCheckpoint)
 		CreateTimer(1.0, Timer_AIDirector_Main, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+
+	//Vip Check for reward/complete
+	g_vip_obj_ready = 0;
+	CreateTimer(1.0, Timer_VIPCheck_Main, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 
 	// Squad Spawn Notify Leader
 	//if (GetConVarInt(sm_enable_squad_spawning) == 1)
@@ -1604,6 +1668,7 @@ public OnMapEnd()
 	ResetSecurityLives();
 	ResetInsurgencyLives();
 	
+	g_nVIP_ID = 0;
 	g_isMapInit = 0;
 	g_botsReady = 0;
 	g_iRoundStatus = 0;
@@ -1747,7 +1812,7 @@ public Action:Timer_EliteBots(Handle:Timer)
 void RespawnPlayer(client, target)
 {
 	new team = GetClientTeam(target);
-	if(IsClientInGame(target) && !IsClientTimingOut(target) && g_client_last_classstring[target][0] && playerPickSquad[target] == 1 && !IsPlayerAlive(target) && team == TEAM_1)
+	if(IsClientInGame(target) && !IsClientTimingOut(target) && g_client_last_classstring[target][0] && playerPickSquad[target] == 1 && !IsPlayerAlive(target) && team == TEAM_1_SEC)
 	{
 		// Write a log
 		LogAction(client, target, "\"%L\" respawned \"%L\"", client, target);
@@ -1760,7 +1825,7 @@ void RespawnPlayer(client, target)
 void ForceRespawnPlayer(client, target)
 {
 	new team = GetClientTeam(target);
-	if(IsClientInGame(target) && !IsClientTimingOut(target) && g_client_last_classstring[target][0] && playerPickSquad[target] == 1 && team == TEAM_1)
+	if(IsClientInGame(target) && !IsClientTimingOut(target) && g_client_last_classstring[target][0] && playerPickSquad[target] == 1 && team == TEAM_1_SEC)
 	{
 		// Write a log
 		LogAction(client, target, "\"%L\" respawned \"%L\"", client, target);
@@ -1843,7 +1908,7 @@ public Action:Timer_WaveSpawning(Handle:Timer)
 		//		// Active control poin
 		//		new acp = Ins_ObjectiveResource_GetProp("m_nActivePushPointIndex");
 
-		//		if (team == TEAM_2 && g_respawn_mode_team_ins)
+		//		if (team == TEAM_2_INS && g_respawn_mode_team_ins)
 		//		{
 					
 		//			// Do not decrease life in counterattack
@@ -1853,7 +1918,7 @@ public Action:Timer_WaveSpawning(Handle:Timer)
 		//			)
 		//			{
 		//				// Respawn type 1 bots
-		//				if ((g_iCvar_respawn_type_team_ins == 1 && team == TEAM_2))
+		//				if ((g_iCvar_respawn_type_team_ins == 1 && team == TEAM_2_INS))
 		//				{
 		//					if ((g_iSpawnTokens[client] < g_iRespawnCount[team]))
 		//						g_iSpawnTokens[client] = (g_iRespawnCount[team] + 1);
@@ -1862,7 +1927,7 @@ public Action:Timer_WaveSpawning(Handle:Timer)
 		//					CreateBotRespawnTimer(client);
 		//				}
 		//				// Respawn type 2 for bots
-		//				else if (team == TEAM_2 && g_iCvar_respawn_type_team_ins == 2 && g_iRespawn_lives_team_ins > 0)
+		//				else if (team == TEAM_2_INS && g_iCvar_respawn_type_team_ins == 2 && g_iRespawn_lives_team_ins > 0)
 		//				{
 		//					g_iRemaining_lives_team_ins = g_iRespawn_lives_team_ins + 1;
 							
@@ -1871,11 +1936,11 @@ public Action:Timer_WaveSpawning(Handle:Timer)
 		//				}
 		//			}
 		//			// Normal respawn
-		//			else if (g_iCvar_respawn_type_team_ins == 1 && team == TEAM_2)
+		//			else if (g_iCvar_respawn_type_team_ins == 1 && team == TEAM_2_INS)
 		//			{
 		//				if (g_iSpawnTokens[client] > 0)
 		//				{
-		//					if (team == TEAM_2)
+		//					if (team == TEAM_2_INS)
 		//					{
 		//						CreateBotRespawnTimer(client);
 		//					}
@@ -1889,7 +1954,7 @@ public Action:Timer_WaveSpawning(Handle:Timer)
 		//				}
 		//			}
 		//			// Respawn type 2 for bots
-		//			else if (g_iCvar_respawn_type_team_ins == 2 && g_iRemaining_lives_team_ins >  0 && team == TEAM_2)
+		//			else if (g_iCvar_respawn_type_team_ins == 2 && g_iRemaining_lives_team_ins >  0 && team == TEAM_2_INS)
 		//			{
 		//				CreateBotRespawnTimer(client);
 		//			}
@@ -1916,7 +1981,7 @@ public Action:Timer_PlayerStatus(Handle:Timer)
 			if (g_plyrFireScreamCoolDown[client] <= 0)
 				g_plyrFireScreamCoolDown[client] = 0;
 
-			if (g_iPlayerRespawnTimerActive[client] == 0 && !IsPlayerAlive(client) && !IsClientTimingOut(client) && IsClientObserver(client) && team == TEAM_1 && g_iEnableRevive == 1 && g_iRoundStatus == 1) //
+			if (g_iPlayerRespawnTimerActive[client] == 0 && !IsPlayerAlive(client) && !IsClientTimingOut(client) && IsClientObserver(client) && team == TEAM_1_SEC && g_iEnableRevive == 1 && g_iRoundStatus == 1) //
 			{
 				// Player connected or changed squad
 				if (g_iHurtFatal[client] == -1)
@@ -2064,7 +2129,7 @@ void AI_Director_RandomEnemyReinforce()
 				if (client > 0 && IsClientInGame(client))
 				{
 					new m_iTeam = GetClientTeam(client);
-					if (IsFakeClient(client) && !IsPlayerAlive(client) && m_iTeam == TEAM_2)
+					if (IsFakeClient(client) && !IsPlayerAlive(client) && m_iTeam == TEAM_2_INS)
 					{
 						g_iRemaining_lives_team_ins++;
 						CreateBotRespawnTimer(client);
@@ -2091,7 +2156,7 @@ void AI_Director_RandomEnemyReinforce()
 			if (client > 0 && IsClientInGame(client))
 			{
 				new m_iTeam = GetClientTeam(client);
-				if (IsFakeClient(client) && !IsPlayerAlive(client) && m_iTeam == TEAM_2)
+				if (IsFakeClient(client) && !IsPlayerAlive(client) && m_iTeam == TEAM_2_INS)
 				{
 					g_iRemaining_lives_team_ins++;
 					CreateBotRespawnTimer(client);
@@ -2258,7 +2323,7 @@ public Action:Timer_EnemyReinforce(Handle:Timer)
 						if (client > 0 && IsClientInGame(client))
 						{
 							new m_iTeam = GetClientTeam(client);
-							if (IsFakeClient(client) && !IsPlayerAlive(client) && m_iTeam == TEAM_2)
+							if (IsFakeClient(client) && !IsPlayerAlive(client) && m_iTeam == TEAM_2_INS)
 							{
 								g_iRemaining_lives_team_ins++;
 								CreateBotRespawnTimer(client);
@@ -2316,7 +2381,7 @@ public Action:Timer_EnemyReinforce(Handle:Timer)
 					if (client > 0 && IsClientInGame(client))
 					{
 						new m_iTeam = GetClientTeam(client);
-						if (IsFakeClient(client) && !IsPlayerAlive(client) && m_iTeam == TEAM_2)
+						if (IsFakeClient(client) && !IsPlayerAlive(client) && m_iTeam == TEAM_2_INS)
 						{
 							g_iRemaining_lives_team_ins++;
 							CreateBotRespawnTimer(client);
@@ -2393,7 +2458,7 @@ public Action:Timer_CheckEnemyStatic(Handle:Timer)
 				if (IsClientInGame(enemyBot) && IsFakeClient(enemyBot))
 				{
 					new m_iTeam = GetClientTeam(enemyBot);
-					if (IsPlayerAlive(enemyBot) && m_iTeam == TEAM_2)
+					if (IsPlayerAlive(enemyBot) && m_iTeam == TEAM_2_INS)
 					{
 						// Get current position
 						decl Float:enemyPos[3];
@@ -2444,7 +2509,7 @@ public Action:Timer_CheckEnemyStatic(Handle:Timer)
 				if (IsClientInGame(enemyBot) && IsFakeClient(enemyBot))
 				{
 					new m_iTeam = GetClientTeam(enemyBot);
-					if (IsPlayerAlive(enemyBot) && m_iTeam == TEAM_2)
+					if (IsPlayerAlive(enemyBot) && m_iTeam == TEAM_2_INS)
 					{
 						// Get current position
 						decl Float:enemyPos[3];
@@ -2504,7 +2569,7 @@ public Action:Timer_CheckEnemyAway(Handle:Timer)
 				if (IsClientInGame(enemyBot) && IsFakeClient(enemyBot))
 				{
 					new m_iTeam = GetClientTeam(enemyBot);
-					if (IsPlayerAlive(enemyBot) && m_iTeam == TEAM_2)
+					if (IsPlayerAlive(enemyBot) && m_iTeam == TEAM_2_INS)
 					{
 						// Get current position
 						decl Float:enemyPos[3];
@@ -2551,7 +2616,7 @@ public Action:Timer_CheckEnemyAway(Handle:Timer)
 				if (IsClientInGame(enemyBot) && IsFakeClient(enemyBot))
 				{
 					new m_iTeam = GetClientTeam(enemyBot);
-					if (IsPlayerAlive(enemyBot) && m_iTeam == TEAM_2)
+					if (IsPlayerAlive(enemyBot) && m_iTeam == TEAM_2_INS)
 					{
 						// Get current position
 						decl Float:enemyPos[3];
@@ -2594,13 +2659,36 @@ void AddLifeForStaticKilling(client)
 {
 	// Respawn type 1
 	new team = GetClientTeam(client);
-	if (g_iCvar_respawn_type_team_ins == 1 && team == TEAM_2 && g_iRespawn_lives_team_ins > 0)
+	if (g_iCvar_respawn_type_team_ins == 1 && team == TEAM_2_INS && g_iRespawn_lives_team_ins > 0)
 	{
 		g_iSpawnTokens[client]++;
 	}
-	else if (g_iCvar_respawn_type_team_ins == 2 && team == TEAM_2 && g_iRespawn_lives_team_ins > 0)
+	else if (g_iCvar_respawn_type_team_ins == 2 && team == TEAM_2_INS && g_iRespawn_lives_team_ins > 0)
 	{
 		g_iRemaining_lives_team_ins++;
+	}
+}
+
+//
+void CalculateBotCount()
+{
+	// Respawn type 1
+	for (new client = 1; client <= MaxClients; client++)
+	{
+		new team = GetClientTeam(client);
+		if (team == TEAM_2_INS && IsFakeClient(client))
+		{
+
+			if (StrContains(g_client_last_classstring[client], "bomber") > -1)
+				g_maxbots_bomb += 1;
+			else if (StrContains(g_client_last_classstring[client], "juggernaut") > -1)
+				g_maxbots_jug += 1;
+			else if (StrContains(g_client_last_classstring[client], "scout") > -1)
+				g_maxbots_light += 1;
+			else
+				g_maxbots_std += 1;
+
+		}
 	}
 }
 
@@ -2816,7 +2904,7 @@ CheckSpawnPoint(Float:vecSpawn[3],client,Float:tObjectiveDistance,Int:m_nActiveP
 		if (!IsPlayerAlive(iTarget)) 
 			continue;
 		new tTeam = GetClientTeam(iTarget);
-		if (tTeam != TEAM_1)
+		if (tTeam != TEAM_1_SEC)
 			continue;
 		////InsLog(DEBUG, "Distance from %N to iSpot %d is %f",iTarget,iSpot,distance);
 		distance = GetVectorDistance(vecSpawn,g_vecOrigin[iTarget]);
@@ -2866,7 +2954,7 @@ CheckSpawnPoint(Float:vecSpawn[3],client,Float:tObjectiveDistance,Int:m_nActiveP
 	// 			continue;
 
 	// 		int m_iTeam = GetClientTeam(client);
-	// 		if (IsFakeClient(client) && m_iTeam == TEAM_2)
+	// 		if (IsFakeClient(client) && m_iTeam == TEAM_2_INS)
 	// 		{
 	// 			distance = GetVectorDistance(vecSpawn,g_badSpawnPos_Track[client]);
 
@@ -2930,7 +3018,7 @@ CheckSpawnPointPlayers(Float:vecSpawn[3],client) {
 		if (!IsPlayerAlive(iTarget)) 
 			continue;
 		new tTeam = GetClientTeam(iTarget);
-		if (tTeam != TEAM_1)
+		if (tTeam != TEAM_1_SEC)
 			continue;
 		////InsLog(DEBUG, "Distance from %N to iSpot %d is %f",iTarget,iSpot,distance);
 		distance = GetVectorDistance(vecSpawn,g_vecOrigin[iTarget]);
@@ -3005,7 +3093,7 @@ CheckSpawnPointPlayers(Float:vecSpawn[3],client) {
 	// 			continue;
 
 	// 		int m_iTeam = GetClientTeam(client);
-	// 		if (IsFakeClient(client) && m_iTeam == TEAM_2)
+	// 		if (IsFakeClient(client) && m_iTeam == TEAM_2_INS)
 	// 		{
 	// 			distance = GetVectorDistance(vecSpawn,g_badSpawnPos_Track[client]);
 
@@ -3276,6 +3364,10 @@ public Action:Event_Spawn(Handle:event, const String:name[], bool:dontBroadcast)
 		return Plugin_Continue;
 	}
 	
+	if (!(StrContains(g_client_last_classstring[client], "juggernaut") > -1)) {
+		 return Plugin_Handled;
+	}
+	
 	//Reset this global timer everytime a bot spawns
 	g_botStaticGlobal[client] = 0;
 
@@ -3537,6 +3629,14 @@ public OnClientPutInServer(client)
 	g_client_org_nickname[client] = sNickname;
 }
 
+public OnClientDisconnect(client)
+{
+	if(client == g_nVIP_ID)
+	{
+		g_nVIP_ID = 0;
+	}
+}
+
 // When player connected server, intialize variables
 public Action:Event_PlayerConnect(Handle:event, const String:name[], bool:dontBroadcast)
 {
@@ -3577,7 +3677,15 @@ public Action:Event_PlayerDisconnect(Handle:event, const String:name[], bool:don
 public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
 {
 
+	//Reset VIP objective count
+	g_vip_obj_count = g_iCvar_vip_obj_time;
+	g_vip_obj_ready = 1;
 
+	int tsupply_base = 0;
+	new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
+	tsupply_base = (ncp * 2);
+	new Handle:hSupplyBase = FindConVar("mp_supply_token_base");
+	SetConVarInt(hSupplyBase, tsupply_base, true, false);
 	//Clear bad spawn array
 	//ClearArray(g_badSpawnPos_Array);
 
@@ -3669,29 +3777,24 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 void SecTeamLivesBonus()
 {
 	new secTeamCount = GetTeamSecCount();
-	if (secTeamCount <= 6)
+	if (secTeamCount <= 9)
 	{
-		g_iRespawnCount[2] += (GetConVarInt(sm_respawn_lives_team_sec) * 3);
+		g_iRespawnCount[2] += 1;
 	}
-	else if (secTeamCount >= 7 && secTeamCount <= 12)
-	{
-		g_iRespawnCount[2] += (GetConVarInt(sm_respawn_lives_team_sec) * 2);
-	}
+	//else if (secTeamCount >= 10 && secTeamCount <= 14)
+	//{
+	//	g_iRespawnCount[2] += 1;
+	//}
 }
 
 //Adjust Lives Per Point Based On Players
-public Action:Timer_DynLivesPerPoint(Handle:Timer)
+void SecDynLivesPerPoint()
 {
 	new secTeamCount = GetTeamSecCount();
-	if (secTeamCount <= 6)
+	if (secTeamCount <= 9)
 	{
-		g_iRespawnCount[2] = (GetConVarInt(sm_respawn_lives_team_sec) * 3);
+		g_iRespawnCount[2] += 1;
 	}
-	else if (secTeamCount >= 7 && secTeamCount <= 12)
-	{
-		g_iRespawnCount[2] = (GetConVarInt(sm_respawn_lives_team_sec) * 2) - 1;
-	}
-	return Plugin_Continue;
 }
 
 // Round starts
@@ -3718,6 +3821,9 @@ public Action:BotsReady_Timer(Handle:Timer)
 // When round ends, intialize variables
 public Action:Event_RoundEnd_Pre(Handle:event, const String:name[], bool:dontBroadcast)
 {
+	//Reset VIP objective count
+	g_vip_obj_count = g_iCvar_vip_obj_time;
+	g_vip_obj_ready = 1;
 
 	//Show scoreboard when dead ENABLED
 	new cvar_scoreboard = FindConVar("sv_hud_scoreboard_show_score_dead");
@@ -3733,7 +3839,7 @@ public Action:Event_RoundEnd_Pre(Handle:event, const String:name[], bool:dontBro
 		if (!IsClientInGame(client))
 			continue;
 		new tTeam = GetClientTeam(client);
-		if (tTeam != TEAM_1)
+		if (tTeam != TEAM_1_SEC)
 			continue;
 		if ((g_iStatRevives[client] > 0 || g_iStatHeals[client] > 0) && StrContains(g_client_last_classstring[client], "medic") > -1)
 		{
@@ -3757,7 +3863,7 @@ public Action:Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadca
 	// Set client command for round end music
 	// int iWinner = GetEventInt(event, "winner");
 	// decl String:sMusicCommand[128];
-	// if (iWinner == TEAM_1)
+	// if (iWinner == TEAM_1_SEC)
 	// 	Format(sMusicCommand, sizeof(sMusicCommand), "playgamesound Music.WonGame_Security");
 	// else
 	// 	Format(sMusicCommand, sizeof(sMusicCommand), "playgamesound Music.LostGame_Insurgents");
@@ -3797,7 +3903,16 @@ public Action:Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadca
 	ResetInsurgencyLives();
 	ResetSecurityLives();
 	
-	
+	//Reset new spawn system bot count
+	g_maxbots_std = 0;
+	g_maxbots_light = 0;
+	g_maxbots_jug = 0;
+	g_maxbots_bomb = 0;
+
+	g_bots_std = 0;
+	g_bots_light = 0;
+	g_bots_jug = 0;
+	g_bots_bomb = 0;
 	////////////////////////
 	// Rank System
 	// if (g_hDB != INVALID_HANDLE)
@@ -3835,7 +3950,7 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 		if (!IsClientInGame(client))
 			continue;
 		int m_iTeam = GetClientTeam(client);
-		if (IsFakeClient(client) && m_iTeam == TEAM_2)
+		if (IsFakeClient(client) && m_iTeam == TEAM_2_INS)
 		{
 			g_badSpawnPos_Track[client][0] = 0;
 			g_badSpawnPos_Track[client][1] = 0;
@@ -3857,7 +3972,7 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 
 	//AI Director Status ###START###
 	new secTeamCount = GetTeamSecCount();
-	new secTeamAliveCount = Team_CountAlivePlayers(TEAM_1);
+	new secTeamAliveCount = Team_CountAlivePlayers(TEAM_1_SEC);
 
 	if (g_iRespawn_lives_team_ins > 0)
 		g_AIDir_TeamStatus += 10;
@@ -3931,6 +4046,12 @@ public Action:Event_ControlPointCaptured_Pre(Handle:event, const String:name[], 
 		if (g_finale_counter_spec_enabled == 1)
 				g_dynamicSpawnCounter_Perc = g_finale_counter_spec_percent;
 
+		//If endless spawning on final counter attack, add lives on finale counter on a delay
+		if (g_iCvar_final_counterattack_type == 2)
+		{
+			new tCvar_CounterDelayValue = GetConVarInt(FindConVar("mp_checkpoint_counterattack_delay_finale"));
+			CreateTimer((tCvar_CounterDelayValue), Timer_FinaleCounterAssignLives, _);
+		}
 	}
 	// Normal counter attack
 	else
@@ -4043,6 +4164,49 @@ public Action:Event_ControlPointCaptured(Handle:event, const String:name[], bool
 	// Return if conquer
 	if (g_isConquer == 1 || g_isHunt == 1 || g_isOutpost == 1) return Plugin_Continue;
 
+	// If VIP capped, reward team with supply points
+	decl String:cappers[256];
+	GetEventString(event, "cappers", cappers, sizeof(cappers));
+	new cappersLength = strlen(cappers);
+	for (new i = 0 ; i < cappersLength; i++)
+	{
+		new clientCapper = cappers[i];
+		if(clientCapper > 0 && IsClientInGame(clientCapper) && IsClientConnected(clientCapper) && 
+			IsPlayerAlive(clientCapper) && !IsFakeClient(clientCapper) && 
+			(StrContains(g_client_last_classstring[clientCapper], "vip") > -1) && g_vip_obj_count > 0)
+		{
+				//Reward team with tokens (credits to INS server)
+				ConVar cvar_tokenmax = FindConVar("mp_supply_token_max");
+				new nMaxSupply = GetConVarInt(cvar_tokenmax);
+				//Determine reward
+				new nRandSupplyReward = GetRandomInt(g_iCvar_vip_min_sp_reward, g_iCvar_vip_max_sp_reward);
+
+				for(new client = 1; client <= MaxClients; client++)
+				{
+					//new nCurrentPlayerTeam = GetClientTeam(client);
+					if((IsValidClient(client)) && (IsClientConnected(client)) && (!IsFakeClient(client)))
+					{
+						int nSupplyPoint = GetEntProp(client, Prop_Send, "m_nRecievedTokens");
+						int nAvailableSupplyPoint = GetEntProp(client, Prop_Send, "m_nAvailableTokens");
+						
+						if(nSupplyPoint <= nMaxSupply)
+						{
+							
+							nSupplyPoint += nRandSupplyReward;
+							nAvailableSupplyPoint += nRandSupplyReward;
+							PrintToChat(client, "VIP has captured point\nYou have received %i supply point(s) as reward", nRandSupplyReward);
+						}
+
+						//Set client nSupplyPoint
+						SetEntProp(client, Prop_Send, "m_nRecievedTokens",nSupplyPoint);
+						SetEntProp(client, Prop_Send, "m_nAvailableTokens", nAvailableSupplyPoint);
+					}
+				}
+			
+				break;
+		}
+	}
+
 	// Reset reinforcement time
 	g_iReinforceTime = g_iReinforceTime_AD_Temp;
 	
@@ -4092,7 +4256,7 @@ public Action:Event_ControlPointCaptured_Post(Handle:event, const String:name[],
 				new team = GetClientTeam(client);
 				new Float:clientPos[3];
 				GetClientAbsOrigin(client, Float:clientPos);
-				if (playerPickSquad[client] == 1 && !IsPlayerAlive(client) && team == TEAM_1)
+				if (playerPickSquad[client] == 1 && !IsPlayerAlive(client) && team == TEAM_1_SEC)
 				{
 					if (!IsFakeClient(client))
 					{
@@ -4131,6 +4295,10 @@ public Action:Event_ControlPointCaptured_Post(Handle:event, const String:name[],
 	}
 	else if (Ins_InCounterAttack())
 		g_secWave_Timer += (GetTeamSecCount() * 3);
+
+	//Reset VIP Objective counter
+	g_vip_obj_count = g_iCvar_vip_obj_time;
+	g_vip_obj_ready = 1;
 	
 	return Plugin_Continue;
 }
@@ -4149,7 +4317,7 @@ public Action:Event_ObjectDestroyed_Pre(Handle:event, const String:name[], bool:
 		if (!IsClientInGame(client))
 			continue;
 		int m_iTeam = GetClientTeam(client);
-		if (IsFakeClient(client) && m_iTeam == TEAM_2)
+		if (IsFakeClient(client) && m_iTeam == TEAM_2_INS)
 		{
 			g_badSpawnPos_Track[client][0] = 0;
 			g_badSpawnPos_Track[client][1] = 0;
@@ -4171,7 +4339,7 @@ public Action:Event_ObjectDestroyed_Pre(Handle:event, const String:name[], bool:
 
 	//AI Director Status ###START###
 	new secTeamCount = GetTeamSecCount();
-	new secTeamAliveCount = Team_CountAlivePlayers(TEAM_1);
+	new secTeamAliveCount = Team_CountAlivePlayers(TEAM_1_SEC);
 
 	if (g_iRespawn_lives_team_ins > 0)
 		g_AIDir_TeamStatus += 10;
@@ -4355,7 +4523,7 @@ public Action:Event_ObjectDestroyed(Handle:event, const String:name[], bool:dont
 			if (IsClientConnected(client) && !IsFakeClient(client) && IsClientConnected(client))
 			{
 				new team = GetClientTeam(client);
-				if(IsClientInGame(client) && !IsClientTimingOut(client) && playerPickSquad[client] == 1 && !IsPlayerAlive(client) && team == TEAM_1)
+				if(IsClientInGame(client) && !IsClientTimingOut(client) && playerPickSquad[client] == 1 && !IsPlayerAlive(client) && team == TEAM_1_SEC)
 				{
 					CreateCounterRespawnTimer(client);
 				}
@@ -4401,7 +4569,7 @@ public Action:Event_ObjectDestroyed_Post(Handle:event, const String:name[], bool
 				new team = GetClientTeam(client);
 				new Float:clientPos[3];
 				GetClientAbsOrigin(client, Float:clientPos);
-				if (playerPickSquad[client] == 1 && !IsPlayerAlive(client) && team == TEAM_1)
+				if (playerPickSquad[client] == 1 && !IsPlayerAlive(client) && team == TEAM_1_SEC)
 				{
 					if (!IsFakeClient(client))
 					{
@@ -4437,6 +4605,9 @@ public Action:Event_ObjectDestroyed_Post(Handle:event, const String:name[], bool
 	else if (Ins_InCounterAttack())
 		g_secWave_Timer += (GetTeamSecCount() * 3);
 
+	//Reset VIP timer
+	g_vip_obj_count = g_iCvar_vip_obj_time;	
+
 	return Plugin_Continue;
 }
 
@@ -4446,7 +4617,17 @@ public Action:serverhelp(client, args)
 	PrintToChat(client, "[SERVER_HELP] Visit SERNIX.DYNU.COM in/out of game for more SERNIX Info/Guides.");
 	return Plugin_Handled;
 }
-
+//VIP Info Command (Credits: INS Server)
+public Action:Cmd_VIP(client, args)
+{
+	int nPlayerHealth = GetClientHealth(client);
+	if((g_nVIP_ID != 0) && (nPlayerHealth > 0))
+	{
+		PrintHintText(client, "\x04VIP\x01 needs to capture point within 5 minutes to earn bonus supply.");
+		PrintToChat(client, "\x04VIP\x01 needs to capture point within 5 minutes to earn bonus supply. Does not include destroying objectives.");
+	}
+	return Plugin_Handled;
+}
 //Squad Spawning Toggle
 public Action:SquadSpawn(client, args) 
 { 
@@ -4454,7 +4635,7 @@ public Action:SquadSpawn(client, args)
 		return Plugin_Handled;
 
 	new iTeam = GetClientTeam(client);
-	if ((iTeam == TEAM_1 && playerPickSquad[client] == 1) && 
+	if ((iTeam == TEAM_1_SEC && playerPickSquad[client] == 1) && 
 		(StrContains(g_client_last_classstring[client], "Gnalvl_squadleader_usmc") > -1 || 
 		StrContains(g_client_last_classstring[client], "gnalvl_teamleader_usmc") > -1 ||
 		StrContains(g_client_last_classstring[client], "Gnalvl_teamleader_recon_usmc") > -1) )
@@ -4543,15 +4724,15 @@ public Action:Timer_SquadSpawn_Notify(Handle:timer, any:data)
 			continue;
 
 		new iTeam = GetClientTeam(tLeader);
-		if (iTeam == TEAM_1 && StrContains(g_client_last_classstring[tLeader], "Gnalvl_squadleader_usmc") > -1 && IsPlayerAlive(tLeader))
+		if (iTeam == TEAM_1_SEC && StrContains(g_client_last_classstring[tLeader], "Gnalvl_squadleader_usmc") > -1 && IsPlayerAlive(tLeader))
 		{
 			tSquadLeader = tLeader;
 		}
-		else if (iTeam == TEAM_1 && StrContains(g_client_last_classstring[tLeader], "gnalvl_teamleader_usmc") > -1 && IsPlayerAlive(tLeader))
+		else if (iTeam == TEAM_1_SEC && StrContains(g_client_last_classstring[tLeader], "gnalvl_teamleader_usmc") > -1 && IsPlayerAlive(tLeader))
 		{
 			tTeamLeader = tLeader;
 		}
-		else if (iTeam == TEAM_1 && StrContains(g_client_last_classstring[tLeader], "Gnalvl_teamleader_recon_usmc") > -1 && IsPlayerAlive(tLeader))
+		else if (iTeam == TEAM_1_SEC && StrContains(g_client_last_classstring[tLeader], "Gnalvl_teamleader_recon_usmc") > -1 && IsPlayerAlive(tLeader))
 		{
 			tReconTeamLeader = tLeader;
 		}
@@ -4564,7 +4745,7 @@ public Action:Timer_SquadSpawn_Notify(Handle:timer, any:data)
 			continue;
 
 		new iTeam = GetClientTeam(tClient);
-		if (g_squadSpawnEnabled[tClient] == 1 && iTeam == TEAM_1 && !IsPlayerAlive(tClient) && (!StrContains(g_client_last_classstring[tClient], "Gnalvl_squadleader_usmc") > -1) &&
+		if (g_squadSpawnEnabled[tClient] == 1 && iTeam == TEAM_1_SEC && !IsPlayerAlive(tClient) && (!StrContains(g_client_last_classstring[tClient], "Gnalvl_squadleader_usmc") > -1) &&
 			(!StrContains(g_client_last_classstring[tClient], "gnalvl_teamleader_usmc") > -1) &&
 			(!StrContains(g_client_last_classstring[tClient], "Gnalvl_teamleader_recon_usmc") > -1))
 		{
@@ -4654,7 +4835,7 @@ public FindSquadLeader(String:leaderClassString[64])
 			continue;
 		
 		new iTeam = GetClientTeam(tLeader);
-		if (iTeam == TEAM_1 && StrContains(g_client_last_classstring[tLeader], leaderClassString) > -1)
+		if (iTeam == TEAM_1_SEC && StrContains(g_client_last_classstring[tLeader], leaderClassString) > -1)
 		{
 			return tLeader;
 		}
@@ -4812,6 +4993,15 @@ public Action:cmd_kill(client, args) {
 	PrintToChat(client, "\x04[SERNIX RULES] %t", "Abusing kill command is not allowed! | Times used %d | Abusing for ammo = ban", g_trackKillDeaths[client]);
 	return Plugin_Handled;
 }
+// On finale counter attack, add lives back to insurgents to trigger unlimited respawns (this is redundant code now and may use for something else)
+public Action:Timer_FinaleCounterAssignLives(Handle:Timer)
+{
+	if (g_iCvar_final_counterattack_type == 2)
+	{
+			// Reset remaining lives for bots
+			g_iRemaining_lives_team_ins = g_iRespawn_lives_team_ins;
+	}
+}
 
 // When counter-attack end, reset reinforcement time
 public Action:Timer_CounterAttackEnd(Handle:Timer)
@@ -4868,7 +5058,7 @@ public Action:Timer_CounterAttackEnd(Handle:Timer)
 			if (!IsClientInGame(client))
 				continue;
 			int m_iTeam = GetClientTeam(client);
-			if (IsFakeClient(client) && m_iTeam == TEAM_2)
+			if (IsFakeClient(client) && m_iTeam == TEAM_2_INS)
 			{
 				g_badSpawnPos_Track[client][0] = 0;
 				g_badSpawnPos_Track[client][1] = 0;
@@ -4913,7 +5103,13 @@ void ResetSecurityLives()
 	
 	// Update cvars
 	UpdateRespawnCvars();
-	
+
+	if (g_isCheckpoint)
+	{
+		//If spawned per point, give more per-point lives based on team count.
+		if (g_iCvar_respawn_reset_type == 1)
+			SecDynLivesPerPoint();
+	}
 	// Individual lives
 	if (g_iCvar_respawn_type_team_sec == 1)
 	{
@@ -4929,7 +5125,7 @@ void ResetSecurityLives()
 				
 				// Check Team
 				new iTeam = GetClientTeam(client);
-				if (iTeam != TEAM_1)
+				if (iTeam != TEAM_1_SEC)
 					continue;
 
 				//Bonus lives for conquer/outpost
@@ -4937,18 +5133,12 @@ void ResetSecurityLives()
 					g_iSpawnTokens[client] = g_iRespawnCount[iTeam] + 10;
 				else
 				{
-					if (StrContains(g_client_last_classstring[client], "medic") > -1 && !((acp+1) == ncp))
-						g_iSpawnTokens[client] = g_iRespawnCount[iTeam] + 1;
-					else
-						{
-							// Final counter attack
-							// if ((acp+1) == ncp)
-							// {
-							// 	g_iRespawnCount[iTeam] = 1;
-							// }
-							// else
-								g_iSpawnTokens[client] = g_iRespawnCount[iTeam];
-						}
+					// Individual SEC lives
+					if (g_isCheckpoint == 1 && g_iCvar_respawn_type_team_sec == 1)
+					{
+						// Reset remaining lives for player
+						g_iSpawnTokens[client] = g_iRespawnCount[iTeam];
+					}
 				}
 			}
 		}
@@ -4984,7 +5174,7 @@ void ResetInsurgencyLives()
 			{
 				// Check Team
 				new iTeam = GetClientTeam(client);
-				if (iTeam != TEAM_2)
+				if (iTeam != TEAM_2_INS)
 					continue;
 				
 				//Bonus lives for conquer/outpost
@@ -5031,7 +5221,7 @@ public Action:Event_PlayerPickSquad_Post( Handle:event, const String:name[], boo
 	
 	// If player changed squad and remain ragdoll
 	new team = GetClientTeam(client);
-	if (client > 0 && IsClientInGame(client) && IsClientObserver(client) && !IsPlayerAlive(client) && g_iHurtFatal[client] == 0 && team == TEAM_1)
+	if (client > 0 && IsClientInGame(client) && IsClientObserver(client) && !IsPlayerAlive(client) && g_iHurtFatal[client] == 0 && team == TEAM_1_SEC)
 	{
 		// Remove ragdoll
 		new playerRag = EntRefToEntIndex(g_iClientRagdolls[client]);
@@ -5143,6 +5333,18 @@ public Action:Event_PlayerPickSquad_Post( Handle:event, const String:name[], boo
 		else
 			Format(sNewNickname, sizeof(sNewNickname), "[AT] %s", g_client_org_nickname[client]);
 	}
+	else if (StrContains(g_client_last_classstring[client], "vip") > -1)
+	{
+		// Admin medic
+		if (GetConVarInt(sm_respawn_enable_donor_tag) == 1 && (GetUserFlagBits(client) & ADMFLAG_ROOT))
+			Format(sNewNickname, sizeof(sNewNickname), "[ADMIN][VIP] %s", g_client_org_nickname[client]);
+		// Donor medic
+		else if (GetConVarInt(sm_respawn_enable_donor_tag) == 1 && (GetUserFlagBits(client) & ADMFLAG_RESERVATION))
+			Format(sNewNickname, sizeof(sNewNickname), "[DONOR][VIP] %s", g_client_org_nickname[client]);
+		// Normal medic
+		else
+			Format(sNewNickname, sizeof(sNewNickname), "[VIP] %s", g_client_org_nickname[client]);
+	}
 	// Normal class
 	else
 	{
@@ -5166,7 +5368,7 @@ public Action:Event_PlayerPickSquad_Post( Handle:event, const String:name[], boo
 	g_playersReady = true;
 
 	//Allow new players to use lives to respawn on join
-	if (g_iRoundStatus == 1 && g_playerFirstJoin[client] == 1 && !IsPlayerAlive(client) && team == TEAM_1)
+	if (g_iRoundStatus == 1 && g_playerFirstJoin[client] == 1 && !IsPlayerAlive(client) && team == TEAM_1_SEC)
 	{
 		// Get SteamID to verify is player has connected before.
 		decl String:steamId[64];
@@ -5211,6 +5413,17 @@ public Action:Event_PlayerPickSquad_Post( Handle:event, const String:name[], boo
 			}
 			CreatePlayerRespawnTimer(client);
 		}
+	}
+
+	//Assign VIP (Credits INS Server)
+	if(StrContains(class_template, "vip") > -1)
+	{
+		g_nVIP_ID = client;
+	}
+	
+	if((client == g_nVIP_ID) && (StrContains(class_template, "vip") == -1))
+	{
+		g_nVIP_ID = 0;
 	}
 
 	//Update RespawnCvars when player picks squad
@@ -5298,7 +5511,7 @@ public Action:Event_PlayerHurt_Pre(Handle:event, const String:name[], bool:dontB
 			else if (hitgroup == 1)
 			{
 				//PrintToServer("[PLAYER HURT HEAD]");
-				if (dmg_taken >= g_iCvar_fatal_head_dmg && (fRandom <= g_fCvar_fatal_head_chance) && attackerTeam != TEAM_1)
+				if (dmg_taken >= g_iCvar_fatal_head_dmg && (fRandom <= g_fCvar_fatal_head_chance) && attackerTeam != TEAM_1_SEC)
 				{
 					// Hurt fatally
 					g_iHurtFatal[victim] = 1;
@@ -5463,7 +5676,7 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 
 	//AI Director START
 	//Bot Team AD Status
-	if (team == TEAM_2 && g_iRoundStatus == 1 && attackerTeam == TEAM_1)
+	if (team == TEAM_2_INS && g_iRoundStatus == 1 && attackerTeam == TEAM_1_SEC)
 	{
 		//Bonus point for specialty bots
 		if (AI_Director_IsSpecialtyBot(client))
@@ -5477,7 +5690,7 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 		}
 	}
 	//Player Team AD STATUS
-	if (team == TEAM_1 && g_iRoundStatus == 1)
+	if (team == TEAM_1_SEC && g_iRoundStatus == 1)
 	{
 		if (g_iHurtFatal[client] == 1)
 			g_AIDir_TeamStatus -= 3;
@@ -5496,7 +5709,7 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 	if (g_iCvar_revive_enable)
 	{
 		// Convert ragdoll
-		if (team == TEAM_1)
+		if (team == TEAM_1_SEC)
 		{
 			// Get current position
 			decl Float:vecPos[3];
@@ -5512,8 +5725,8 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 	if (g_iCvar_respawn_enable)
 	{
 		
-		// Client should be TEAM_1 = HUMANS or TEAM_2 = BOTS
-		if ((team == TEAM_1) || (team == TEAM_2))
+		// Client should be TEAM_1_SEC = HUMANS or TEAM_2_INS = BOTS
+		if ((team == TEAM_1_SEC) || (team == TEAM_2_INS))
 		{
 			// The number of control points
 			new ncp = Ins_ObjectiveResource_GetProp("m_iNumControlPoints");
@@ -5528,7 +5741,10 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 			)
 			{
 				// Respawn type 1 bots
-				if ((g_iCvar_respawn_type_team_ins == 1 && team == TEAM_2))
+				if ((g_iCvar_respawn_type_team_ins == 1 && team == TEAM_2_INS) && 
+				(((acp+1) == ncp &&  g_iCvar_final_counterattack_type == 2) || 
+				((acp+1) != ncp && g_iCvar_counterattack_type == 2))
+				)
 				{
 					if ((g_iSpawnTokens[client] < g_iRespawnCount[team]))
 						g_iSpawnTokens[client] = (g_iRespawnCount[team] + 1);
@@ -5537,11 +5753,11 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 					CreateBotRespawnTimer(client);
 				}
 				// Respawn type 1 player (individual lives)
-				else if (g_iCvar_respawn_type_team_sec == 1 && team == TEAM_1)
+				else if (g_iCvar_respawn_type_team_sec == 1 && team == TEAM_1_SEC)
 				{
 					if (g_iSpawnTokens[client] > 0)
 					{
-						if (team == TEAM_1)
+						if (team == TEAM_1_SEC)
 						{
 							CreatePlayerRespawnTimer(client);
 						}
@@ -5555,7 +5771,7 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 					}
 				}
 				// Respawn type 2 for players
-				else if (team == TEAM_1 && g_iCvar_respawn_type_team_sec == 2 && g_iRespawn_lives_team_sec > 0)
+				else if (team == TEAM_1_SEC && g_iCvar_respawn_type_team_sec == 2 && g_iRespawn_lives_team_sec > 0)
 				{
 					g_iRemaining_lives_team_sec = g_iRespawn_lives_team_sec + 1;
 					
@@ -5563,7 +5779,11 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 					CreateCounterRespawnTimer(client);
 				}
 				// Respawn type 2 for bots
-				else if (team == TEAM_2 && g_iCvar_respawn_type_team_ins == 2 && g_iRespawn_lives_team_ins > 0)
+				else if (team == TEAM_2_INS && g_iCvar_respawn_type_team_ins == 2 && 
+				(g_iRespawn_lives_team_ins > 0 || 
+				((acp+1) == ncp && g_iCvar_final_counterattack_type == 2) || 
+				((acp+1) != ncp && g_iCvar_counterattack_type == 2))
+				)
 				{
 					g_iRemaining_lives_team_ins = g_iRespawn_lives_team_ins + 1;
 					
@@ -5572,15 +5792,15 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 				}
 			}
 			// Normal respawn
-			else if ((g_iCvar_respawn_type_team_sec == 1 && team == TEAM_1) || (g_iCvar_respawn_type_team_ins == 1 && team == TEAM_2))
+			else if ((g_iCvar_respawn_type_team_sec == 1 && team == TEAM_1_SEC) || (g_iCvar_respawn_type_team_ins == 1 && team == TEAM_2_INS))
 			{
 				if (g_iSpawnTokens[client] > 0)
 				{
-					if (team == TEAM_1)
+					if (team == TEAM_1_SEC)
 					{
 						CreatePlayerRespawnTimer(client);
 					}
-					else if (team == TEAM_2)
+					else if (team == TEAM_2_INS)
 					{
 						CreateBotRespawnTimer(client);
 					}
@@ -5594,7 +5814,7 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 				}
 			}
 			// Respawn type 2 for players
-			else if (g_iCvar_respawn_type_team_sec == 2 && team == TEAM_1)
+			else if (g_iCvar_respawn_type_team_sec == 2 && team == TEAM_1_SEC)
 			{
 				if (g_iRemaining_lives_team_sec > 0)
 				{
@@ -5609,7 +5829,7 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 				}
 			}
 			// Respawn type 2 for bots
-			else if (g_iCvar_respawn_type_team_ins == 2 && g_iRemaining_lives_team_ins >  0 && team == TEAM_2)
+			else if (g_iCvar_respawn_type_team_ins == 2 && g_iRemaining_lives_team_ins >  0 && team == TEAM_2_INS)
 			{
 				CreateBotRespawnTimer(client);
 			}
@@ -6620,7 +6840,7 @@ public Action:Timer_MedicMonitor(Handle:timer)
 		
 		// Medic only can inspect health.
 		new iTeam = GetClientTeam(medic);
-		if (iTeam == TEAM_1 && IsPlayerAlive(medic) && StrContains(g_client_last_classstring[medic], "medic") > -1)
+		if (iTeam == TEAM_1_SEC && IsPlayerAlive(medic) && StrContains(g_client_last_classstring[medic], "medic") > -1)
 		{
 			// Target is teammate and alive.
 			new iTarget = TraceClientViewEntity(medic);
@@ -6822,7 +7042,7 @@ public Action:Timer_MedicMonitor(Handle:timer)
 				}
 			}
 		}
-		else if (iTeam == TEAM_1 && IsPlayerAlive(medic) && !(StrContains(g_client_last_classstring[medic], "medic") > -1))
+		else if (iTeam == TEAM_1_SEC && IsPlayerAlive(medic) && !(StrContains(g_client_last_classstring[medic], "medic") > -1))
 		{
 			// Check weapon for non medics outside
 			new ActiveWeapon = GetEntPropEnt(medic, Prop_Data, "m_hActiveWeapon");
@@ -6986,6 +7206,45 @@ public Action:Timer_MedicMonitor(Handle:timer)
 
 // }
 
+public Action:Timer_VIPCheck_Main(Handle:timer, any:data)
+{
+	//Only count down if not in counter
+	if (!Ins_InCounterAttack() && g_vip_obj_count >= 0)
+		g_vip_obj_count--;
+
+	PrintToServer("[VIP] g_vip_obj_count: %i ", g_vip_obj_count);
+
+	decl String:textToPrintChat[128];
+	//decl String:textToPrint[64];
+	// Announce every 10 seconds
+	if (g_vip_obj_count > 0 && (g_vip_obj_count % 45 == 0 || g_vip_obj_count < 4 || g_vip_obj_count == 10 || g_vip_obj_count == 20))
+	{				
+		
+		//Format(textToPrint, sizeof(textToPrint), "Capture point with VIP in %d second to receive bonus supply!", g_vip_obj_count);
+		Format(textToPrintChat, sizeof(textToPrintChat), "\x04VIP\x01 must be capture next point within %d second(s) for team to receive bonus supply!", g_vip_obj_count);
+		PrintToChatAll("Does not include destroyable objectives for now.");
+		//PrintHintTextToAll(textToPrint);
+		PrintToChatAll(textToPrintChat);
+		if (g_nVIP_ID == 0)
+		{
+			Format(textToPrintChat, sizeof(textToPrintChat), "No \x04VIP\x01 on team | Supply points will not be granted for capturing objectives.");
+			//PrintHintTextToAll(textToPrint);
+			PrintToChatAll(textToPrintChat);
+		}
+	}
+	if (g_vip_obj_count == 0 && g_vip_obj_ready != 0)
+	{
+		g_vip_obj_ready = 0;
+		PrintToChatAll("\x04VIP\x01 failed to capture point within allotted time of %d seconds.", g_iCvar_vip_obj_time);
+
+		if (g_nVIP_ID == 0)
+		{
+			Format(textToPrintChat, sizeof(textToPrintChat), "No \x04VIP\x01 on team | Supply points will not be granted.");
+			//PrintHintTextToAll(textToPrint);
+			PrintToChatAll(textToPrintChat);
+		}
+	}
+}
 
 //Main AI Director Tick
 public Action:Timer_AIDirector_Main(Handle:timer, any:data)
@@ -7062,7 +7321,7 @@ public Action:Timer_AmmoResupply(Handle:timer, any:data)
 			continue;
 		new team = GetClientTeam(client); 
 		// Valid medic?
-		if (IsPlayerAlive(client) && team == TEAM_1)
+		if (IsPlayerAlive(client) && team == TEAM_1_SEC)
 		{
 			new ActiveWeapon = GetEntPropEnt(client, Prop_Data, "m_hActiveWeapon");
 			if (ActiveWeapon < 0)
@@ -7247,7 +7506,7 @@ public Action:Timer_AmbientRadio(Handle:timer, any:data)
 		
 		new team = GetClientTeam(client); 
 		// Valid medic?
-		if (IsPlayerAlive(client) && ((StrContains(g_client_last_classstring[client], "squadleader") > -1) || (StrContains(g_client_last_classstring[client], "teamleader") > -1)) && team == TEAM_1)
+		if (IsPlayerAlive(client) && ((StrContains(g_client_last_classstring[client], "squadleader") > -1) || (StrContains(g_client_last_classstring[client], "teamleader") > -1)) && team == TEAM_1_SEC)
 		{
 
 
@@ -7640,7 +7899,7 @@ stock GetTeamSecCount() {
 		if (IsClientInGame(i) && IsClientConnected(i))
 		{
 			iTeam = GetClientTeam(i);
-			if(iTeam == TEAM_1)
+			if(iTeam == TEAM_1_SEC)
 				clients++;
 		}
 	}
@@ -9367,6 +9626,10 @@ public Action Event_PlayerTeam(Handle event, const char[] name, bool dontBroadca
 					new playerRag = EntRefToEntIndex(g_iClientRagdolls[client]);
 					if(playerRag > 0 && IsValidEdict(playerRag) && IsValidEntity(playerRag))
 						RemoveRagdoll(client);
+				}
+				if((m_iTeam == TEAM_SPEC) && (client == g_nVIP_ID))
+				{
+					g_nVIP_ID = 0;
 				}
 			}
 

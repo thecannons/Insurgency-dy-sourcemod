@@ -39,6 +39,9 @@ new Handle:g_helpMenus = INVALID_HANDLE;
 // Map cache
 new Handle:g_mapArray = INVALID_HANDLE;
 new g_mapSerial = -1;
+new g_playerFirstJoin[MAXPLAYERS+1] = 0; 
+
+
 
 // Config parsing
 new g_configLevel = -1;
@@ -56,8 +59,8 @@ public OnPluginStart() {
 	CreateConVar("sm_helpmenu_version", PLUGIN_VERSION, "Help menu version", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
 	g_cvarWelcome = CreateConVar("sm_helpmenu_welcome", "1", "Show welcome message to newly connected users.");
 	g_cvarAdmins = CreateConVar("sm_helpmenu_admins", "0", "Show a list of online admins in the menu.");
-	RegConsoleCmd("sm_help", Command_HelpMenu, "Display the help menu.");
-
+	RegConsoleCmd("sm_info", Command_HelpMenu, "Display the help menu.");
+	HookEvent("player_spawn", Event_Spawn);
 	new String:hc[PLATFORM_MAX_PATH];
 	BuildPath(Path_SM, hc, sizeof(hc), "configs/helpmenu.cfg");
 	g_mapArray = CreateArray(32);
@@ -74,12 +77,43 @@ public OnMapStart() {
 
 public OnClientPutInServer(client) {
 	if (GetConVarBool(g_cvarWelcome))
+	{
 		CreateTimer(30.0, Timer_WelcomeMessage, client);
+		CreateTimer(600.0, Timer_WelcomeMessage, client, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+	}
+
+	g_playerFirstJoin[client] = 1;
+	Help_ShowMainMenu(client);
+}
+
+public Action:Event_Spawn(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+
+	//For first joining players 
+	if (g_playerFirstJoin[client] == 1 && !IsFakeClient(client))
+	{
+		Help_ShowMainMenu(client);
+		g_playerFirstJoin[client] = 0;
+	}
+	if (!IsClientConnected(client)) {
+		return Plugin_Continue;
+	}
+	if (!IsClientInGame(client)) {
+		return Plugin_Continue;
+	}
+	if (!IsFakeClient(client)) {
+		return Plugin_Continue;
+	}
+
+
+	return Plugin_Continue;
 }
 
 public Action:Timer_WelcomeMessage(Handle:timer, any:client) {
 	if (GetConVarBool(g_cvarWelcome) && IsClientConnected(client) && IsClientInGame(client) && !IsFakeClient(client))
-		PrintToChat(client, "\x01[SRNX] For Sernix Server Specific Info, type \x04!help\x01 in chat");
+		PrintToChat(client, "\x01[SRNX] For Sernix Server Specific Info, type \x04!INFO\x01 in chat");
+		PrintToChat(client, "\x01[SRNX] Need an ADMIN? type \x04!CALLADMIN <REASON>\x01 in chat to notify admin via discord");
 }
 
 bool:ParseConfigFile(const String:file[]) {

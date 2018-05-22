@@ -15,13 +15,13 @@
 
 
 //Check Min/Max AD
-stock AI_Director_SetMinMax(g_AIDir_TeamStatus, g_AIDir_TeamStatus_min, g_AIDir_TeamStatus_max)
+stock AI_Director_SetMinMax(t_AIDir_TeamStatus, t_AIDir_TeamStatus_min, t_AIDir_TeamStatus_max)
 {
-	if (g_AIDir_TeamStatus < g_AIDir_TeamStatus_min)
-	g_AIDir_TeamStatus = g_AIDir_TeamStatus_min;
-	else if (g_AIDir_TeamStatus > g_AIDir_TeamStatus_max)
-	g_AIDir_TeamStatus = g_AIDir_TeamStatus_max;
-	return g_AIDir_TeamStatus;
+	if (t_AIDir_TeamStatus < t_AIDir_TeamStatus_min)
+	t_AIDir_TeamStatus = t_AIDir_TeamStatus_min;
+	else if (t_AIDir_TeamStatus > t_AIDir_TeamStatus_max)
+	t_AIDir_TeamStatus = t_AIDir_TeamStatus_max;
+	return t_AIDir_TeamStatus;
 }
 
 
