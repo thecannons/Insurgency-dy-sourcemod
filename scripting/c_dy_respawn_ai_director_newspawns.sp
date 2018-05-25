@@ -3748,11 +3748,11 @@ public Action:Event_RoundEnd_Pre(Handle:event, const String:name[], bool:dontBro
 
 	for (new client = 1; client <= MaxClients; client++)
 	{
-		if (IsFakeClient(client))
-			continue;
 		if (!IsValidClient(client))
 			continue;
 		if (!IsClientInGame(client))
+			continue;
+		if (IsFakeClient(client))
 			continue;
 		new tTeam = GetClientTeam(client);
 		if (tTeam != TEAM_1)

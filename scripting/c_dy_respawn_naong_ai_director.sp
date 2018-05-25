@@ -243,6 +243,7 @@ new
 	Handle:sm_vip_obj_time = INVALID_HANDLE,
 	Handle:sm_vip_min_sp_reward = INVALID_HANDLE,
 	Handle:sm_vip_max_sp_reward = INVALID_HANDLE,
+	Handle:sm_vip_enabled = INVALID_HANDLE,
 
 
 	// Respawn type
@@ -429,6 +430,7 @@ new
 	g_iCvar_vip_obj_time,
 	g_iCvar_vip_min_sp_reward,
 	g_iCvar_vip_max_sp_reward,
+	g_vip_enable,
 	g_vip_obj_count,
 	g_vip_obj_ready,
 	g_vip_min_reward,
@@ -849,6 +851,7 @@ public OnPluginStart()
 	sm_vip_obj_time = CreateConVar("sm_vip_obj_time", "300", "VIP must reach new CPs in this amount of seconds");
 	sm_vip_min_sp_reward = CreateConVar("sm_vip_min_sp_reward", "1", "Minimum supply points awarded to team when VIP completes objective");
 	sm_vip_max_sp_reward = CreateConVar("sm_vip_max_sp_reward", "3", "Maximum supply points awarded to team when VIP completes objective");
+	sm_vip_enabled = CreateConVar("sm_vip_enabled", "1", "Disable or Enable VIP features 0/1");
 	
 	
 
@@ -972,6 +975,7 @@ public OnPluginStart()
 	HookConVarChange(sm_vip_obj_time, CvarChange);
 	HookConVarChange(sm_vip_min_sp_reward, CvarChange);
 	HookConVarChange(sm_vip_max_sp_reward, CvarChange);
+	HookConVarChange(sm_vip_enabled, CvarChange);
 	//HookConVarChange(sm_finale_counter_spec_percent, CvarChange);
 	// Init respawn function
 	// Next 14 lines of text are taken from Andersso's DoDs respawn plugin. Thanks :)
@@ -1105,7 +1109,7 @@ void UpdateRespawnCvars()
 	g_iCvar_vip_obj_time = GetConVarInt(sm_vip_obj_time);
 	g_iCvar_vip_min_sp_reward = GetConVarInt(sm_vip_min_sp_reward);
 	g_iCvar_vip_max_sp_reward = GetConVarInt(sm_vip_max_sp_reward);
-
+	g_vip_enable = GetConVarInt(sm_vip_enabled);
 	
 	// Respawn type 1 //TEAM_1_SEC == Index 2 and TEAM_2_INS == Index 3
 	g_iRespawnCount[2] = GetConVarInt(sm_respawn_lives_team_sec);
@@ -1607,7 +1611,8 @@ public Action:Timer_MapStart(Handle:Timer)
 
 	//Vip Check for reward/complete
 	g_vip_obj_ready = 0;
-	CreateTimer(1.0, Timer_VIPCheck_Main, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	if (g_vip_enable)
+		CreateTimer(1.0, Timer_VIPCheck_Main, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 
 	// Squad Spawn Notify Leader
 	//if (GetConVarInt(sm_enable_squad_spawning) == 1)
@@ -3832,11 +3837,11 @@ public Action:Event_RoundEnd_Pre(Handle:event, const String:name[], bool:dontBro
 
 	for (new client = 1; client <= MaxClients; client++)
 	{
-		if (IsFakeClient(client))
-			continue;
 		if (!IsValidClient(client))
 			continue;
 		if (!IsClientInGame(client))
+			continue;
+		if (IsFakeClient(client))
 			continue;
 		new tTeam = GetClientTeam(client);
 		if (tTeam != TEAM_1_SEC)
@@ -4168,45 +4173,47 @@ public Action:Event_ControlPointCaptured(Handle:event, const String:name[], bool
 	decl String:cappers[256];
 	GetEventString(event, "cappers", cappers, sizeof(cappers));
 	new cappersLength = strlen(cappers);
-	for (new i = 0 ; i < cappersLength; i++)
+	if (g_vip_enable)
 	{
-		new clientCapper = cappers[i];
-		if(clientCapper > 0 && IsClientInGame(clientCapper) && IsClientConnected(clientCapper) && 
-			IsPlayerAlive(clientCapper) && !IsFakeClient(clientCapper) && 
-			(StrContains(g_client_last_classstring[clientCapper], "vip") > -1) && g_vip_obj_count > 0)
+		for (new i = 0 ; i < cappersLength; i++)
 		{
-				//Reward team with tokens (credits to INS server)
-				ConVar cvar_tokenmax = FindConVar("mp_supply_token_max");
-				new nMaxSupply = GetConVarInt(cvar_tokenmax);
-				//Determine reward
-				new nRandSupplyReward = GetRandomInt(g_iCvar_vip_min_sp_reward, g_iCvar_vip_max_sp_reward);
+			new clientCapper = cappers[i];
+			if(clientCapper > 0 && IsClientInGame(clientCapper) && IsClientConnected(clientCapper) && 
+				IsPlayerAlive(clientCapper) && !IsFakeClient(clientCapper) && 
+				(StrContains(g_client_last_classstring[clientCapper], "vip") > -1) && g_vip_obj_count > 0)
+			{
+					//Reward team with tokens (credits to INS server)
+					ConVar cvar_tokenmax = FindConVar("mp_supply_token_max");
+					new nMaxSupply = GetConVarInt(cvar_tokenmax);
+					//Determine reward
+					new nRandSupplyReward = GetRandomInt(g_iCvar_vip_min_sp_reward, g_iCvar_vip_max_sp_reward);
 
-				for(new client = 1; client <= MaxClients; client++)
-				{
-					//new nCurrentPlayerTeam = GetClientTeam(client);
-					if((IsValidClient(client)) && (IsClientConnected(client)) && (!IsFakeClient(client)))
+					for(new client = 1; client <= MaxClients; client++)
 					{
-						int nSupplyPoint = GetEntProp(client, Prop_Send, "m_nRecievedTokens");
-						int nAvailableSupplyPoint = GetEntProp(client, Prop_Send, "m_nAvailableTokens");
-						
-						if(nSupplyPoint <= nMaxSupply)
+						//new nCurrentPlayerTeam = GetClientTeam(client);
+						if((IsValidClient(client)) && (IsClientConnected(client)) && (!IsFakeClient(client)))
 						{
+							int nSupplyPoint = GetEntProp(client, Prop_Send, "m_nRecievedTokens");
+							int nAvailableSupplyPoint = GetEntProp(client, Prop_Send, "m_nAvailableTokens");
 							
-							nSupplyPoint += nRandSupplyReward;
-							nAvailableSupplyPoint += nRandSupplyReward;
-							PrintToChat(client, "VIP has captured point\nYou have received %i supply point(s) as reward", nRandSupplyReward);
-						}
+							if(nSupplyPoint <= nMaxSupply)
+							{
+								
+								nSupplyPoint += nRandSupplyReward;
+								nAvailableSupplyPoint += nRandSupplyReward;
+								PrintToChat(client, "VIP has captured point\nYou have received %i supply point(s) as reward", nRandSupplyReward);
+							}
 
-						//Set client nSupplyPoint
-						SetEntProp(client, Prop_Send, "m_nRecievedTokens",nSupplyPoint);
-						SetEntProp(client, Prop_Send, "m_nAvailableTokens", nAvailableSupplyPoint);
+							//Set client nSupplyPoint
+							SetEntProp(client, Prop_Send, "m_nRecievedTokens",nSupplyPoint);
+							SetEntProp(client, Prop_Send, "m_nAvailableTokens", nAvailableSupplyPoint);
+						}
 					}
-				}
-			
-				break;
+				
+					break;
+			}
 		}
 	}
-
 	// Reset reinforcement time
 	g_iReinforceTime = g_iReinforceTime_AD_Temp;
 	
