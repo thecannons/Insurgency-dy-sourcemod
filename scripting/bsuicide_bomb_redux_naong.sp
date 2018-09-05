@@ -219,7 +219,7 @@ public Action:Timer_BomberLoop(Handle:timer) //this controls bomber loop to chec
 									EmitSoundToAll("weapons/ied/handling/ied_trigger_ins.wav", bomber, SNDCHAN_VOICE, _, _, 1.0);
 									EmitSoundToAll("player/voip_end_transmit_beep_03.wav", validAntenna, SNDCHAN_VOICE, _, _, 1.0);
 									EmitSoundToAll("ui/sfx/beep.wav", validAntenna, SNDCHAN_VOICE, _, _, 1.0);
-									PrintToChatAll("[Jammer] **IED Bomber Jammed**");
+									PrintToChatAll("[Jammer] \x04***IED Bomber Jammed***\x04");
 									YellDetonateSound(bomber);
 								}
 								else
@@ -262,7 +262,7 @@ public FindValidProp_InDistance(client)
 		if (StrEqual(propModelName, "models/sernix/ied_jammer/ied_jammer.mdl"))
 		{
 			new Float:tDistance = (GetEntitiesDistance(client, prop));
-			if (tDistance <= (GetConVarInt(cvar_jammer_range) / 2))
+			if (tDistance <= (GetConVarFloat(cvar_jammer_range)))
 			{
 				return prop;
 			}

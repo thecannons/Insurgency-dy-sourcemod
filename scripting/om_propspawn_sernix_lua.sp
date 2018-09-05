@@ -43,39 +43,35 @@
 
 
 //Define keys
-#define IN_ATTACK   (1 << 0)
-#define IN_JUMP     (1 << 1)
-#define IN_BACK    (1 << 3)
-#define IN_LEFT     (1 << 7)
-#define IN_RIGHT    (1 << 8)
-#define IN_MOVELEFT   (1 << 9)
-#define IN_MOVERIGHT    (1 << 10)
+#define		INS_ATTACK1				(1 << 0)
+#define		INS_JUMP				(1 << 1)
+#define		INS_DUCK				(1 << 2)
+#define		INS_PRONE				(1 << 3)
+#define		INS_FORWARD				(1 << 4)
+#define		INS_BACKWARD			(1 << 5)
+#define		INS_USE					(1 << 6)
+#define		INS_LEFT				(1 << 9)
+#define		INS_RIGHT				(1 << 10)
+#define		INS_RELOAD				(1 << 11)
+#define		INS_FIREMODE			(1 << 12)
+#define		INS_LEAN_LEFT			(1 << 13)
+#define		INS_LEAN_RIGHT			(1 << 14)
+#define		INS_SPRINT				(1 << 15)
+#define		INS_WALK				(1 << 16)
+#define		INS_SPECIAL1			(1 << 17)
+#define		INS_AIM					(1 << 18)
+#define		INS_SCOREBOARD			(1 << 19)
+#define		INS_FLASHLIGHT			(1 << 22)
+#define		INS_AIM_TOGGLE			(1 << 27)
+#define		INS_ACCESSORY			(1 << 28)
 
-#define IN_DUCK     (1 << 2) // crouch
-#define IN_FORWARD  (1 << 4)
-#define IN_USE      (1 << 5)
-#define IN_CANCEL   (1 << 6)
-#define IN_RUN      (1 << 12)
-#define IN_SPEED    (1 << 17) /**< Player is holding the speed key */
-#define IN_SPRINT     (1 << 15) // sprint key in insurgency
-#define IN_ATTACK2 (1 << 18)
-#define IN_RELOAD   (1 << 13)
-#define IN_ALT1     (1 << 14)
-#define IN_SCORE    (1 << 16)     /**< Used by client.dll for when scoreboard is held down */
-#define IN_ZOOM     (1 << 19) /**< Zoom key for HUD zoom */
-#define IN_WEAPON1    (1 << 20) /**< weapon defines these bits */
-#define IN_WEAPON2    (1 << 21) /**< weapon defines these bits */
-#define IN_BULLRUSH   (1 << 22)
-#define IN_GRENADE1   (1 << 23) /**< grenade 1 */
-#define IN_GRENADE2   (1 << 24) /**< grenade 2 */
-
-#define JammerView_Radius	1600.0
+#define JammerView_Radius	1200.0
 
 // This will be used for checking which team the player is on before repsawning them
 #define SPECTATOR_TEAM	0
 #define TEAM_SPEC 	1
-#define TEAM_1		2
-#define TEAM_2		3
+#define TEAM_1_SEC		2
+#define TEAM_2_INS		3
 
 #define MAX_BUTTONS 25
 new bool:plug_debug = false;
@@ -119,8 +115,7 @@ new Handle:hIntegDegrade = INVALID_HANDLE;
 new Handle:hDegradeMultiplier = INVALID_HANDLE;
 new Handle:hIntegRepair = INVALID_HANDLE;
 new Handle:ConstructTimers[MAXPLAYERS+1];
-new	g_integrityDegrade = 4000;
-new	g_integrityRepair = 1000;
+new	g_integrityRepair = 2;
 new g_CvarYellChance;
 
 // Status
@@ -134,6 +129,8 @@ new
 	g_propIntegrity[MAXPLAYERS+1],
 	bool:g_isSolid[MAXPLAYERS+1],
 	g_ConstructPackTime = 1,
+	Float:g_integrityDegrade = 40.0,
+	Float:g_fPlayerLastChat[MAXPLAYERS+1] = {0.0, ...},
 	g_LastButtons[MAXPLAYERS+1];
 
 // whether or not the player has an active cooldown, end time for cooldown
@@ -172,8 +169,8 @@ public OnPluginStart()
 	// Control ConVars. 1 Team Only, Public Enabled etc.
 	hTeamOnly = CreateConVar("om_prop_teamonly", "0", "0 is no team restrictions, 1 is Terrorist and 2 is CT. Default: 2");
 	hAdminOnly = CreateConVar("om_prop_public", "0", "0 means anyone can use this plugin. 1 means admins only (no credits used)");
-	hIntegDegrade = CreateConVar("om_integrity_degrade", "4000", "This is the amount that degrades from the prop when enemy bots are near it per bot, per 3 second");
-	hIntegRepair = CreateConVar("om_integrity_repair", "1000", "When a engineer is repairing, this amount repairs per 3 second.");
+	hIntegDegrade = CreateConVar("om_integrity_degrade", "40", "This is the amount that degrades from the prop when enemy bots are near it per bot, per 3 second");
+	hIntegRepair = CreateConVar("om_integrity_repair", "2", "When a engineer is repairing, this amount repairs per 3 second.");
 
 	// Create the version convar!
 	CreateConVar("om_propspawn_version", sVersion, "OM Prop Spawn Version",FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_UNLOGGED|FCVAR_DONTRECORD|FCVAR_REPLICATED|FCVAR_NOTIFY);
@@ -234,12 +231,12 @@ public OnMapStart()
 	PrecacheSound("soundscape/emitters/loop/military_radio_01.wav");
 
 	CreateTimer(5.0, Timer_MapStart);
-	CreateTimer(8.0, Timer_MonitorAntennas,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(16.0, Timer_MonitorAntennas,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 
 }
 public Action:Timer_MapStart(Handle:Timer)
 {
-	CreateTimer(2.0, Timer_Monitor_Props,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	//CreateTimer(2.0, Timer_Monitor_Props,_ , TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 }
 
 
@@ -337,7 +334,7 @@ public Action:Event_ObjectDestroyed(Handle:event, const String:name[], bool:dont
 			if (IsClientConnected(engineerCheck) && IsClientInGame(engineerCheck) && !IsFakeClient(engineerCheck) && (StrContains(g_client_last_classstring[engineerCheck], "engineer") > -1))
 			{
 				iCredits[engineerCheck] = iDefCredits;
-				KillProps(engineerCheck);
+				//KillProps(engineerCheck);
 			}
 		}
 	}
@@ -356,7 +353,7 @@ public Action:Event_ControlPointCaptured(Handle:event, const String:name[], bool
 			if (IsClientConnected(engineerCheck) && IsClientInGame(engineerCheck) && !IsFakeClient(engineerCheck) && (StrContains(g_client_last_classstring[engineerCheck], "engineer") > -1))
 			{
 				iCredits[engineerCheck] = iDefCredits;
-				KillProps(engineerCheck);
+				//KillProps(engineerCheck);
 			}
 		}
 	}
@@ -364,28 +361,40 @@ public Action:Event_ControlPointCaptured(Handle:event, const String:name[], bool
 	return Plugin_Continue;
 }
 
+public Action:Timer_BroadcastJammer(Handle:timer, Handle:hDatapack)
+{
+	ResetPack(hDatapack);
+	new validAntenna = ReadPackCell(hDatapack);
+	//Give jammer effects
+	new Float:propOrigin[3];
+	GetEntPropVector(validAntenna, Prop_Send, "m_vecOrigin", propOrigin);
+	propOrigin[2] += 50.0; 
+	TE_SetupBeamRingPoint(propOrigin, 1.0, JammerView_Radius, g_iBeaconBeam, g_iBeaconHalo, 0, 30, 6.0, 0.8, 0.0, {102, 204, 255, 255}, 1, (FBEAM_FADEIN, FBEAM_FADEOUT));
+	TE_SendToAll();
+	EmitSoundToAll("ui/sfx/noise_11.wav", validAntenna, SNDCHAN_VOICE, _, _, 1.0);
+	// switch(GetRandomInt(1, 2))
+	// {
+	// 	case 1: EmitSoundToAll("ui/sfx/noise_11.wav", prop, SNDCHAN_VOICE, _, _, 1.0);
+	// 	case 2: EmitSoundToAll("soundscape/emitters/loop/military_radio_01.wav", prop, SNDCHAN_VOICE, _, _, 1.0);
+	// }
+}
 public Action:Timer_MonitorAntennas(Handle:Timer)
 {
-	new validAntenna = -1;
-	validAntenna = FindValidAntenna();
-	//Give Antenna Jammer Effects
-	if (validAntenna != -1)
+	new validAntenna;
+	//validAntenna = FindValidAntenna();
+	while ((validAntenna = FindEntityByClassname(validAntenna, "prop_dynamic_override")) != INVALID_ENT_REFERENCE)
 	{
-	
-		new Float:propOrigin[3];
-		GetEntPropVector(validAntenna, Prop_Send, "m_vecOrigin", propOrigin);
-		propOrigin[2] += 50.0; 
-		TE_SetupBeamRingPoint(propOrigin, 1.0, JammerView_Radius, g_iBeaconBeam, g_iBeaconHalo, 0, 30, 8.0, 1.5, 0.0, {102, 204, 255, 255}, 1, (FBEAM_FADEIN, FBEAM_FADEOUT));
-		//TE_SetupBeamRingPoint(fOrigin, 1.0, Healthkit_Radius*1.95, g_iBeaconBeam, g_iBeaconHalo, 0, 30, 5.0, 3.0, 0.0, {0, 200, 0, 255}, 1, (FBEAM_FADEOUT));
-		TE_SendToAll();
-		//TE_SetupBeamRingPoint(fOrigin, 10.0, Healthkit_Radius*1.95, g_iBeaconBeam, g_iBeaconHalo, 0, 30, 0.6, 3.0, 0.0, {0, 204, 102, 255}, 3, 0);
-		EmitSoundToAll("ui/sfx/noise_11.wav", validAntenna, SNDCHAN_VOICE, _, _, 1.0);
-		// switch(GetRandomInt(1, 2))
-		// {
-		// 	case 1: EmitSoundToAll("ui/sfx/noise_11.wav", prop, SNDCHAN_VOICE, _, _, 1.0);
-		// 	case 2: EmitSoundToAll("soundscape/emitters/loop/military_radio_01.wav", prop, SNDCHAN_VOICE, _, _, 1.0);
-		// }
+		decl String:propModelName[128];
+		GetEntPropString(validAntenna, Prop_Data, "m_ModelName", propModelName, 128);
+		if (StrEqual(propModelName, "models/sernix/ied_jammer/ied_jammer.mdl"))
+		{
+			new Handle:hDatapack;
+			new fRandomBroadcast = GetRandomFloat(1.0, 8.0);
+			CreateDataTimer(fRandomBroadcast, Timer_BroadcastJammer, hDatapack);
+			WritePackCell(hDatapack, validAntenna);
 		}
+
+	}
 }
 
 //Find Valid Prop
@@ -407,7 +416,7 @@ public FindValidAntenna()
 
 public GetPropType(entity)
 {
-	new propType = 0; //1 == Sandbag, 2 == Barbwire, 3 == other
+	new propType = -1; //1 == Sandbag, 2 == Barbwire, 3 == other
 	decl String:propModelName[128];
 	GetEntPropString(entity, Prop_Data, "m_ModelName", propModelName, 128);
 	//PrintToServer("MODEL NAME: %s", propModelName);
@@ -713,7 +722,7 @@ public Check_NearbyBots(builtProp)
 		if (IsClientConnected(enemyBot) && IsClientInGame(enemyBot)) 
 		{
 			new team = GetClientTeam(enemyBot); 
-			if (IsFakeClient(enemyBot) && IsPlayerAlive(enemyBot))// && team == TEAM_2)
+			if (IsFakeClient(enemyBot) && IsPlayerAlive(enemyBot))// && team == TEAM_2_INS)
 			{
 				//Get position of bot and prop
 				new Float:botOrigin[3];
@@ -755,7 +764,7 @@ public Hurt_NearbyBots(builtProp, client)
 		if (IsClientConnected(enemyBot) && IsClientInGame(enemyBot)) 
 		{
 			new team = GetClientTeam(enemyBot); 
-			if (IsFakeClient(enemyBot) && IsPlayerAlive(enemyBot))// && team == TEAM_2)
+			if (IsFakeClient(enemyBot) && IsPlayerAlive(enemyBot))// && team == TEAM_2_INS)
 			{
 				//Get position of bot and prop
 				new Float:botOrigin[3];
@@ -818,7 +827,7 @@ public Check_NearbyPlayers(builtProp)
 		if (IsClientConnected(friendlyPlayer) && IsClientInGame(friendlyPlayer))
 		{
 			new team = GetClientTeam(friendlyPlayer);
-			if (!IsFakeClient(friendlyPlayer) && IsPlayerAlive(friendlyPlayer) && team == TEAM_2)
+			if (!IsFakeClient(friendlyPlayer) && IsPlayerAlive(friendlyPlayer) && team == TEAM_1_SEC)
 			{
 				//Get position of bot and prop
 				new Float:plyrOrigin[3];
@@ -961,16 +970,61 @@ public Action:RemoveCooldown(client) {
 }
 stock KillProps(client)
 {
-	for(new i=0; i<=iPropNo[client]; i++)
+	for(new i=0; i<=MaxClients; i++)
 	{
 		g_propIntegrity[i] = 0;
-		decl String:EntName[MAX_NAME_LENGTH+5];
+		new String:EntName[MAX_NAME_LENGTH+5];
 		Format(EntName, sizeof(EntName), "OMPropSpawnProp%d_number%d", client, i);
 		new prop = Entity_FindByName(EntName);
 		if(prop != -1)
 			AcceptEntityInput(prop, "kill");
+		iPropNo[i] = 0;
 	}
 	iPropNo[client] = 0;
+	return Plugin_Handled;
+}
+stock KillPropSingle(client)
+{
+	new iAimTarget = GetClientAimTarget(client, false);
+	if (iAimTarget < MaxClients && FindDataMapInfo(iAimTarget, "m_ModelName") == -1)
+		return Plugin_Handled;
+
+	new String:targetname[64];
+	GetEntPropString(iAimTarget, Prop_Data, "m_iName", targetname, sizeof(targetname));
+	if(plug_debug)
+	{
+		PrintToChatAll("targetname %s | iAimTarget %d", targetname, iAimTarget);
+	}
+
+	new targetNum = StringToInt(targetname);
+	
+	if((StrEqual(targetname, "OMPropSpawnProp", true) != 0) || targetNum == iAimTarget)
+	{
+		new Float:vOrigin[3], Float:vTargetOrigin[3];
+		GetEntPropVector(iAimTarget, Prop_Data, "m_vecAbsOrigin", vOrigin);
+		GetClientAbsOrigin(client, vTargetOrigin);
+		if (GetVectorDistance(vOrigin, vTargetOrigin) <= 100.0)
+		{
+			if((StrEqual(targetname, "OMPropSpawnProp", true) != 0) || targetNum == iAimTarget)
+			{
+
+				AcceptEntityInput(iAimTarget, "kill");
+
+				iPropNo[client] = iPropNo[client] - 1;
+				PrintHintText(client, "Deployable deconstructed");
+				return Plugin_Handled;
+			}
+		}
+		else
+			PrintHintText(client, "Too far to deconstruct");
+		
+	}
+	else
+	{
+		PrintHintText(client, "You're not aiming at a valid prop!");
+	}
+	return Plugin_Handled;
+
 }
 
 public Action:AdminRemovePropAim(client, args)
@@ -980,7 +1034,7 @@ public Action:AdminRemovePropAim(client, args)
 	Entity_GetName(prop, EntName, sizeof(EntName));
 	if(plug_debug)
 	{
-		PrintToChatAll(EntName);
+		//PrintToChatAll(EntName);
 	}
 	
 	new validProp = StrContains(EntName, "OMPropSpawnProp");
@@ -1096,6 +1150,8 @@ public Action:PropCommand(client, args)
 // Make sure you populate the menu, Runs through the keyvalues.
 PopLoop(Handle:kv, client)
 {
+
+	AddMenuItem(om_public_prop_menu, "deconstruct_prop", "Deconstruct Prop (no refund)");
 	if (KvGotoFirstSubKey(kv))
 	{
 		do
@@ -1126,8 +1182,8 @@ PopLoop(Handle:kv, client)
 		while (KvGotoNextKey(kv));
 		CloseHandle(kv);
 	}
-	AddMenuItem(om_public_prop_menu, "deconstruct", "Deconstruct All (no refund)");
 	//AddMenuItem(om_public_prop_menu, "fastexit", "Fast-Exit Menu");
+	AddMenuItem(om_public_prop_menu, "deconstruct", "Deconstruct All (no refund)");
 }
 
 public Action:Timer_Construct(Handle timer, Handle pack)
@@ -1205,36 +1261,81 @@ public Action:Timer_Construct(Handle timer, Handle pack)
 	return Plugin_Continue;
 }
 
-public Public_Prop_Menu_Handler(Handle:menu, MenuAction:action, param1, param2)
+public Public_Prop_Menu_Handler(Handle:menu, MenuAction:action, client, param2)
 {
 	// Note to self: param1 is client, param2 is choice.
 	if (action == MenuAction_Select)
 	{
+
+		if (StrContains(g_client_last_classstring[client], "engineer") == -1)
+		{
+			PrintHintText(client, "Only engineers can build");
+			return Plugin_Stop;
+		}
 		//char info[32];
  
 		/* Get item info */
 		//menu.GetItem(param2, info, sizeof(info))
-		if (param2 == 6)
-		{
-			KillProps(param1);
-			PrintHintText(param1, "Deployables Deconstructed");
-			PrintToChat(param1, "Deployables Deconstructed");
-			 g_ConstructRemainingTime[param1] = g_ConstructDeployTime;
+		if (param2 == 0)
+		{	
+			new iAimTarget = GetClientAimTarget(client, false);
+			if (iAimTarget != -1 && iAimTarget > MaxClients && FindDataMapInfo(iAimTarget, "m_ModelName") != -1)
+			{
 
-			g_engInMenu[param1] = false;
+				KillPropSingle(client);
+			
+				g_ConstructRemainingTime[client] = g_ConstructDeployTime;
+
+				g_engInMenu[client] = false;
+				// decl String:textPath[255];
+				// BuildPath(Path_SM, textPath, sizeof(textPath), "configs/om_public_props.txt");
+				// new Handle:kv = CreateKeyValues("Props");
+				// FileToKeyValues(kv, textPath);
+				// om_public_prop_menu = CreateMenu(Public_Prop_Menu_Handler);
+				// SetMenuTitle(om_public_prop_menu, "Construct | Credits: %d", iCredits[client]);
+				// PopLoop(kv, client);
+				DisplayMenu(om_public_prop_menu, client, MENU_TIME_FOREVER);
+			}
+			else
+			{
+				g_ConstructRemainingTime[client] = g_ConstructDeployTime;
+
+				g_engInMenu[client] = false;
+				// decl String:textPath[255];
+				// BuildPath(Path_SM, textPath, sizeof(textPath), "configs/om_public_props.txt");
+				// new Handle:kv = CreateKeyValues("Props");
+				// FileToKeyValues(kv, textPath);
+				// om_public_prop_menu = CreateMenu(Public_Prop_Menu_Handler);
+				// SetMenuTitle(om_public_prop_menu, "Construct | Credits: %d", iCredits[client]);
+				// PopLoop(kv, client);
+				DisplayMenu(om_public_prop_menu, client, MENU_TIME_FOREVER);
+				PrintHintText(client, "Invalid deployable, target only items deployed by you.");
+				PrintToChat(client, "Invalid deployable, target only items deployed by you.");
+			}
+
+			return Plugin_Continue;
+		}
+		if (param2 == 7)
+		{
+			KillProps(client);
+			PrintHintText(client, "Deployables Deconstructed");
+			PrintToChat(client, "Deployables Deconstructed");
+			 g_ConstructRemainingTime[client] = g_ConstructDeployTime;
+
+			g_engInMenu[client] = false;
 			// decl String:textPath[255];
 			// BuildPath(Path_SM, textPath, sizeof(textPath), "configs/om_public_props.txt");
 			// new Handle:kv = CreateKeyValues("Props");
 			// FileToKeyValues(kv, textPath);
 			// om_public_prop_menu = CreateMenu(Public_Prop_Menu_Handler);
-			// SetMenuTitle(om_public_prop_menu, "Construct | Credits: %d", iCredits[param1]);
-			// PopLoop(kv, param1);
-			// DisplayMenu(om_public_prop_menu, param1, MENU_TIME_FOREVER);
-			return Plugin_Stop;
+			// SetMenuTitle(om_public_prop_menu, "Construct | Credits: %d", iCredits[client]);
+			// PopLoop(kv, client);
+			 DisplayMenu(om_public_prop_menu, client, MENU_TIME_FOREVER);
+			return Plugin_Handled;
 		}
 		// if (param2 == 6)
 		// {
-		// 	g_engInMenu[param1] = false;
+		// 	g_engInMenu[client] = false;
 		// 	return Plugin_Stop;
 		// }
 		
@@ -1251,7 +1352,7 @@ public Public_Prop_Menu_Handler(Handle:menu, MenuAction:action, param1, param2)
 		KvJumpToKey(kv, prop_choice);
 		KvGetString(kv, "model", modelname, sizeof(modelname),"");
 		Price = KvGetNum(kv, "price", 0);
-		new ClientCredits = iCredits[param1];
+		new ClientCredits = iCredits[client];
 		decl String:textToPrintChat[64];
 
 		if (Price > 0)
@@ -1260,11 +1361,11 @@ public Public_Prop_Menu_Handler(Handle:menu, MenuAction:action, param1, param2)
 			{
 				//Check for sound cooldown
 				new Float:CurrentTime = GetGameTime();
-				if (PlayerCooldown[param1]) {
-					if (CurrentTime < PlayerTimedone[param1]) {
+				if (PlayerCooldown[client]) {
+					if (CurrentTime < PlayerTimedone[client]) {
 						//return Plugin_Continue;
 					} else {
-						RemoveCooldown(param1);
+						RemoveCooldown(client);
 					}
 				}
 				else
@@ -1272,46 +1373,46 @@ public Public_Prop_Menu_Handler(Handle:menu, MenuAction:action, param1, param2)
 					// play sound at the player if RNG passes
 					//new Float:rn = GetRandomFloat(0.0, 1.0);
 					//if (rn <= g_CvarYellChance) {
-						YellOut(param1);
-						SetCooldown(param1);
+						YellOut(client);
+						SetCooldown(client);
 					//}
 				}
 				// Get current position
 				decl Float:vecPos[3];
-				GetClientAbsOrigin(param1, vecPos);
-				g_engineerPos[param1] = vecPos;
-				g_ConstructRemainingTime[param1] = g_ConstructDeployTime;
+				GetClientAbsOrigin(client, vecPos);
+				g_engineerPos[client] = vecPos;
+				g_ConstructRemainingTime[client] = g_ConstructDeployTime;
 				// Initiate the Prop Spawning using Client and Choice as the parameters.
 				DataPack pack;
-				ConstructTimers[param1] = CreateDataTimer(1.0, Timer_Construct, pack, TIMER_REPEAT);
-				pack.WriteCell(param1);
+				ConstructTimers[client] = CreateDataTimer(1.0, Timer_Construct, pack, TIMER_REPEAT);
+				pack.WriteCell(client);
 				pack.WriteCell(param2);
 				//CreateTimer(1.0, Timer_Construct, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 			}
 			else
 			{
-				PrintToChat(param1, "You do not have enough credits to deploy that!"); 
-				PrintHintText(param1, "You do not have enough credits to deploy that!");
+				PrintToChat(client, "You do not have enough credits to deploy that!"); 
+				PrintHintText(client, "You do not have enough credits to deploy that!");
 				// new String:textPath[255];
 				// BuildPath(Path_SM, textPath, sizeof(textPath), "configs/om_public_props.txt");
 				// new Handle:kv = CreateKeyValues("Props");
 				// FileToKeyValues(kv, textPath);
 				// om_public_prop_menu = CreateMenu(Public_Prop_Menu_Handler);
-				// SetMenuTitle(om_public_prop_menu, "Construct | Credits: %d", iCredits[param1]);
-				// PopLoop(kv, param1);
-				// DisplayMenu(om_public_prop_menu, param1, MENU_TIME_FOREVER);
-				g_engInMenu[param1] = false;
+				// SetMenuTitle(om_public_prop_menu, "Construct | Credits: %d", iCredits[client]);
+				// PopLoop(kv, client);
+				// DisplayMenu(om_public_prop_menu, client, MENU_TIME_FOREVER);
+				g_engInMenu[client] = false;
 				return Plugin_Stop;
 			}
 		}
 	}
 	if (action == MenuAction_Cancel)
 	{
-		g_engInMenu[param1] = false;
-		if (ConstructTimers[param1] != null)
+		g_engInMenu[client] = false;
+		if (ConstructTimers[client] != null)
 		{
-			KillTimer(ConstructTimers[param1]);
-			ConstructTimers[param1] = null;
+			KillTimer(ConstructTimers[client]);
+			ConstructTimers[client] = null;
 		}
 	}
 }
@@ -1380,12 +1481,12 @@ public PropSpawn(client, param2)
 	PrecacheModel(modelname,true);
 	Ent = CreateEntityByName("prop_dynamic_override"); 
 	
-	new String:EntName[256];
+	new String:EntName[64];
 	Format(EntName, sizeof(EntName), "OMPropSpawnProp%d_number%d", client, iPropNo[client]);
 	
 	DispatchKeyValue(Ent, "physdamagescale", "0.0");
 	DispatchKeyValue(Ent, "model", modelname);
-	DispatchKeyValue(Ent, "targetname", EntName);
+	DispatchKeyValue(Ent, "targetname", "OMPropSpawnProp");
 	DispatchKeyValue(Ent, "Solid", "6");  
 	//g_isSolid[iPropNo[client]] = true;
 	//AcceptEntityInput(Ent, "DisableCollision");
@@ -1406,17 +1507,18 @@ public PropSpawn(client, param2)
 	
 
 	new Health = KvGetNum(kv, "health", 0);
-	Health = (Health / 2);
+	//Health = (Health / 2);
 	if(Health > 0)
 	{
-		SetEntProp(Ent, Prop_Data, "m_takedamage", DAMAGE_YES, 1);
+		SetEntProp(Ent, Prop_Data, "m_takedamage", DAMAGE_YES);
 		SetEntProp(Ent, Prop_Data, "m_iHealth", Health);
+		SetEntProp(Ent, Prop_Data, "m_iMaxHealth", Health);
 	}
 
 
 	new String:propModelName[128];
 	GetEntPropString(Ent, Prop_Data, "m_ModelName", propModelName, 128);
-	PrintToServer("MODEL NAME: %s", propModelName);
+	//PrintToServer("MODEL NAME: %s", propModelName);
 
 	//FurnitureOriginBackup = FurnitureOrigin;
     if (StrEqual(propModelName, "models/static_afghan/prop_panj_stairs.mdl"))
@@ -1427,6 +1529,67 @@ public PropSpawn(client, param2)
 		EyeAngles[0] = 0;
 		TeleportEntity(Ent, FurnitureOrigin, EyeAngles, NULL_VECTOR);
     }
+    else if (StrEqual(propModelName, "models/fortifications/barbed_wire_02b.mdl"))
+    {
+    	FurnitureOrigin[0] = (ClientOrigin[0] + (60 * Cosine(DegToRad(EyeAngles[1]))));
+		FurnitureOrigin[1] = (ClientOrigin[1] + (60 * Sine(DegToRad(EyeAngles[1]))));
+		FurnitureOrigin[2] = (ClientOrigin[2] + KvGetNum(kv, "height", 100));
+		EyeAngles[0] = 0;
+		TeleportEntity(Ent, FurnitureOrigin, EyeAngles, NULL_VECTOR);
+    }
+	else if (StrEqual(propModelName, "models/static_fortifications/sandbagwall01.mdl") || StrEqual(propModelName, "models/static_fortifications/sandbagwall02.mdl"))
+	{
+    	FurnitureOrigin[0] = (ClientOrigin[0] + (45 * Cosine(DegToRad(EyeAngles[1]))));
+		FurnitureOrigin[1] = (ClientOrigin[1] + (45 * Sine(DegToRad(EyeAngles[1]))));
+		FurnitureOrigin[2] = (ClientOrigin[2] + KvGetNum(kv, "height", 100));
+		EyeAngles[0] = 0;
+		TeleportEntity(Ent, FurnitureOrigin, EyeAngles, NULL_VECTOR);
+
+	}
+	else if (StrEqual(propModelName, "models/sernix/ammo_cache/ammo_cache_small.mdl"))
+	{
+    	FurnitureOrigin[0] = (ClientOrigin[0] + (60 * Cosine(DegToRad(EyeAngles[1]))));
+		FurnitureOrigin[1] = (ClientOrigin[1] + (60 * Sine(DegToRad(EyeAngles[1]))));
+		FurnitureOrigin[2] = (ClientOrigin[2] + KvGetNum(kv, "height", 100));
+		EyeAngles[0] = 0;
+		TeleportEntity(Ent, FurnitureOrigin, EyeAngles, NULL_VECTOR);
+
+		new Float:ammoStock = RoundFloat(GetTeamSecCount() / 6.0);
+
+		if (plug_debug)
+			PrintToChatAll("ammoStock %d", ammoStock);
+
+		if (ammoStock <= 0)
+			ammoStock = 1.0;
+
+		if (plug_debug)
+			PrintToChatAll("ammoStockafter %f", ammoStock);
+
+		SetEntPropFloat(Ent, Prop_Data, "m_flLocalTime", ammoStock);
+		SetVariantColor({255, 255, 102, 255});
+		SetEntityRenderMode(Ent, RENDER_NORMAL);
+		SetEntityRenderColor(Ent, 255, 255, 255, 255);
+		AcceptEntityInput(Ent, "SetGlowColor");
+		SetEntProp(Ent, Prop_Send, "m_bShouldGlow", true);
+		SetEntPropFloat(Ent, Prop_Send, "m_flGlowMaxDist", 1600.0);
+
+	}
+	else if (StrEqual(propModelName, "models/sernix/ied_jammer/ied_jammer.mdl"))
+	{
+    	FurnitureOrigin[0] = (ClientOrigin[0] + (50 * Cosine(DegToRad(EyeAngles[1]))));
+		FurnitureOrigin[1] = (ClientOrigin[1] + (50 * Sine(DegToRad(EyeAngles[1]))));
+		FurnitureOrigin[2] = (ClientOrigin[2] + KvGetNum(kv, "height", 100));
+		EyeAngles[0] = 0;
+		TeleportEntity(Ent, FurnitureOrigin, EyeAngles, NULL_VECTOR);
+
+		SetVariantColor({80, 210, 255, 255});
+		SetEntityRenderMode(Ent, RENDER_NORMAL);
+		//SetEntityRenderColor(Ent, 10, 120, 245, 255);
+		AcceptEntityInput(Ent, "SetGlowColor");
+		SetEntProp(Ent, Prop_Send, "m_bShouldGlow", true);
+		SetEntPropFloat(Ent, Prop_Send, "m_flGlowMaxDist", 600.0);
+
+	}
     else
     {
     	FurnitureOrigin[0] = (ClientOrigin[0] + (50 * Cosine(DegToRad(EyeAngles[1]))));
@@ -1435,6 +1598,8 @@ public PropSpawn(client, param2)
 		EyeAngles[0] = 0;
 		TeleportEntity(Ent, FurnitureOrigin, EyeAngles, NULL_VECTOR);
     }
+
+
 	//Check if ent is stuck in a player prop, kill
 	// if (CheckStuckInEntity(Ent))
 	// {
@@ -1454,15 +1619,19 @@ public PropSpawn(client, param2)
 	// 	FurnitureOrigin[2] = FurnitureOrigin[2] - PropDistGround;
 	// 	TeleportEntity(Ent, FurnitureOrigin, EyeAngles, NULL_VECTOR);
 	// }
-	SetEntityMoveType(Ent, MOVETYPE_NONE);   
+	SetEntityMoveType(Ent, MOVETYPE_NONE);  
+	//Add onTouch hook for when bots damage deployable
+	SetEntProp(Ent, Prop_Data, "m_takedamage", DAMAGE_YES);
+	SDKHook(Ent, SDKHook_OnTakeDamage, SHook_OnTakeDamageGear);
+	//HookSingleEntityOutput(Ent, "OnHealthChanged", OnGearDamaged, false);  //This is more for status glow of object
+	SDKHook(Ent, SDKHook_Touch, SHook_OnTouch); 
 	CloseHandle(kv);
-	
 	g_propIntegrity[iPropNo[client]] = GetEntProp(Ent, Prop_Data, "m_iHealth");
 	//PrintToServer("g_propIntegrity[iPropNo[client]]: %d",g_propIntegrity[iPropNo[client]]);
 	//SetEntProp(Ent, Prop_Data, "m_CollisionGroup", 17);  
 	g_engineerParam[iPropNo[client]] = param2;
 	iPropNo[client] += 1;
-	
+												
 	return;
 }
 public bool:TraceRayDontHitSelf(entityhit, mask, any:client) 
@@ -1538,10 +1707,128 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
   }
     return Plugin_Continue;
 }
+
+OnButtonPress(client, button, buttons)
+{
+    new Float:eyepos[3];
+    GetClientEyePosition(client, eyepos); // Position of client's eyes.
+  	new ActiveWeapon = GetEntPropEnt(client, Prop_Data, "m_hActiveWeapon");
+	if (ActiveWeapon < 0)
+		return Plugin_Handled;
+	// Get weapon class name
+	decl String:sWeapon[32];
+	GetEdictClassname(ActiveWeapon, sWeapon, sizeof(sWeapon));
+	////PrintToServer("[KNIFE ONLY] CheckWeapon for iMedic %d named %N ActiveWeapon %d sWeapon %s",iMedic,iMedic,ActiveWeapon,sWeapon);
+
+    ////PrintToServer("Client Eye Height %f",eyepos[2]);    
+   if(GetClientMenu(client, INVALID_HANDLE) == MenuSource_None && button == INS_SPRINT && buttons & INS_DUCK && buttons & INS_USE && (StrContains(g_client_last_classstring[client], "engineer") > -1) && g_engInMenu[client] == false && ((StrContains(sWeapon, "weapon_knife") > -1) || (StrContains(sWeapon, "weapon_wrench") > -1)))// && !(buttons & IN_FORWARD) && !(buttons & IN_ATTACK2) && !(buttons & IN_ATTACK))// & !IN_ATTACK2) 
+   {
+      //PrintToServer("DEBUG PRESSING BUTTONS");    
+    
+      if(!Client_IsValid(client))
+		return Plugin_Handled;
+	
+		g_engInMenu[client] = true;
+
+		decl String:textPath[255];
+		BuildPath(Path_SM, textPath, sizeof(textPath), "configs/om_public_props.txt");
+		new Handle:kv = CreateKeyValues("Props");
+		FileToKeyValues(kv, textPath);
+		om_public_prop_menu = CreateMenu(Public_Prop_Menu_Handler);
+		SetMenuTitle(om_public_prop_menu, "Construct | Credits: %d", iCredits[client]);
+		PopLoop(kv, client);
+		DisplayMenu(om_public_prop_menu, client, MENU_TIME_FOREVER);
+		
+		return Plugin_Handled;
+   }
+
+   //if (GetGameTime()-g_fPlayerLastChat[client] < 1.0)
+   //	return Plugin_Handled;
+
+	new iAimTarget = GetClientAimTarget(client, false);
+	if (iAimTarget > MaxClients) //Not a client?
+	{
+		if (iAimTarget > MaxClients && FindDataMapInfo(iAimTarget, "m_ModelName") != -1) //Verify if part of map data?
+		{
+			decl String:sWeapon[32];
+			GetEdictClassname(ActiveWeapon, sWeapon, sizeof(sWeapon));
+			//new String:sModelPath[128];
+			//GetEntPropString(iAimTarget, Prop_Data, "m_ModelName", sModelPath, sizeof(sModelPath));
+			new propType = GetPropType(iAimTarget);
+			if (buttons & INS_USE &&  (StrContains(g_client_last_classstring[client], "engineer") > -1) && 
+				((StrContains(sWeapon, "weapon_knife") > -1) || (StrContains(sWeapon, "weapon_wrench") > -1))) //Repair barricades only
+			{
+
+				if ((propType != 1 && propType != 2 && (propType == 3 || propType == 4 || propType == 5 || propType == -1)))
+				{
+					PrintCenterText(client, "You can only repair barricade deployables!\nDeployable Health: %d", iAimTarget);
+					return Plugin_Handled;
+				}
+
+				new Float:vOrigin[3], Float:vTargetOrigin[3];
+				GetEntPropVector(iAimTarget, Prop_Data, "m_vecAbsOrigin", vOrigin);
+				GetClientAbsOrigin(client, vTargetOrigin);
+				if (GetVectorDistance(vOrigin, vTargetOrigin) <= 80.0)
+				{
+					new iHp = GetEntProp(iAimTarget, Prop_Data, "m_iHealth");
+					new iMaxHp = GetEntProp(iAimTarget, Prop_Data, "m_iMaxHealth");
+					iHp += g_integrityRepair;
+					new Float:fDirection[3];
+					fDirection[0] = GetRandomFloat(-1.0, 1.0);
+					fDirection[1] = GetRandomFloat(-1.0, 1.0);
+					fDirection[2] = GetRandomFloat(-1.0, 1.0);
+					new Float:vMaxs[3];
+					GetEntPropVector(iAimTarget, Prop_Data, "m_vecMaxs", vMaxs);
+					vOrigin[2] += vMaxs[2]/2;
+					TE_SetupSparks(vOrigin, fDirection, 1, 1);
+					TE_SendToAll();
+					if (iHp < iMaxHp) PrintCenterText(client, "Repairing... [%d  /  %d]", iHp, iMaxHp);
+					else
+					{
+						if (iHp >= iMaxHp)
+						{
+							//LogToGame("%N is fixed barricade %d", client, iAimTarget);
+							//SetEntPropFloat(iAimTarget, Prop_Data, "m_flLocalTime", 0.0);
+							PrintCenterText(client, "Barricade Repaired!");
+							iHp = iMaxHp;
+							//PrintCenterText(client, " ");
+						}
+					}
+					//new iColor = RoundToNearest((float(iHp) / 2000.0) * 255.0);
+					//SetEntityRenderColor(iAimTarget, iColor, iColor, iColor, 255);
+					//decl iColors[4] = {255, 255, 255, 255};
+					//iColors[1] = iColors[2] = iColor;
+					//SetVariantColor(iColors);
+					//AcceptEntityInput(iAimTarget, "SetGlowColor");
+					SetEntProp(iAimTarget, Prop_Data, "m_iHealth", iHp);
+
+					g_fPlayerLastChat[client] = GetGameTime();
+
+					return Plugin_Handled;
+					//DispatchKeyValue(iAimTarget, "targetname", "LuaCustomModel");
+				
+					//else PrintCenterText(client, "Press \"USE (F) with Knife\" to Repair  Barricade");		
+				}
+			}
+		}
+	}
+   	
+}
+
+OnButtonRelease(client, button)
+{
+  ////PrintToServer("BUTTON RELEASE");
+  
+    // do stuff
+}
+
+
+
+
 //(int victim, int &attacker, int &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3])
 public Action:OnTakeDamagePre(victim, &attacker, &inflictor, &Float:damage, &damagetype) {
 
-	new Float:damageReduction = (damage * 0.30); //Reduce damage here so its a blanket reduction
+	new Float:damageReduction = (damage * 0.5); //Reduce damage here so its a blanket reduction
 
 	if (victim > 0 && IsClientConnected(victim) && IsClientInGame(victim) && !IsFakeClient(victim) && IsPlayerAlive(victim))
 	{
@@ -1576,12 +1863,17 @@ public Action:OnTakeDamagePre(victim, &attacker, &inflictor, &Float:damage, &dam
 							GetEntPropVector(prop, Prop_Send, "m_vecOrigin", propOrigin);
 							
 							//determine distance from the two
-							new isNearProp = Check_NearbyPlayers(prop);
-							if (isNearProp == true && damagetype == DMG_BLAST)
+							//new isNearProp = Check_NearbyPlayers(prop);
+
+							new Float:fDistance;
+							fDistance = GetVectorDistance(propOrigin,plyrOrigin);
+							if (fDistance <= 140 && damagetype == DMG_BLAST)
 							{
 								loopCount++;
 								damage -= damageReduction; // Reduce damage by 35%
 								//PrintToChat(victim, "DAMAGE REDUCED by 35%");
+								if(plug_debug)
+									PrintToChatAll("PROP: damage = %d | damageReduction = %d", damage, damageReduction);
 								if (damage <= 0)
 									damage = 10;
 
@@ -1598,76 +1890,253 @@ public Action:OnTakeDamagePre(victim, &attacker, &inflictor, &Float:damage, &dam
 	}
 }
 
-OnButtonPress(client, button, buttons)
-{
-    new Float:eyepos[3];
-    GetClientEyePosition(client, eyepos); // Position of client's eyes.
-  	new ActiveWeapon = GetEntPropEnt(client, Prop_Data, "m_hActiveWeapon");
-	if (ActiveWeapon < 0)
-		return Plugin_Handled;
-	// Get weapon class name
-	decl String:sWeapon[32];
-	GetEdictClassname(ActiveWeapon, sWeapon, sizeof(sWeapon));
-	////PrintToServer("[KNIFE ONLY] CheckWeapon for iMedic %d named %N ActiveWeapon %d sWeapon %s",iMedic,iMedic,ActiveWeapon,sWeapon);
 
-    ////PrintToServer("Client Eye Height %f",eyepos[2]);    
-   if(button == IN_SPRINT && buttons & IN_DUCK && buttons & IN_CANCEL && (StrContains(g_client_last_classstring[client], "engineer") > -1) && g_engInMenu[client] == false && ((StrContains(sWeapon, "weapon_knife") > -1) || (StrContains(sWeapon, "weapon_wrench") > -1)))// && !(buttons & IN_FORWARD) && !(buttons & IN_ATTACK2) && !(buttons & IN_ATTACK))// & !IN_ATTACK2) 
-   {
-      //PrintToServer("DEBUG PRESSING BUTTONS");    
-    
-      if(!Client_IsValid(client))
-		return Plugin_Handled;
+
+//LUA Functions Starts
+
+public Action:SHook_OnTouch(entity, touch)
+{
+	if (touch > 0 && touch <= MaxClients)
+	{
+/*		new String:sClassName[64];
+		GetEntPropString(entity, Prop_Data, "m_iName", sClassName, sizeof(sClassName));
+		if (StrEqual(sClassName, "LuaCustomModel", true))
+			SDKHooks_TakeDamage(entity, client, client, 10.0, DMG_SLASH, -1, NULL_VECTOR, NULL_VECTOR);	*/
+		if (GetClientTeam(touch) == TEAM_2_INS)
+		{
+			new propIntegrity = GetEntProp(entity, Prop_Data, "m_iHealth");
+
+			if (plug_debug)
+				PrintToChatAll("PropHealth = %d", propIntegrity);
+
+			new propType = GetPropType(entity);
+			new Float:propDamage = hIntegDegrade;
+
+			//PrintToServer("g_integrityDegrade %d", g_integrityDegrade);
+			if (propType == 2) //Degrade 2x as slow for barbwire
+			{
+				SDKHooks_TakeDamage(entity, touch, touch, g_integrityDegrade, DMG_SLASH, -1, NULL_VECTOR, NULL_VECTOR);
+			}
+			else
+				SDKHooks_TakeDamage(entity, touch, touch, g_integrityDegrade, DMG_SLASH, -1, NULL_VECTOR, NULL_VECTOR);
+
+			if (propIntegrity <= 0)
+			{
+				PlayProp_DestroySound(entity, propType);
+			}
+		}
+	}
+}
+
+
+public Action:SHook_OnTakeDamageGear(victim, &attacker, &inflictor, &Float:damage, &damagetype, &weapon, Float:damageForce[3], Float:damagePosition[3])
+{
+//	PrintToChatAll("Equipment %d damaged %0.1f (%d) by %d (%d) with %d weapon id", victim, damage, damagetype, attacker, inflictor, weapon);
+	if (GetEntPropEnt(victim, Prop_Data, "m_hOwnerEntity") == MaxClients+2)
+		return Plugin_Continue;
+
+	new aTeam = (attacker > 0 && attacker <= MaxClients && IsClientInGame(attacker) ? GetClientTeam(attacker) : -1);
+	if (aTeam == TEAM_1_SEC)
+	{
+		damage /= 4.0;
+	}
+	new propType = GetPropType(victim);
+	if (propType == 2) //StrEqual(propModelName, "models/fortifications/barbed_wire_02b.mdl"))
+	{
+		if (damagetype & DMG_BURN)
+		{
+			damage *= 2.0;
+			return Plugin_Changed;
+		}
+		else if (damagetype & DMG_BLAST)
+		{
+			damage *= 4.0;
+			return Plugin_Changed;
+		}
+	}
+	else if (propType == 1) //StrEqual(propModelName, "models/static_fortifications/sandbagwall01.mdl") || StrEqual(propModelName, "models/static_fortifications/sandbagwall02.mdl"))
+	{
+
+	}
+	else if (propType == 3) // (StrEqual(propModelName, "models/sernix/ied_jammer/ied_jammer.mdl"))
+	{
+		if (damagetype & DMG_BURN)
+		{
+			damage *= 2.0;
+			return Plugin_Changed;
+		}
+		else if (damagetype & DMG_BLAST)
+		{
+			damage *= 3.0;
+			return Plugin_Changed;
+		}
+
+	}
+	else if (propType == 4) // (StrEqual(propModelName, "models/sernix/ammo_cache/ammo_cache_small.mdl"))
+	{
+		if (damagetype & DMG_BURN)
+		{
+			damage *= 2.0;
+			return Plugin_Changed;
+		}
+		else if (damagetype & DMG_BLAST)
+		{
+			damage *= 3.0;
+			return Plugin_Changed;
+		}
+	}
+	else if (propType == 5) // (StrEqual(propModelName, "models/static_afghan/prop_panj_stairs.mdl")) //Ramp
+	{
+		if (damagetype & DMG_BURN)
+		{
+			damage *= 2.0;
+			return Plugin_Changed;
+		}
+		else if (damagetype & DMG_BLAST)
+		{
+			damage *= 3.0;
+			return Plugin_Changed;
+		}
+	}
+	//new aTeam = (attacker > 0 && attacker <= MaxClients && IsClientInGame(attacker) ? GetClientTeam(attacker) : -1);
+	//if (aTeam == TEAM_1_SEC)
+	//{
+	//	if (damagetype == 268435456 && damage == 1000.0)
+	//		return Plugin_Handled;
+	//	if (damagetype & DMG_SLASH)
+	//	{
+	//		damage = float(GetEntProp(victim, Prop_Data, "m_iMaxHealth"))/5.0;
+	//		if (damage < 200.0 || damage > 1000.0)
+	//			damage = 200.0;
+	//	}
+	//	else damage /= 2.0;
+	//	return Plugin_Changed;
+	//}
 	
-		g_engInMenu[client] = true;
-
-		//GetEntityFlags(client) & FL_DUCKING //This is for checking if player is crouching
-
-
-		// if(iTeam > 0)
-		// {
-		// 	if(GetClientTeam(client) != iTeam+1)
-		// 	{
-		// 		PrintToChat(client, "%s Sorry you can't use this command!", sPrefix);
-		// 		return Plugin_Handled;
-		// 	}
-		// }
-		// if(bAdminOnly)
-		// {
-		// 	if(!Client_IsAdmin(client))
-		// 	{
-		// 		PrintToChat(client, "%s Sorry you can't use this command!", sPrefix);
-		// 		return Plugin_Handled;
-		// 	}
-		// }
-		
-		// if(!IsPlayerAlive(client))
-		// {
-		// 	if(!Client_IsAdmin(client))
-		// 	{
-		// 		PrintToChat(client, "%s Sorry you can't use this command while dead!", sPrefix);
-		// 		return Plugin_Handled;
-		// 	}
-		// }
-		
-		decl String:textPath[255];
-		BuildPath(Path_SM, textPath, sizeof(textPath), "configs/om_public_props.txt");
-		new Handle:kv = CreateKeyValues("Props");
-		FileToKeyValues(kv, textPath);
-		om_public_prop_menu = CreateMenu(Public_Prop_Menu_Handler);
-		SetMenuTitle(om_public_prop_menu, "Construct | Credits: %d", iCredits[client]);
-		PopLoop(kv, client);
-		DisplayMenu(om_public_prop_menu, client, MENU_TIME_FOREVER);
-		
-		return Plugin_Handled;
-   }
+	return Plugin_Continue;
 }
 
-OnButtonRelease(client, button)
+
+stock void PlayProp_DestroySound(prop, propType)
 {
-  ////PrintToServer("BUTTON RELEASE");
-  
-    // do stuff
+		new Float:vOrigin[3];
+		GetEntPropVector(prop, Prop_Data, "m_vecAbsOrigin", vOrigin);
+		if (propType == 2) //StrEqual(propModelName, "models/fortifications/barbed_wire_02b.mdl"))
+		{
+			
+		}
+		else if (propType == 1) //StrEqual(propModelName, "models/static_fortifications/sandbagwall01.mdl") || StrEqual(propModelName, "models/static_fortifications/sandbagwall02.mdl"))
+		{
+
+		}
+		else if (propType == 3) // (StrEqual(propModelName, "models/sernix/ied_jammer/ied_jammer.mdl"))
+		{
+			switch(GetRandomInt(0, 2))
+			{
+				case 0: EmitAmbientSound("soundscape/emitters/oneshot/broken_tv_01.ogg", vOrigin);
+				case 1: EmitAmbientSound("soundscape/emitters/oneshot/broken_tv_02.ogg", vOrigin);
+				case 2: EmitAmbientSound("soundscape/emitters/oneshot/broken_tv_03.ogg", vOrigin);
+			}
+
+		}
+		else if (propType == 4) // (StrEqual(propModelName, "models/sernix/ammo_cache/ammo_cache_small.mdl"))
+		{
+			EmitAmbientSound("ui/sfx/crate_01.wav", vOrigin);
+		}
+		else if (propType == 5) // (StrEqual(propModelName, "models/static_afghan/prop_panj_stairs.mdl")) //Ramp
+		{
+
+		}
 }
+
+
+// Get tesm2 player count
+stock GetTeamSecCount() {
+	new float:clients = 0;
+	new iTeam;
+	for( new i = 1; i <= GetMaxClients(); i++ ) {
+		if (IsClientInGame(i) && IsClientConnected(i))
+		{
+			iTeam = GetClientTeam(i);
+			if(iTeam == TEAM_1_SEC)
+				clients++;
+		}
+	}
+	return clients;
+}
+
+
+
+
+stock void DisplayInstructorHint(int iTargetEntity, float fTime, float fHeight, float fRange, bool bFollow, bool bShowOffScreen, char[] sIconOnScreen, char[] sIconOffScreen, char[] sCmd, bool bShowTextAlways, int iColor[3], char[] sText)
+{
+	int iEntity = CreateEntityByName("env_instructor_hint");
+	if(iEntity <= 0)
+		return;
+		
+	char sBuffer[32];
+	FormatEx(sBuffer, sizeof(sBuffer), "%d", iTargetEntity);
+	
+	// Target
+	DispatchKeyValue(iTargetEntity, "targetname", sBuffer);
+	DispatchKeyValue(iEntity, "hint_target", sBuffer);
+	
+	// Static
+	FormatEx(sBuffer, sizeof(sBuffer), "%d", !bFollow);
+	DispatchKeyValue(iEntity, "hint_static", sBuffer);
+	
+	// Timeout
+	FormatEx(sBuffer, sizeof(sBuffer), "%d", RoundToFloor(fTime));
+	DispatchKeyValue(iEntity, "hint_timeout", sBuffer);
+	
+	// Height
+	FormatEx(sBuffer, sizeof(sBuffer), "%d", RoundToFloor(fHeight));
+	DispatchKeyValue(iEntity, "hint_icon_offset", sBuffer);
+	
+	// Range
+	FormatEx(sBuffer, sizeof(sBuffer), "%d", RoundToFloor(fRange));
+	DispatchKeyValue(iEntity, "hint_range", sBuffer);
+	
+	// Show off screen
+	FormatEx(sBuffer, sizeof(sBuffer), "%d", !bShowOffScreen);
+	DispatchKeyValue(iEntity, "hint_nooffscreen", sBuffer);
+	
+	// Icons
+	DispatchKeyValue(iEntity, "hint_icon_onscreen", sIconOnScreen);
+	DispatchKeyValue(iEntity, "hint_icon_offscreen", sIconOffScreen);
+	
+	// Command binding
+	DispatchKeyValue(iEntity, "hint_binding", sCmd);
+	
+	// Show text behind walls
+	FormatEx(sBuffer, sizeof(sBuffer), "%d", bShowTextAlways);
+	DispatchKeyValue(iEntity, "hint_forcecaption", sBuffer);
+	
+	// Text color
+	FormatEx(sBuffer, sizeof(sBuffer), "%d %d %d", iColor[0], iColor[1], iColor[2]);
+	DispatchKeyValue(iEntity, "hint_color", sBuffer);
+	
+	//Text
+	ReplaceString(sText, 254, "\n", " ");
+	Format(sText, 254, "%s", sText);
+	DispatchKeyValue(iEntity, "hint_caption", sText);
+
+	if (fTime > 0.0)
+	{
+		Format(sBuffer, sizeof(sBuffer), "OnUser1 !self:kill::%f:1", fTime);
+		SetVariantString(sBuffer);
+		AcceptEntityInput(iEntity, "AddOutput");
+		AcceptEntityInput(iEntity, "FireUser1");
+	}
+	
+	DispatchSpawn(iEntity);
+	AcceptEntityInput(iEntity, "ShowHint");
+}
+
+
+
+//LUA Functions END
+
 
 // public OnEntityDestroyed(entity)
 // {

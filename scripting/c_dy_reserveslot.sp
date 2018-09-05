@@ -139,8 +139,8 @@ bool:isPublicSlot(bool:isPreconnect=false) {
 }
 getPublicSlots(){
   // number of slots free for everyone
-  new cvar;
-  cvar = (GetConVarInt(FindConVar("mp_coop_lobbysize")) - 1);
+  new cvar = 19;
+  //cvar = (GetConVarInt(FindConVar("mp_coop_lobbysize")) - 1);
   PrintToServer("getPublicSlots=MP_COOP_LOBBYSIZE: %d", cvar);
   return (cvar);
 }
