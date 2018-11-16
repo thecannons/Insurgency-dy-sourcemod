@@ -6191,7 +6191,7 @@ stock GetTeamSecCount() {
 				clients++;
 		}
 	}
-	return clients;
+	return clients > 18 ? 18 : clients;
 }
 
 // Get real client count
