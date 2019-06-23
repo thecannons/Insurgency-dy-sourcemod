@@ -5890,7 +5890,7 @@ public Action:Timer_NearestBody(Handle:timer, any:data)
 	
 	decl String:sDirection[64];
 	decl String:sDistance[64];
-    decl String:sHeight[6];
+    decl String:sHeight[11];
 
 	// Client loop
 	for (new medic = 1; medic <= MaxClients; medic++)
@@ -6139,15 +6139,32 @@ String:GetDistanceString(Float:fDistance)
  */
 String:GetHeightString(Float:fClientPosition[3], Float:fTargetPosition[3])
 {
-    decl String:s[6];
+    decl String:s[11];
+    decl Float:verticalDifference;
+    decl Float:fTempDistance;
+    char unit[1];
+    
+    verticalDifference = FloatAbs(fClientPosition[2] - fTargetPosition[2]);
+	fTempDistance = verticalDifference * 0.01905; // Distance to meters
+	
+
+	if (g_iUnitMetric == 1)
+	{
+		fTempDistance = fTempDistance * 3.2808399; // Distance to feet
+		unit = "'";
+	}
+	else
+	{
+		unit = "m";
+	}
     
     if (fClientPosition[2]+64 < fTargetPosition[2])
     {
-        s = "ABOVE";
+        Format(s, sizeof(s), "ABOVE %.0f%s", fTempDistance, unit);
     }
     else if (fClientPosition[2]-64 > fTargetPosition[2])
     {
-        s = "BELOW";
+        Format(s, sizeof(s), "BELOW %.0f%s", fTempDistance, unit);
     }
     else
     {
