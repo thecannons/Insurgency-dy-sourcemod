@@ -6160,11 +6160,11 @@ String:GetHeightString(Float:fClientPosition[3], Float:fTargetPosition[3])
     
     if (fClientPosition[2]+64 < fTargetPosition[2])
     {
-        Format(s, sizeof(s), "ABOVE %.0f%s", verticalDifference, unit);
+        Format(s, sizeof(s), "ABOVE %.0f%s", fTempDistance, unit);
     }
     else if (fClientPosition[2]-64 > fTargetPosition[2])
     {
-        Format(s, sizeof(s), "BELOW %.0f%s", verticalDifference, unit);
+        Format(s, sizeof(s), "BELOW %.0f%s", fTempDistance, unit);
     }
     else
     {
